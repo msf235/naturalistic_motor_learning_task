@@ -68,7 +68,7 @@
       <default class="joint_big">
         <joint damping="5" stiffness="10"/>
         <default class="hip_x">
-          <joint range="-30 10"/>
+          <joint range="-40 30"/>
         </default>
         <default class="hip_z">
           <joint range="-60 35"/>
@@ -96,7 +96,7 @@
         <joint range="-85 60"/>
       </default>
       <default class="elbow">
-        <joint range="-100 50" stiffness="0"/>
+        <joint range="-100 85" stiffness="0"/>
       </default>
     </default>
   </default>
