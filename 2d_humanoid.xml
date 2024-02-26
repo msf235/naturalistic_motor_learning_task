@@ -73,9 +73,9 @@
         <default class="hip_z">
           <joint range="-60 35"/>
         </default>
-        <default class="hip_y">
-          <joint axis="0 1 0" range="-150 20"/>
-        </default>
+        <!--<default class="hip_y">-->
+          <!--<joint axis="0 1 0" range="-150 20"/>-->
+        <!--</default>-->
         <default class="joint_big_stiff">
           <joint stiffness="20"/>
         </default>
