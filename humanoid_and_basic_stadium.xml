@@ -15,6 +15,6 @@
 
 <mujoco model="Humanoid">
   <option timestep="0.005"/>
-  <include file="2d_stadium.xml"/>
-  <include file="2d_humanoid.xml"/>
+  <include file="basic_stadium.xml"/>
+  <include file="humanoid.xml"/>
 </mujoco>
