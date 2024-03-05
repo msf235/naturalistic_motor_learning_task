@@ -2,58 +2,54 @@ import mujoco as mj
 from mujoco import viewer
 import time
 import sys
-# import pygame
+import pygame
 # from pynput.keyboard import Listener
-import termios, fcntl, sys, os
+# import termios, fcntl, sys, os
 # from pynput import keyboard
 
+pygame.init()
+window = pygame.display.set_mode((300, 300))
+clock = pygame.time.Clock()
+
+breakpoint()
 
 xml_file = 'arm.xml'
 with open(xml_file, 'r') as f:
   xml = f.read()
 del f
 
-class controlState:
-    def __init__(self, model, data):
+class keyRecord:
+    def __init__(self):
+        self.key = None
+    def record(self, keycode):
+        self.key = chr(keycode)
+
+class pauseState:
+    def __init__(self):
         self.paused = False
-        self.model = model
-        self.data = data
     def keypause(self, keycode):
-        print("Key pressed")
         if chr(keycode) == ' ':
-            print("Spacebar pressed")
             self.paused = not self.paused
 
 model = mj.MjModel.from_xml_string(xml)
 data = mj.MjData(model)
 
-pauser = controlState(model, data)
-fd = sys.stdin.fileno()
+recorder = keyRecord()
+pauser = pauseState()
 
-oldterm = termios.tcgetattr(fd)
-newattr = termios.tcgetattr(fd)
-newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
-termios.tcsetattr(fd, termios.TCSANOW, newattr)
-
-oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
-fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
-c = ''
-with mj.viewer.launch_passive(model, data,
-                                  key_callback=pauser.keypause
-                                 ) as viewer:
+pause = False
+with mj.viewer.launch_passive(model, data, key_callback=pauser.keypause) \
+        as viewer:
     while viewer.is_running():
-        try:
-            c = sys.stdin.read(1)
-            if c:
-                print("Got character", repr(c))
-        except IOError:
-            pass
         if not pauser.paused:
             mj.mj_step(model, data)
             viewer.sync()
         time.sleep(.007)
-    termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
-    fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+        if event.type == pygame.KEYDOWN:
+            print(pygame.key.name(event.key))
 
 sys.exit()
 
