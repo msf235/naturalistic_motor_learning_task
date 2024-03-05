@@ -9,10 +9,11 @@ class pauseState:
             self.paused = not self.paused
 
 class inputHander:
-    def __init__(self, model, data):
+    def __init__(self, model, data, gain=.1):
         self.model = model
         self.data = data
         self.paused = False
+        self.gain = gain
         # self.key_tuples = [(a,pygame.K_a), (s,pygame.K_s), (d,pygame.K_d),
                              # (f,pygame.K_f), (g,pygame.K_g), (h,pygame.K_h),
                              # (j,pygame.K_j), (k,pygame.K_k), (l,pygame.K_l)]
@@ -56,17 +57,7 @@ class inputHander:
         elif key == pygame.K_SPACE:
             self.paused = not self.paused
         elif key in self.pos_keys:
-            self.data.ctrl[self.key_nums[key]] += 50
+            self.data.ctrl[self.key_nums[key]] += self.gain
         elif key in self.neg_keys:
-            self.data.ctrl[self.key_nums[key]] -= 50
-        # if key in self.key_nums:
-            # self.data.ctrl[self.key_nums[key]] -= 50
-        # if key == pygame.K_a:
-            # self.data.ctrl[0] -= 50
-        # if key == pygame.K_s:
-            # self.data.ctrl[0] += 50
-        # if key == pygame.K_d:
-            # self.data.ctrl[1] -= 50
-        # if key == pygame.K_f:
-            # self.data.ctrl[1] += 50
+            self.data.ctrl[self.key_nums[key]] -= self.gain
 

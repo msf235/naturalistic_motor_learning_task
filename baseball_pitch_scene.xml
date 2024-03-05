@@ -17,7 +17,11 @@
   <visual>
     <map force="0.1" zfar="30"/>
     <rgba haze="0.15 0.25 0.35 1"/>
-    <global offwidth="2560" offheight="1440" elevation="-20" azimuth="120"/>
+      <!--offwidth="2560" offheight="1440"-->
+    <global
+      elevation="20"
+      azimuth="10"
+      />
     <headlight ambient=".8 .8 .8" specular=".8 .8 .8"/>
   </visual>
 

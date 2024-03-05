@@ -18,7 +18,8 @@
   <statistic center="0 0 0.7"/>
 
   <asset>
-    <texture name="body" type="cube" builtin="flat" mark="cross" width="128" height="128" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1" random="0.01"/>
+    <texture name="body" type="cube" builtin="flat" mark="cross" width="128"
+      height="128" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1" random="0.01"/>
     <material name="body" texture="body" texuniform="true" rgba="0.8 0.6 .4 1"/>
   </asset>
 
@@ -27,7 +28,8 @@
     <default class="body">
 
       <!-- geoms -->
-      <geom type="capsule" condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1" material="body" group="1"/>
+      <geom type="capsule" condim="1" friction=".7" solimp=".9 .99 .003"
+        solref=".015 1" material="body" group="1"/>
       <default class="thigh">
         <geom size=".06"/>
       </default>
@@ -54,7 +56,8 @@
       </default>
 
       <!-- joints -->
-      <joint type="hinge" damping=".2" stiffness="1" armature=".01" limited="true" solimplimit="0 .99 .01"/>
+      <joint type="hinge" damping=".2" stiffness="1" armature=".01"
+        limited="true" solimplimit="0 .99 .01"/>
       <default class="joint_big">
         <joint damping="5" stiffness="10"/>
         <default class="hip_x">
@@ -71,7 +74,7 @@
         </default>
       </default>
       <default class="knee">
-        <joint pos="0 0 .02" axis="-1 0 0" range="-160 2"/>
+        <joint pos="0 0 .02" axis="-1 0 0" range="-160 90"/>
       </default>
       <!--<default class="ankle">-->
         <!--<joint range="-50 50"/>-->
@@ -92,7 +95,8 @@
   </default>
 
   <worldbody>
-    <light name="spotlight" mode="targetbodycom" target="torso" diffuse=".8 .8 .8" specular="0.3 0.3 0.3" pos="0 -6 4" cutoff="30"/>
+    <light name="spotlight" mode="targetbodycom" target="torso"
+      diffuse=".8 .8 .8" specular="0.3 0.3 0.3" pos="0 -6 4" cutoff="30"/>
     <body name="torso" pos="0 0 1.282" childclass="body">
       <light name="top" pos="0 0 2" mode="trackcom"/>
       <!--<camera name="back" pos="-3 0 1" xyaxes="0 -1 0 1 0 2" mode="trackcom"/>-->
@@ -193,6 +197,8 @@
   <!--</tendon>-->
 
   <actuator>
+    <motor name="knee_right"      gear="40"  joint="knee_right"/>
+    <motor name="knee_left"       gear="40"  joint="knee_left"/>
     <!--<motor name="abdomen_z"       gear="40"  joint="abdomen_z"/>-->
     <!--<motor name="abdomen_y"       gear="40"  joint="abdomen_y"/>-->
     <motor name="abdomen_x"       gear="40"  joint="abdomen_x"/>
