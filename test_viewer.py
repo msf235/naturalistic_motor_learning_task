@@ -11,8 +11,6 @@ pygame.init()
 window = pygame.display.set_mode((300, 300))
 clock = pygame.time.Clock()
 
-breakpoint()
-
 xml_file = 'arm.xml'
 with open(xml_file, 'r') as f:
   xml = f.read()
@@ -31,25 +29,44 @@ class pauseState:
         if chr(keycode) == ' ':
             self.paused = not self.paused
 
+class inputHander:
+    def __init__(self, model, data):
+        self.model = model
+        self.data = data
+        self.paused = False
+
+    def event_handler(self, events):
+        for event in events:
+            self.process_event(event)
+
+    def process_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            self.process_keydown(event.key)
+
+    def process_keydown(self, key):
+        if key == pygame.K_q:
+            print('Quitting')
+            sys.exit()
+        if key == pygame.K_SPACE:
+            self.paused = not self.paused
+        if key == pygame.K_a:
+            self.data.ctrl[0] -= 50
+        if key == pygame.K_b:
+            self.data.ctrl[0] += 50
+
+
 model = mj.MjModel.from_xml_string(xml)
 data = mj.MjData(model)
 
-recorder = keyRecord()
-pauser = pauseState()
+inp_handler = inputHander(model, data)
 
-pause = False
-with mj.viewer.launch_passive(model, data, key_callback=pauser.keypause) \
-        as viewer:
+with mj.viewer.launch_passive(model, data) as viewer:
     while viewer.is_running():
-        if not pauser.paused:
+        if not inp_handler.paused:
             mj.mj_step(model, data)
             viewer.sync()
+        inp_handler.event_handler(pygame.event.get())
         time.sleep(.007)
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            run = False
-        if event.type == pygame.KEYDOWN:
-            print(pygame.key.name(event.key))
 
 sys.exit()
 
