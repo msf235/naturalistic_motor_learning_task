@@ -34,6 +34,7 @@ class inputHander:
         self.model = model
         self.data = data
         self.paused = False
+        self.nq = model.nq  # Number of actuators
 
     def event_handler(self, events):
         for event in events:
@@ -51,8 +52,12 @@ class inputHander:
             self.paused = not self.paused
         if key == pygame.K_a:
             self.data.ctrl[0] -= 50
-        if key == pygame.K_b:
+        if key == pygame.K_s:
             self.data.ctrl[0] += 50
+        if key == pygame.K_d:
+            self.data.ctrl[1] -= 50
+        if key == pygame.K_f:
+            self.data.ctrl[1] += 50
 
 
 model = mj.MjModel.from_xml_string(xml)
