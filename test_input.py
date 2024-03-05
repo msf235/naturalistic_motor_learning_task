@@ -9,45 +9,79 @@
 # vel = 5
 
 import termios, fcntl, sys, os
-# fd = sys.stdin.fileno()
+fd = sys.stdin.fileno()
 
-# oldterm = termios.tcgetattr(fd)
-# newattr = termios.tcgetattr(fd)
-# newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
-# termios.tcsetattr(fd, termios.TCSANOW, newattr)
+oldterm = termios.tcgetattr(fd)
+newattr = termios.tcgetattr(fd)
+newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
+termios.tcsetattr(fd, termios.TCSANOW, newattr)
 
-# oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
-# fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
 
-class switchKey:
-    def __init__(self):
-        self.keypressed = False
-    def switch(self, key):
-        c = sys.stdin.read(1)
-        if c == key and self.keypressed == False:
-            return True
-        else:
-            self.keypressed = False
-            return False
+try:
+    while 1:
+        try:
+            c = sys.stdin.read(1)
+            if c:
+                print("Got character", repr(c))
+        except IOError: pass
+finally:
+    termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
+    fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
 
-switcher = switchKey()
-running = True
-# TODO: test key input on windows
-while running:
-    pause = switcher.switch(' ')
-    if pause:
-        print("Paused")
-    else:
-        print("Not paused")
-    # try:
-        # c = sys.stdin.read(1)
-        # if c:
-            # if c == 'j':
-                # running = False
-            # print("Got character", repr(c))
-    # except IOError: pass
 
 sys.exit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# class switchKey:
+    # def __init__(self):
+        # self.keypressed = False
+    # def switch(self, key):
+        # c = sys.stdin.read(1)
+        # if c == key and self.keypressed == False:
+            # return True
+        # else:
+            # self.keypressed = False
+            # return False
+
+# switcher = switchKey()
+# running = True
+# # TODO: test key input on windows
+# while running:
+    # pause = switcher.switch(' ')
+    # if pause:
+        # print("Paused")
+    # else:
+        # print("Not paused")
+    # # try:
+        # # c = sys.stdin.read(1)
+        # # if c:
+            # # if c == 'j':
+                # # running = False
+            # # print("Got character", repr(c))
+    # # except IOError: pass
+
+# sys.exit()
 
 try:
     while 1:
