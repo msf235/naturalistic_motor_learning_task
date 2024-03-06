@@ -76,24 +76,34 @@ P = scipy.linalg.solve_discrete_are(A, B, Q, R)
 # Compute the feedback gain matrix K.
 K = np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A
 
-inp_handler = cl.inputHander(model, data)
-inp_handler.paused = True
+state_handler = cl.simulationStateHandler()
+state_handler.paused = True
+
+ctrl_handler = cl.modelControlHandler(model, data, gain=.1)
 
 dq = np.zeros(nq)
 qpos0 = data.qpos.copy()
+
+def controller(model, data):
+    ctrl_handler.event_handler(pygame.event.get())
+    mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)
+    dx = np.hstack((dq, data.qvel)).T
+
+    data.ctrl = ctrl0 - K @ dx
+
+# mj.set_mjcb_control(controller)
 
 with mj.viewer.launch_passive(model, data) as viewer:
     viewer.cam.distance = 10
     viewer.cam.elevation = -10
     viewer.cam.azimuth = 180
     while viewer.is_running():
-        if not inp_handler.paused:
-            mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)
-            dx = np.hstack((dq, data.qvel)).T
-
+        events = pygame.event.get()
+        if not state_handler.paused:
+            mj.mj_step1(model, data)
             data.ctrl = ctrl0 - K @ dx
-
-            mj.mj_step(model, data)
+            ctrl_handler.event_handler(events)
+            mj.mj_step2(model, data)
             viewer.sync()
-        inp_handler.event_handler(pygame.event.get())
         time.sleep(.007)
+        state_handler.event_handler(events)
