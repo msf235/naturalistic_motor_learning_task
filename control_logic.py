@@ -21,12 +21,11 @@ class simulationStateHandler(inputHandler):
         self.paused = False
 
     def process_keydown(self, key):
-        print("State key pressed")
         if key == pygame.K_q:
-            print('Quitting')
+            print('Quitting.')
             sys.exit()
         elif key == pygame.K_SPACE:
-            print("Toggling pause")
+            print("Toggling pause.")
             self.paused = not self.paused
 
 
@@ -45,7 +44,6 @@ class modelControlHandler(inputHandler):
                              pygame.K_j: 3, pygame.K_k: 3}
 
     def process_keydown(self, key):
-        print("Control key pressed")
         if key in self.pos_keys:
             self.data.ctrl[self.key_nums[key]] += self.gain
         if key in self.neg_keys:

@@ -43,55 +43,55 @@ for k in range(10):
 
 R = np.eye(nu)
 
-jac_com = np.zeros((3, nq))
-mj.mj_jacSubtreeCom(model, data, jac_com, model.body('torso').id)
-
-# Get the Jacobian for the left foot.
-jac_lfoot = np.zeros((3, nq))
-mj.mj_jacBodyCom(model, data, jac_lfoot, None, model.body('foot_left').id)
-jac_rfoot = np.zeros((3, nq))
-mj.mj_jacBodyCom(model, data, jac_rfoot, None, model.body('foot_right').id)
-jac_base = (jac_lfoot + jac_rfoot) / 2
-
-jac_diff = jac_com - jac_base
-Qbalance = jac_diff.T @ jac_diff
+# jac_com = np.zeros((3, nq))
+# mj.mj_jacSubtreeCom(model, data, jac_com, model.body('torso').id)
+# # Get the Jacobian for the left foot.
+# jac_lfoot = np.zeros((3, nq))
+# mj.mj_jacBodyCom(model, data, jac_lfoot, None, model.body('foot_left').id)
+# jac_rfoot = np.zeros((3, nq))
+# mj.mj_jacBodyCom(model, data, jac_rfoot, None, model.body('foot_right').id)
+# jac_base = (jac_lfoot + jac_rfoot) / 2
+# jac_diff = jac_com - jac_base
+# Qbalance = jac_diff.T @ jac_diff
 
 fact = 3
 Qupright = np.zeros((nq, nq))
 Qupright[0,0] = fact
 Qupright[1,1] = fact
 
-Q = fact*np.block([[0*Qbalance + Qupright, np.zeros((nq, nq))],
+Q = fact*np.block([[Qupright, np.zeros((nq, nq))],
               [np.zeros((nq, nq)), np.eye(nq)]])
 
-A = np.zeros((2*nq, 2*nq))
-B = np.zeros((2*nq, nu))
-epsilon = 1e-6
-flg_centered = True
-mj.mjd_transitionFD(model, data, epsilon, flg_centered, A, B, None, None)
+def get_feedback_ctrl_matrix(model, data, Q, R):
+    nq = model.nq
+    nu = model.nu
+    A = np.zeros((2*nq, 2*nq))
+    B = np.zeros((2*nq, nu))
+    epsilon = 1e-6
+    flg_centered = True
+    mj.mjd_transitionFD(model, data, epsilon, flg_centered, A, B, None, None)
 
-# Solve discrete Riccati equation.
-P = scipy.linalg.solve_discrete_are(A, B, Q, R)
+    # Solve discrete Riccati equation.
+    P = scipy.linalg.solve_discrete_are(A, B, Q, R)
 
-# Compute the feedback gain matrix K.
-K = np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A
+    # Compute the feedback gain matrix K.
+    K = np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A
+    return K
+
+dq = np.zeros(nq)
+
+def get_lqr_ctrl(model, data, K):
+    mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)
+    dx = np.hstack((dq, data.qvel)).T
+    return -K @ dx
 
 state_handler = cl.simulationStateHandler()
 state_handler.paused = True
 
 ctrl_handler = cl.modelControlHandler(model, data, gain=.1)
 
-dq = np.zeros(nq)
-qpos0 = data.qpos.copy()
+data.ctrl = ctrl0
 
-def controller(model, data):
-    ctrl_handler.event_handler(pygame.event.get())
-    mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)
-    dx = np.hstack((dq, data.qvel)).T
-
-    data.ctrl = ctrl0 - K @ dx
-
-# mj.set_mjcb_control(controller)
 
 with mj.viewer.launch_passive(model, data) as viewer:
     viewer.cam.distance = 10
@@ -101,9 +101,13 @@ with mj.viewer.launch_passive(model, data) as viewer:
         events = pygame.event.get()
         if not state_handler.paused:
             mj.mj_step1(model, data)
-            data.ctrl = ctrl0 - K @ dx
+
+            K = get_feedback_ctrl_matrix(model, data, Q, R)
+            data.ctrl = ctrl0 + get_lqr_ctrl(model, data, K)
             ctrl_handler.event_handler(events)
+
             mj.mj_step2(model, data)
+
             viewer.sync()
         time.sleep(.007)
         state_handler.event_handler(events)
