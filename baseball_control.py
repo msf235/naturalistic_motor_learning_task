@@ -8,7 +8,7 @@ import scipy
 import control_logic as cl
 
 pygame.init()
-# window = pygame.display.set_mode((300, 300))
+window = pygame.display.set_mode((300, 300))
 clock = pygame.time.Clock()
 
 # xml_file = 'arm.xml'
@@ -21,12 +21,25 @@ model = mj.MjModel.from_xml_string(xml)
 data = mj.MjData(model)
 mj.mj_forward(model, data)
 
+nq = model.nq
+nu = model.nu
+
 # Burn in:
 for k in range(10):
     mj.mj_step(model, data)
 
-nq = model.nq
-nu = model.nu
+# Get initial stabilizing controls
+data.qacc = 0
+qpos0 = data.qpos.copy()  # Save the position setpoint.
+mj.mj_inverse(model, data)
+qfrc0 = data.qfrc_inverse.copy()
+ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(data.actuator_moment)
+ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
+
+# Reset and burn in again:
+mj.mj_resetData(model, data)
+for k in range(10):
+    mj.mj_step(model, data)
 
 R = np.eye(nu)
 
@@ -43,7 +56,12 @@ jac_base = (jac_lfoot + jac_rfoot) / 2
 jac_diff = jac_com - jac_base
 Qbalance = jac_diff.T @ jac_diff
 
-Q = 1000*np.block([[Qbalance, np.zeros((nq, nq))],
+fact = 3
+Qupright = np.zeros((nq, nq))
+Qupright[0,0] = fact
+Qupright[1,1] = fact
+
+Q = fact*np.block([[0*Qbalance + Qupright, np.zeros((nq, nq))],
               [np.zeros((nq, nq)), np.eye(nq)]])
 
 A = np.zeros((2*nq, 2*nq))
@@ -58,14 +76,11 @@ P = scipy.linalg.solve_discrete_are(A, B, Q, R)
 # Compute the feedback gain matrix K.
 K = np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A
 
-breakpoint()
-
-jac_diff = jac_com - jac_foot
-Qbalance = jac_diff.T @ jac_diff
-
 inp_handler = cl.inputHander(model, data)
 inp_handler.paused = True
 
+dq = np.zeros(nq)
+qpos0 = data.qpos.copy()
 
 with mj.viewer.launch_passive(model, data) as viewer:
     viewer.cam.distance = 10
@@ -75,6 +90,9 @@ with mj.viewer.launch_passive(model, data) as viewer:
         if not inp_handler.paused:
             mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)
             dx = np.hstack((dq, data.qvel)).T
+
+            data.ctrl = ctrl0 - K @ dx
+
             mj.mj_step(model, data)
             viewer.sync()
         inp_handler.event_handler(pygame.event.get())
