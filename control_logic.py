@@ -1,5 +1,6 @@
 import pygame
 import sys
+import numpy as np
 
 
 class inputHandler:
@@ -32,9 +33,10 @@ class simulationStateHandler(inputHandler):
 class modelControlHandler(inputHandler):
     def __init__(self, model, data, gain=.1):
         super().__init__()
-        self.model = model
-        self.data = data
+        # self.model = model
+        # self.data = data
         self.gain = gain
+        self.ctrl = np.zeros(data.ctrl.shape)
         self.keys = [pygame.K_a, pygame.K_s, pygame.K_d, pygame.K_f,
                      pygame.K_g, pygame.K_h, pygame.K_j, pygame.K_k]
         self.pos_keys = [pygame.K_a, pygame.K_d, pygame.K_g, pygame.K_j]
@@ -45,6 +47,6 @@ class modelControlHandler(inputHandler):
 
     def process_keydown(self, key):
         if key in self.pos_keys:
-            self.data.ctrl[self.key_nums[key]] += self.gain
+            self.ctrl[self.key_nums[key]] += self.gain
         if key in self.neg_keys:
-            self.data.ctrl[self.key_nums[key]] -= self.gain
+            self.ctrl[self.key_nums[key]] -= self.gain
