@@ -8,7 +8,7 @@ import scipy
 import control_logic as cl
 
 pygame.init()
-window = pygame.display.set_mode((300, 300))
+# window = pygame.display.set_mode((300, 300))
 clock = pygame.time.Clock()
 
 # xml_file = 'arm.xml'
@@ -143,11 +143,43 @@ nsteps = int(np.ceil(DURATION/model.opt.timestep))
 perturb = np.random.randn(nsteps, nu)
 width = int(nsteps * CTRL_RATE/DURATION)
 kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
+def conv_term(a, v, k):
+    if len(v) > len(a):
+        a, v = v, a
+    vf = np.flip(v)
+    n = a.shape[0]
+    m = v.shape[0]
+    k1 = min(n, m) // 2 - 1
+    k2 = max(n, m) - k1 - 2
+    ap1 = max(0, k-m+1)
+    ap2 = min(n, k+1)
+    vp1 = max(0, m-k-1)
+    vp2 = min(m, n-k+m-1)
+    ret_val = vf[vp1:vp2] @ a[ap1:ap2]
+    return ret_val
+
+# a = np.random.randn(100)
+# v = np.random.randn(10)
+# n3 = min(len(a), len(v))
+# n4 = max(len(a), len(v))
+# k1 = (n3+1) // 2 - 1
+# k2 = n4 + k1 - 1
+# res11 = conv_term(a, v, k1)
+# res12 = conv_term(a, v, k2)
+# resf2 = np.convolve(a, v, mode='same')
+# res21 = resf2[0]
+# res22 = resf2[-1]
+# breakpoint()
+
 kernel /= np.linalg.norm(kernel)
+perturb_org = perturb.copy()
 for i in range(nu):
   perturb[:, i] = np.convolve(perturb[:, i], kernel, mode='same')
+# temp = np.convolve(perturb_org[:,0], kernel, mode='same')
+breakpoint()
 
-perturbed = np.zeros((10, nu))
+size = 10
+perturbed = np.zeros((size, nu))
 
 with mj.viewer.launch_passive(model, data) as viewer:
     viewer.cam.distance = 10
@@ -158,6 +190,17 @@ with mj.viewer.launch_passive(model, data) as viewer:
         events = pygame.event.get()
         if not state_handler.paused:
             perturb = np.random.randn(nu)
+            perturbed[step] = perturb
+            for i in range(nu):
+              perturb[:step, i] = np.convolve(perturb[:step, i], kernel,
+                                              mode='same')
+            if step == size-1:
+                new_size = size*2
+                new_perturbed = np.zeros((new_size, nu))
+                new_perturbed[:size] = perturbed
+                size = new_size
+                perturbed = new_perturbed
+
 
             mj.mj_step1(model, data)
 
