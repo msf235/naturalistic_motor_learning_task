@@ -136,71 +136,24 @@ CTRL_STD = 0.05       # actuator units
 CTRL_RATE = 0.8       # seconds
 # Precompute some noise.
 np.random.seed(1)
-DURATION=500
-nsteps = int(np.ceil(DURATION/model.opt.timestep))
-perturb = np.random.randn(nsteps, nu)
-width = int(nsteps * CTRL_RATE/DURATION)
+width = int(CTRL_RATE/model.opt.timestep)
 kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
-# def conv_term(a, v, k):
-    # if len(v) > len(a):
-        # a, v = v, a
-    # vf = np.flip(v)
-    # n = a.shape[0]
-    # m = v.shape[0]
-    # ret_val = vf[max(0, m-k-1):min(m, n-k+m-1)] @ a[max(0, k-m+1):min(n, k+1)]
-    # return ret_val
-
-# a = np.random.randn(100)
-# v = np.random.randn(10)
-# n3 = min(len(a), len(v))
-# n4 = max(len(a), len(v))
-# k1 = (n3+1) // 2 - 1
-# k2 = n4 + k1 - 1
-# res11 = conv_term(a, v, k1)
-# res12 = conv_term(a, v, k2)
-# resf2 = np.convolve(a, v, mode='same')
-# res21 = resf2[0]
-# res22 = resf2[-1]
-# breakpoint()
-
-# perturb_org = perturb.copy()
-# for i in range(nu):
-  # perturb[:, i] = np.convolve(perturb[:, i], kernel, mode='same')
-# temp = np.convolve(perturb_org[:,0], kernel, mode='same')
-
-size = 10
-perturbed = np.zeros((size, nu))
 
 state_handler = cl.simulationStateHandler()
 state_handler.paused = True
 state_handler.paused = False
 perturb = np.random.randn(nu, len(kernel))
-perturb_rolled = np.zeros((nu, len(kernel)))
-perturb_smoothed_list = []
-
-# for k in range(50):
-    # perturb_smoothed = perturb @ kernel
-    # perturb_smoothed_list.append(perturb_smoothed)
-    # perturb = np.roll(perturb, -1, axis=1)
-    # perturb[:, -1] = np.random.randn(nu)
-
-# from matplotlib import pyplot as plt
-# plt.plot(perturb_smoothed_list)
-# plt.show()
-# breakpoint()
 
 with mj.viewer.launch_passive(model, data) as viewer:
     viewer.cam.distance = 10
     viewer.cam.elevation = -10
     viewer.cam.azimuth = 180
-    # step = 0
     while viewer.is_running():
         events = pygame.event.get()
         if not state_handler.paused:
             # No need to flip kernel since symmetric
             perturb_smoothed = perturb @ kernel
-            perturb_smoothed_list.append(perturb_smoothed)
             perturb[:] = np.roll(perturb, -1, axis=1)
             perturb[:, -1] = np.random.randn(nu)
 
@@ -215,6 +168,5 @@ with mj.viewer.launch_passive(model, data) as viewer:
             mj.mj_step2(model, data)
 
             viewer.sync()
-            # step += 1
         time.sleep(.007)
         state_handler.event_handler(events)
