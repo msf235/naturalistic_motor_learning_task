@@ -8,7 +8,7 @@ import scipy
 import control_logic as cl
 
 pygame.init()
-# window = pygame.display.set_mode((300, 300))
+window = pygame.display.set_mode((300, 300))
 clock = pygame.time.Clock()
 
 # xml_file = 'arm.xml'
@@ -125,8 +125,6 @@ def get_lqr_ctrl(model, data, K):
     dx = np.hstack((dq, data.qvel)).T
     return -K @ dx
 
-state_handler = cl.simulationStateHandler()
-state_handler.paused = True
 
 ctrl_handler = cl.modelControlHandler(model, data, gain=.1)
 
@@ -143,20 +141,15 @@ nsteps = int(np.ceil(DURATION/model.opt.timestep))
 perturb = np.random.randn(nsteps, nu)
 width = int(nsteps * CTRL_RATE/DURATION)
 kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
-def conv_term(a, v, k):
-    if len(v) > len(a):
-        a, v = v, a
-    vf = np.flip(v)
-    n = a.shape[0]
-    m = v.shape[0]
-    k1 = min(n, m) // 2 - 1
-    k2 = max(n, m) - k1 - 2
-    ap1 = max(0, k-m+1)
-    ap2 = min(n, k+1)
-    vp1 = max(0, m-k-1)
-    vp2 = min(m, n-k+m-1)
-    ret_val = vf[vp1:vp2] @ a[ap1:ap2]
-    return ret_val
+kernel /= np.linalg.norm(kernel)
+# def conv_term(a, v, k):
+    # if len(v) > len(a):
+        # a, v = v, a
+    # vf = np.flip(v)
+    # n = a.shape[0]
+    # m = v.shape[0]
+    # ret_val = vf[max(0, m-k-1):min(m, n-k+m-1)] @ a[max(0, k-m+1):min(n, k+1)]
+    # return ret_val
 
 # a = np.random.randn(100)
 # v = np.random.randn(10)
@@ -171,48 +164,57 @@ def conv_term(a, v, k):
 # res22 = resf2[-1]
 # breakpoint()
 
-kernel /= np.linalg.norm(kernel)
-perturb_org = perturb.copy()
-for i in range(nu):
-  perturb[:, i] = np.convolve(perturb[:, i], kernel, mode='same')
+# perturb_org = perturb.copy()
+# for i in range(nu):
+  # perturb[:, i] = np.convolve(perturb[:, i], kernel, mode='same')
 # temp = np.convolve(perturb_org[:,0], kernel, mode='same')
-breakpoint()
 
 size = 10
 perturbed = np.zeros((size, nu))
+
+state_handler = cl.simulationStateHandler()
+state_handler.paused = True
+state_handler.paused = False
+perturb = np.random.randn(nu, len(kernel))
+perturb_rolled = np.zeros((nu, len(kernel)))
+perturb_smoothed_list = []
+
+# for k in range(50):
+    # perturb_smoothed = perturb @ kernel
+    # perturb_smoothed_list.append(perturb_smoothed)
+    # perturb = np.roll(perturb, -1, axis=1)
+    # perturb[:, -1] = np.random.randn(nu)
+
+# from matplotlib import pyplot as plt
+# plt.plot(perturb_smoothed_list)
+# plt.show()
+# breakpoint()
 
 with mj.viewer.launch_passive(model, data) as viewer:
     viewer.cam.distance = 10
     viewer.cam.elevation = -10
     viewer.cam.azimuth = 180
-    step = 0
+    # step = 0
     while viewer.is_running():
         events = pygame.event.get()
         if not state_handler.paused:
-            perturb = np.random.randn(nu)
-            perturbed[step] = perturb
-            for i in range(nu):
-              perturb[:step, i] = np.convolve(perturb[:step, i], kernel,
-                                              mode='same')
-            if step == size-1:
-                new_size = size*2
-                new_perturbed = np.zeros((new_size, nu))
-                new_perturbed[:size] = perturbed
-                size = new_size
-                perturbed = new_perturbed
-
+            # No need to flip kernel since symmetric
+            perturb_smoothed = perturb @ kernel
+            perturb_smoothed_list.append(perturb_smoothed)
+            perturb[:] = np.roll(perturb, -1, axis=1)
+            perturb[:, -1] = np.random.randn(nu)
 
             mj.mj_step1(model, data)
 
             lqr_ctrl = get_lqr_ctrl(model, data, K)
             data.ctrl = ctrl0 + lqr_ctrl
-            data.ctrl += CTRL_STD*perturb[step]
+            data.ctrl += CTRL_STD*perturb_smoothed
             ctrl_handler.event_handler(events)
             data.ctrl += ctrl_handler.ctrl
 
             mj.mj_step2(model, data)
 
             viewer.sync()
-            step += 1
+            # step += 1
         time.sleep(.007)
         state_handler.event_handler(events)
