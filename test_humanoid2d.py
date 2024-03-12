@@ -24,7 +24,6 @@ data = env.data
 ## Burn in:
 for k in range(10):
     env.step(np.zeros(model.nu))
-    # mj.mj_step(model, data)
 
 qpos0 = data.qpos.copy()
 ctrl0 = lqr.get_ctrl0(model, data)
@@ -41,5 +40,4 @@ noise = util.FilteredNoise(model.nu, kernel, 3*seed+7)
 for k in range(2000):
     ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
     env.step(ctrl + CTRL_STD*noise.sample())
-    # mj.mj_step(model, data)
 # breakpoint()

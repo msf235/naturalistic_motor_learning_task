@@ -17,10 +17,6 @@ env = h2m.Humanoid2dEnv(render_mode='human')
 model = env.model
 data = env.data
 
-# model = mj.MjModel.from_xml_string(xml)
-# data = mj.MjData(model)
-# mj.mj_forward(model, data)
-
 nq = model.nq
 nu = model.nu
 
@@ -44,8 +40,6 @@ leg_dofs = [
 ]
 balance_dofs = abdomen_dofs + leg_dofs
 other_dofs = np.setdiff1d(body_dofs, balance_dofs)
-
-dq = np.zeros(nq)
 
 # K = get_feedback_ctrl_matrix(model, data, Q, R)
 
