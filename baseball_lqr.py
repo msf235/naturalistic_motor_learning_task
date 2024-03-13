@@ -62,7 +62,7 @@ def get_Q_balance(model, data):
     Qbalance = jac_diff.T @ jac_diff
     return Qbalance
 
-def get_Q_joint(model, data=None):
+def get_Q_joint(model, data=None, excluded_acts=[]):
     balance_joint_cost  = 3     # Joints required for balancing.
     other_joint_cost    = .3    # Other joints.
     joints = get_joint_names(model)
@@ -71,14 +71,15 @@ def get_Q_joint(model, data=None):
     Qjoint[joints['root_dofs'], joints['root_dofs']] *= 0  # Don't penalize free joint directly.
     Qjoint[joints['balance_dofs'], joints['balance_dofs']] *= balance_joint_cost
     Qjoint[joints['other_dofs'], joints['other_dofs']] *= other_joint_cost
+    Qjoint[excluded_acts, excluded_acts] *= 0
     return Qjoint
 
-def get_Q_matrix(model, data):
+def get_Q_matrix(model, data, excluded_state_inds=[]):
     # Cost coefficients.
     balance_cost        = 1000  # Balancing.
 
     Qbalance = get_Q_balance(model, data)
-    Qjoint = get_Q_joint(model, data)
+    Qjoint = get_Q_joint(model, data, excluded_state_inds)
     # Construct the Q matrix for position DoFs.
     Qpos = balance_cost * Qbalance + Qjoint
 
@@ -106,12 +107,15 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R):
     K = np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A
     return K
 
-def get_feedback_ctrl_matrix(model, data):
+def get_feedback_ctrl_matrix(model, data, excluded_state_inds=[], rv=None):
     # Assumes that data.ctrl has been set to ctrl0.
     nq = model.nq
     nu = model.nu
-    R = np.eye(nu)
-    Q = get_Q_matrix(model, data)
+    if rv is None:
+        R = np.eye(nu)
+    else:
+        R = np.diag(rv)
+    Q = get_Q_matrix(model, data, excluded_state_inds)
     K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R)
     return K
 

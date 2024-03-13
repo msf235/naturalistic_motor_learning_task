@@ -32,7 +32,13 @@ reset(model, data, 10)
 qpos0 = data.qpos.copy()
 ctrl0 = lqr.get_ctrl0(model, data)
 data.ctrl = ctrl0
-K = lqr.get_feedback_ctrl_matrix(model, data)
+excluded_state_inds = [8, 9]
+included_state_inds = [i for i in range(model.nv) if i not in
+                       excluded_state_inds]
+excluded_act_inds = [5, 6]
+rv = np.ones(model.nu)
+rv[excluded_act_inds] = .1
+K = lqr.get_feedback_ctrl_matrix(model, data, excluded_state_inds, rv)
 
 # CTRL_STD = 0.05       # actuator units
 CTRL_STD = 0       # actuator units
@@ -71,6 +77,8 @@ mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
 dldq = C.T @ dlds
 # lams_fin = np.zeros((Tk, model.nu))
 lams_fin = dldq
+free_act_inds = [5, 6]
+fixed_act_inds = [i for i in range(model.nu) if i not in free_act_inds]
 
 # lams[Tk-1,:nv] = dldq
 # lams[Tk-1,2] += dldtheta
@@ -88,12 +96,30 @@ while True:
     lams_fin = dldq
 
     reset(model, data, 10)
-    grads = util.traj_deriv(model, data, qs, vs, us, lams_fin, losses)
-    ctrls = ctrls - .01*grads[:Tk-1]
+    grads = util.traj_deriv(model, data, qs, vs, us, lams_fin, losses,
+                            fixed_act_inds=fixed_act_inds)
+    ctrls[:,free_act_inds] = ctrls[:,free_act_inds] - .01*grads[:Tk-1]
+
+    # ctrls_lqr = np.zeros((Tk-1, model.nu))
+
+    # for k in range(Tk-1):
+        # ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
+        # ctrls[k] = ctrl
+        # out = env.step(ctrl + CTRL_STD*noise.sample())
+        # observation, reward, terminated, __, info = out
+        # qs[k+1] = observation[:model.nq]
+        # vs[k+1] = observation[model.nq:]
+
+    # mj.mj_resetData(model, data)
+    # data.ctrl = ctrl0
+    # ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
+    # ctrls[k] = ctrl
+    K = lqr.get_feedback_ctrl_matrix(model, data, excluded_state_inds, rv)
 
     env.reset(seed=seed)
     reset(model, data, 10)
     for k in range(Tk-1):
+        ctrl_lqr = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
         ctrl = ctrls[k]
         out = env.step(ctrl + CTRL_STD*noise.sample())
         observation, reward, terminated, __, info = out
