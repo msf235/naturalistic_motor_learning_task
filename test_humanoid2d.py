@@ -48,7 +48,7 @@ kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
 noise = util.FilteredNoise(model.nu, kernel, 3*seed+7)
 
-Tk = 400
+Tk = 1600
 qs = np.zeros((Tk, model.nq))
 qs[0] = qpos0
 vs = np.zeros((Tk, model.nq))
@@ -70,7 +70,7 @@ for k in range(Tk-1):
         # CTRL_STD = 0
     qpos = data.qpos.copy()
     # data.qpos[:] = qpos0
-    # qpos0n[right_arm_j] = data.qpos[right_arm_j]
+    qpos0n[right_arm_j] = data.qpos[right_arm_j]
     data.qpos[:] = qpos0n
     ctrl0 = lqr.get_ctrl0(model, data)
     data.ctrl[:] = ctrl0
