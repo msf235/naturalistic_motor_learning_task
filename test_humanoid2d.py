@@ -122,8 +122,10 @@ while True:
     reset(model, data, 10)
     for k in range(Tk-1):
         # ctrl_lqr = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-        ctrl = ctrls[k]
-        if k % 10 == 0:
+        # ctrl = ctrls[k]
+        # if k % 10 == 0:
+        # if k > 20 == 0:
+        if k > - 1 == 0:
             # ctrl0 = lqr.get_ctrl0(model, data)
             # # qpos0 = data.qpos.copy()
             # data.ctrl[:] = ctrl0
