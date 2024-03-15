@@ -41,10 +41,12 @@ def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
     lams[Tk-1,:model.nv] = lams_fin
     grads = np.zeros((Tk, nufree))
     tau_loss_factor = 1e-9
+    loss_u = np.delete(us, fixed_act_inds, axis=1)
 
     for tk in range(2, Tk):
         lams[Tk-tk] = As[Tk-tk].T @ lams[Tk-tk+1]
-        grads[Tk-tk] = (tau_loss_factor/tk**.5)*losses[Tk-tk] \
+        # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
+        grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
                 + Bs[Tk-tk].T @ lams[Tk-tk+1]
     return grads
 
