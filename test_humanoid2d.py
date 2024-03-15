@@ -38,19 +38,21 @@ included_state_inds = [i for i in range(model.nv) if i not in
 excluded_act_inds = [5, 6]
 included_act_inds = [i for i in range(model.nu) if i not in
                        excluded_act_inds]
-rv = np.ones(model.nu)
-rv[excluded_act_inds] = .1
-K = lqr.get_feedback_ctrl_matrix(model, data, excluded_state_inds, rv)
+# rv = np.ones(model.nu)
+# rv[excluded_act_inds] = .1
+# K = lqr.get_feedback_ctrl_matrix(model, data, excluded_state_inds, rv)
+K = lqr.get_feedback_ctrl_matrix(model, data)
 
 # CTRL_STD = 0.05       # actuator units
-CTRL_STD = 0       # actuator units
+CTRL_STD = 0.1       # actuator units
+# CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 width = int(CTRL_RATE/model.opt.timestep)
 kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
 noise = util.FilteredNoise(model.nu, kernel, 3*seed+7)
 
-Tk = 200
+Tk = 300
 qs = np.zeros((Tk, model.nq))
 qs[0] = qpos0
 vs = np.zeros((Tk, model.nq))
@@ -59,6 +61,10 @@ us = np.zeros((Tk, model.nu))
 losses = np.zeros((Tk,))
 ctrls = np.zeros((Tk-1, model.nu))
 
+data.ctrl[:] = ctrl0
+ctrl = ctrl0
+# ctrl = 0*ctrl0
+
 for k in range(Tk-1):
     ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
     ctrls[k] = ctrl
@@ -66,6 +72,8 @@ for k in range(Tk-1):
     observation, reward, terminated, __, info = out
     qs[k+1] = observation[:model.nq]
     vs[k+1] = observation[model.nq:]
+
+sys.exit()
 
 
 sites1 = data.site('hand_right').xpos
