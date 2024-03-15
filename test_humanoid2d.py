@@ -36,19 +36,19 @@ data.ctrl = ctrl0
 rv = np.ones(model.nu)
 # rv[right_arm_act_inds] = .1
 # K = lqr.get_feedback_ctrl_matrix(model, data, right_arm_state_inds, rv)
-# K = lqr.get_feedback_ctrl_matrix(model, data)
+K = lqr.get_feedback_ctrl_matrix(model, data)
 
 
-# CTRL_STD = 0.05       # actuator units
+CTRL_STD = 0.05       # actuator units
 # CTRL_STD = 0.1       # actuator units
-CTRL_STD = 0       # actuator units
+# CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 width = int(CTRL_RATE/model.opt.timestep)
 kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
 noise = util.FilteredNoise(model.nu, kernel, 3*seed+7)
 
-Tk = 300
+Tk = 400
 qs = np.zeros((Tk, model.nq))
 qs[0] = qpos0
 vs = np.zeros((Tk, model.nq))
@@ -66,22 +66,23 @@ right_arm_j = joints['right_arm_joint_inds']
 qpos0n = qpos0.copy()
 
 for k in range(Tk-1):
+    # if k == 100:
+        # CTRL_STD = 0
     qpos = data.qpos.copy()
+    # data.qpos[:] = qpos0
     # qpos0n[right_arm_j] = data.qpos[right_arm_j]
     # data.qpos[:] = qpos0n
-    data.qpos[:] = qpos0
-    ctrl0 = lqr.get_ctrl0(model, data)
-    data.ctrl = ctrl0
-    K = lqr.get_feedback_ctrl_matrix(model, data)
+    # ctrl0 = lqr.get_ctrl0(model, data)
+    # data.ctrl[:] = ctrl0
+    # K = lqr.get_feedback_ctrl_matrix(model, data)
     ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
-    data.qpos[:] = qpos
+    # data.qpos[:] = qpos
     ctrls[k] = ctrl
     out = env.step(ctrl + CTRL_STD*noise.sample())
     observation, reward, terminated, __, info = out
     qs[k+1] = observation[:model.nq]
     vs[k+1] = observation[model.nq:]
 
-breakpoint()
 sys.exit()
 
 
