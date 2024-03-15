@@ -36,6 +36,8 @@ excluded_state_inds = [8, 9]
 included_state_inds = [i for i in range(model.nv) if i not in
                        excluded_state_inds]
 excluded_act_inds = [5, 6]
+included_act_inds = [i for i in range(model.nu) if i not in
+                       excluded_act_inds]
 rv = np.ones(model.nu)
 rv[excluded_act_inds] = .1
 K = lqr.get_feedback_ctrl_matrix(model, data, excluded_state_inds, rv)
@@ -98,7 +100,7 @@ while True:
     reset(model, data, 10)
     grads = util.traj_deriv(model, data, qs, vs, us, lams_fin, losses,
                             fixed_act_inds=fixed_act_inds)
-    ctrls[:,free_act_inds] = ctrls[:,free_act_inds] - .01*grads[:Tk-1]
+    ctrls[:,free_act_inds] = ctrls[:, free_act_inds] - .01*grads[:Tk-1]
 
     # ctrls_lqr = np.zeros((Tk-1, model.nu))
 
@@ -119,8 +121,16 @@ while True:
     env.reset(seed=seed)
     reset(model, data, 10)
     for k in range(Tk-1):
-        ctrl_lqr = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
+        # ctrl_lqr = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
         ctrl = ctrls[k]
+        if k % 10 == 0:
+            # ctrl0 = lqr.get_ctrl0(model, data)
+            # # qpos0 = data.qpos.copy()
+            # data.ctrl[:] = ctrl0
+            # K = lqr.get_feedback_ctrl_matrix(model, data, excluded_state_inds, rv)
+            ctrl_lqr = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
+            # ctrl[included_act_inds] = ctrl_lqr[included_act_inds]
+            ctrl = ctrl_lqr
         out = env.step(ctrl + CTRL_STD*noise.sample())
         observation, reward, terminated, __, info = out
         qs[k+1] = observation[:model.nq]
