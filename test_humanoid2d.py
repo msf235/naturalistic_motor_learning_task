@@ -3,6 +3,7 @@ import baseball_lqr as lqr
 import numpy as np
 import sim_utils as util
 import mujoco as mj
+import sys
 
 seed = 2
 
@@ -28,24 +29,32 @@ def reset(model, data, nsteps):
         mj.mj_step(model, data)
 
 reset(model, data, 10)
+qpos = data.qpos.copy(); qvel = data.qvel.copy(); qacc = data.qacc.copy()
+act = data.act.copy(); ctrl = data.ctrl.copy(); qfrc_applied = data.qfrc_applied.copy()
+qfrc_inverse = data.qfrc_inverse.copy(); xfrc_applied = data.xfrc_applied.copy()
 
 qpos0 = data.qpos.copy()
 ctrl0 = lqr.get_ctrl0(model, data)
 data.ctrl = ctrl0
-excluded_state_inds = [8, 9]
-included_state_inds = [i for i in range(model.nv) if i not in
-                       excluded_state_inds]
-excluded_act_inds = [5, 6]
-included_act_inds = [i for i in range(model.nu) if i not in
-                       excluded_act_inds]
-# rv = np.ones(model.nu)
-# rv[excluded_act_inds] = .1
-# K = lqr.get_feedback_ctrl_matrix(model, data, excluded_state_inds, rv)
-K = lqr.get_feedback_ctrl_matrix(model, data)
+rv = np.ones(model.nu)
+# rv[right_arm_act_inds] = .1
+# K = lqr.get_feedback_ctrl_matrix(model, data, right_arm_state_inds, rv)
+# K = lqr.get_feedback_ctrl_matrix(model, data)
+K1 = lqr.get_feedback_ctrl_matrix(model, data)
+
+# reset(model, data, 10)
+data.qpos[:] = qpos; data.qvel[:] = qvel; data.qacc[:] = qacc
+data.act[:] = act; data.ctrl[:] = ctrl; data.qfrc_applied[:] = qfrc_applied
+data.qfrc_inverse[:] = qfrc_inverse; data.xfrc_applied[:] = xfrc_applied
+
+ctrl0 = lqr.get_ctrl0(model, data)
+data.ctrl = ctrl0
+K2 = lqr.get_feedback_ctrl_matrix(model, data)
+breakpoint()
 
 # CTRL_STD = 0.05       # actuator units
-CTRL_STD = 0.1       # actuator units
-# CTRL_STD = 0       # actuator units
+# CTRL_STD = 0.1       # actuator units
+CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 width = int(CTRL_RATE/model.opt.timestep)
 kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
@@ -65,14 +74,27 @@ data.ctrl[:] = ctrl0
 ctrl = ctrl0
 # ctrl = 0*ctrl0
 
+joints = lqr.get_joint_names(model)
+right_arm_j = joints['right_arm_joint_inds']
+qpos0n = qpos0.copy()
+
 for k in range(Tk-1):
-    ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
+    qpos = data.qpos.copy()
+    # qpos0n[right_arm_j] = data.qpos[right_arm_j]
+    # data.qpos[:] = qpos0n
+    data.qpos[:] = qpos0
+    ctrl0 = lqr.get_ctrl0(model, data)
+    data.ctrl = ctrl0
+    K = lqr.get_feedback_ctrl_matrix(model, data)
+    ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
+    data.qpos[:] = qpos
     ctrls[k] = ctrl
     out = env.step(ctrl + CTRL_STD*noise.sample())
     observation, reward, terminated, __, info = out
     qs[k+1] = observation[:model.nq]
     vs[k+1] = observation[model.nq:]
 
+breakpoint()
 sys.exit()
 
 
