@@ -29,9 +29,6 @@ def reset(model, data, nsteps):
         mj.mj_step(model, data)
 
 reset(model, data, 10)
-qpos = data.qpos.copy(); qvel = data.qvel.copy(); qacc = data.qacc.copy()
-act = data.act.copy(); ctrl = data.ctrl.copy(); qfrc_applied = data.qfrc_applied.copy()
-qfrc_inverse = data.qfrc_inverse.copy(); xfrc_applied = data.xfrc_applied.copy()
 
 qpos0 = data.qpos.copy()
 ctrl0 = lqr.get_ctrl0(model, data)
@@ -40,17 +37,7 @@ rv = np.ones(model.nu)
 # rv[right_arm_act_inds] = .1
 # K = lqr.get_feedback_ctrl_matrix(model, data, right_arm_state_inds, rv)
 # K = lqr.get_feedback_ctrl_matrix(model, data)
-K1 = lqr.get_feedback_ctrl_matrix(model, data)
 
-# reset(model, data, 10)
-data.qpos[:] = qpos; data.qvel[:] = qvel; data.qacc[:] = qacc
-data.act[:] = act; data.ctrl[:] = ctrl; data.qfrc_applied[:] = qfrc_applied
-data.qfrc_inverse[:] = qfrc_inverse; data.xfrc_applied[:] = xfrc_applied
-
-ctrl0 = lqr.get_ctrl0(model, data)
-data.ctrl = ctrl0
-K2 = lqr.get_feedback_ctrl_matrix(model, data)
-breakpoint()
 
 # CTRL_STD = 0.05       # actuator units
 # CTRL_STD = 0.1       # actuator units
