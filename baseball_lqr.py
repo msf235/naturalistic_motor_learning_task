@@ -13,12 +13,17 @@ import humanoid2d as h2d
 def get_ctrl0(model, data):
     # Get initial stabilizing controls
     # THIS FUNCTION MODIFIES data!
-    mj.mj_forward(model, data) # Necessary?
-    data.qacc = 0
+    # Attempts were made to avoid modifying data in a problematic way, but not
+    # being very familiar with mj_inverse I cannot guarantee this.
+    qvel = data.qvel; qacc = data.qacc  # Copy data to avoid modifying it.
+    mj.mj_forward(model, data)
+    data.qacc[:] = 0
+    data.qvel[:] = 0
     mj.mj_inverse(model, data)
     qfrc0 = data.qfrc_inverse.copy()
     ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(data.actuator_moment)
     ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
+    data.qvel[:] = qvel; data.qacc[:] = qacc
     return ctrl0
 
 def get_joint_names(model, data=None):
@@ -43,6 +48,12 @@ def get_joint_names(model, data=None):
     joints['balance_dofs'] = joints['abdomen_dofs'] + joints['leg_dofs']
     joints['other_dofs'] = np.setdiff1d(joints['body_dofs'],
                                         joints['balance_dofs'])
+    joints['right_arm_joint_inds'] = [8, 9]
+    joints['non_right_arm_joint_inds'] = [i for i in range(model.nq) if i not
+                                          in joints['right_arm_joint_inds']]
+    joints['right_arm_act_inds'] = [5,6]
+    joints['non_right_arm_act_inds'] = [i for i in range(model.nu) if i not in
+                                        joints['right_arm_act_inds']]
     return joints
 
 
@@ -92,6 +103,8 @@ def get_Q_matrix(model, data, excluded_state_inds=[]):
 def get_feedback_ctrl_matrix_from_QR(model, data, Q, R):
     # Assumes that data.ctrl has been set to ctrl0 and data.qpos has been set
     # to qpos0.
+    qvel = data.qvel.copy()
+    data.qvel[:] = 0
     nq = model.nq
     A = np.zeros((2*nq, 2*nq))
     B = np.zeros((2*nq, model.nu))
@@ -105,10 +118,12 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R):
 
     # Compute the feedback gain matrix K.
     K = np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A
+    data.qvel[:] = qvel
     return K
 
 def get_feedback_ctrl_matrix(model, data, excluded_state_inds=[], rv=None):
     # Assumes that data.ctrl has been set to ctrl0.
+    # What about data.qpos, data.qvel, data.qacc?
     nq = model.nq
     nu = model.nu
     if rv is None:
