@@ -19,19 +19,20 @@ def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
     nufree = model.nu - len(fixed_act_inds)
     # WARNING: changes data!
     Tk = qs.shape[0]
-    As = np.zeros((Tk, 2*model.nv, 2*model.nv))
-    Bs = np.zeros((Tk, 2*model.nv, nufree))
+    As = np.zeros((Tk-1, 2*model.nv, 2*model.nv))
+    Bs = np.zeros((Tk-1, 2*model.nv, nufree))
     B = np.zeros((2*model.nv, model.nu))
     # Cs = np.zeros((Tk, 3, model.nv))
     lams = np.zeros((Tk, 2*model.nv))
+    not_fixed_act_inds = [i for i in range(model.nu) if i not in
+                          fixed_act_inds]
 
-    for tk in range(Tk):
+    for tk in range(Tk-1):
         data.qpos[:] = qs[tk]
         data.qvel[:] = vs[tk]
         data.ctrl[:] = us[tk]
         epsilon = 1e-6
-        mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None,
-                            None)
+        mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
         Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
         # mj.mj_jacSite(model, data, Cs[tk], None, site=model.site('').id)
 

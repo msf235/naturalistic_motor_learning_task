@@ -86,25 +86,9 @@ while True:
     lams_fin = dldq
 
     reset(model, data, 10)
-    grads = util.traj_deriv(model, data, qs, qvels, ctrls, lams_fin, losses,
-                            fixed_act_inds=other_a)
+    grads = util.traj_deriv(model, data, qs, qvels, ctrls,
+                            lams_fin, losses, fixed_act_inds=other_a)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - .01*grads[:Tk-1]
-
-    # ctrls_lqr = np.zeros((Tk-1, model.nu))
-
-    # for k in range(Tk-1):
-        # ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-        # ctrls[k] = ctrl
-        # out = env.step(ctrl + CTRL_STD*noise.sample())
-        # observation, reward, terminated, __, info = out
-        # qs[k+1] = observation[:model.nq]
-        # vs[k+1] = observation[model.nq:]
-
-    # mj.mj_resetData(model, data)
-    # data.ctrl = ctrl0
-    # ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-    # ctrls[k] = ctrl
-    K = lqr.get_feedback_ctrl_matrix(model, data, excluded_state_inds, rv)
 
     env.reset(seed=seed)
     reset(model, data, 10)
