@@ -36,12 +36,10 @@ def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
         Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
         # mj.mj_jacSite(model, data, Cs[tk], None, site=model.site('').id)
 
-    # dldq = Cs[Tk-1].T @ dlds
-    # lams[Tk-1,:nv] = targ_factor * dldq
-    # lams[Tk-1,2] += dldtheta
-    lams[Tk-1,:model.nv] = lams_fin
+    lams[Tk-1, :model.nv] = lams_fin
     grads = np.zeros((Tk, nufree))
-    tau_loss_factor = 1e-9
+    # tau_loss_factor = 1e-9
+    tau_loss_factor = 0
     loss_u = np.delete(us, fixed_act_inds, axis=1)
 
     for tk in range(2, Tk):
@@ -49,5 +47,6 @@ def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
         # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
         grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
                 + Bs[Tk-tk].T @ lams[Tk-tk+1]
+    # breakpoint()
     return grads
 
