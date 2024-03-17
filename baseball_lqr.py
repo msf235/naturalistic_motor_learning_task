@@ -146,4 +146,33 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0):
     # return get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
 
 
+# Get stabilizing controls
+def get_stabilized_ctrls(model, data, Tk=50, noise=None):
+    qpos0 = data.qpos.copy()
+    ctrl0 = lqr.get_ctrl0(model, data)
+    data.ctrl = ctrl0
+    rv = np.ones(model.nu)
+    K = lqr.get_feedback_ctrl_matrix(model, data)
+
+    qs = np.zeros((Tk, model.nq))
+    qvels = np.zeros((Tk, model.nq))
+    qs[0] = qpos0
+    qvels[0] = data.qvel.copy()
+    ctrls = np.zeros((Tk-1, model.nu))
+
+    data.ctrl[:] = ctrl0
+    ctrl = ctrl0
+
+    for k in range(Tk-1):
+        ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
+        ctrls[k] = ctrl
+        # out = env.step(ctrl + CTRL_STD*noise.sample())
+        mj.mj_step1(model, data)
+        data.ctrl[:] = ctrl + noise.sample()
+        mj.mj_step2(model, data)
+        # observation, reward, terminated, __, info = out
+        qs[k+1] = observation[:model.nq]
+        qvels[k+1] = observation[model.nq:]
+
+    return qs, qvels, ctrls
 

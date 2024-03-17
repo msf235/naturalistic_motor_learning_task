@@ -22,41 +22,23 @@ kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
 noise = util.FilteredNoise(model.nu, kernel, 3*seed+7)
 
-# Get initial stabilizing controls
 ## Reset and burn in:
 def reset(model, data, nsteps):
     mj.mj_resetData(model, data)
     for k in range(nsteps):
         mj.mj_step(model, data)
 
+def simulate(model, data, ctrls, noise=None):
+    if noise is None:
+    for ctrl in ctrls:
+        out = env.step(ctrl + noise.sample())
+        observation, reward, terminated, __, info = out
+
 reset(model, data, 10)
 
-qpos0 = data.qpos.copy()
-ctrl0 = lqr.get_ctrl0(model, data)
-data.ctrl = ctrl0
-rv = np.ones(model.nu)
-K = lqr.get_feedback_ctrl_matrix(model, data)
-
 # Tk = 200 # Too many steps messes up gradient near tk=0
-Tk = 50
-qs = np.zeros((Tk, model.nq))
-qvels = np.zeros((Tk, model.nq))
-qs[0] = qpos0
-qvels[0] = data.qvel.copy()
-# us = np.zeros((Tk, model.nu))
-losses = np.zeros((Tk,))
-ctrls = np.zeros((Tk-1, model.nu))
 
-data.ctrl[:] = ctrl0
-ctrl = ctrl0
-
-for k in range(Tk-1):
-    ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-    ctrls[k] = ctrl
-    out = env.step(ctrl + CTRL_STD*noise.sample())
-    observation, reward, terminated, __, info = out
-    qs[k+1] = observation[:model.nq]
-    qvels[k+1] = observation[model.nq:]
+qs, qvels, ctrls = lqr.get_stabilized_ctrls(model, data)
 
 # Gradient descent
 
