@@ -28,17 +28,20 @@ def reset(model, data, nsteps):
     for k in range(nsteps):
         mj.mj_step(model, data)
 
-def simulate(model, data, ctrls, noise=None):
+def simulate_and_view(model, data, ctrls, noise=None):
     if noise is None:
+        noise = util.BlankNoise()
     for ctrl in ctrls:
         out = env.step(ctrl + noise.sample())
-        observation, reward, terminated, __, info = out
+        # observation, reward, terminated, __, info = out
 
 reset(model, data, 10)
 
 # Tk = 200 # Too many steps messes up gradient near tk=0
 
 qs, qvels, ctrls = lqr.get_stabilized_ctrls(model, data)
+simulate_and_view(model, data, ctrls)
+breakpoint()
 
 # Gradient descent
 

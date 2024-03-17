@@ -14,6 +14,10 @@ class FilteredNoise:
         self.perturb[:, -1] = self.rng.standard_normal(self.ind_dim)
         return perturb_smoothed
 
+class BlankNoise:
+    def sample(self):
+        return 0
+
 def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
                fixed_act_inds=[]):
     nufree = model.nu - len(fixed_act_inds)
