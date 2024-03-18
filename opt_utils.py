@@ -8,12 +8,7 @@ import sim_utils as util
 import humanoid2d as h2d
 import copy
 
-# xml_file = 'humanoid_and_baseball.xml'
-# with open(xml_file, 'r') as f:
-  # xml = f.read()
-CTRL_STD = 0.05       # actuator units
-CTRL_RATE = 0.8       # seconds
-
+### LQR
 def get_ctrl0(model, data):
     data = copy.deepcopy(data)
     mj.mj_forward(model, data)
@@ -123,7 +118,7 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R):
 def get_feedback_ctrl_matrix(model, data, excluded_state_inds=[], rv=None):
     # Assumes that data.ctrl has been set to ctrl0.
     # What about data.qpos, data.qvel, data.qacc?
-    # data = copy.deepcopy(data)
+    data = copy.deepcopy(data)
     nq = model.nq
     nu = model.nu
     if rv is None:
@@ -173,3 +168,103 @@ def get_stabilized_ctrls(model, data, Tk=50, noisev=None):
 
     return ctrls, K
 
+### Gradient descent
+def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
+               fixed_act_inds=[]):
+    data = copy.deepcopy(data)
+    nufree = model.nu - len(fixed_act_inds)
+    # WARNING: changes data!
+    Tk = qs.shape[0]
+    As = np.zeros((Tk-1, 2*model.nv, 2*model.nv))
+    Bs = np.zeros((Tk-1, 2*model.nv, nufree))
+    B = np.zeros((2*model.nv, model.nu))
+    # Cs = np.zeros((Tk, 3, model.nv))
+    lams = np.zeros((Tk, 2*model.nv))
+    not_fixed_act_inds = [i for i in range(model.nu) if i not in
+                          fixed_act_inds]
+
+    for tk in range(Tk-1):
+        data.qpos[:] = qs[tk]
+        data.qvel[:] = vs[tk]
+        data.ctrl[:] = us[tk]
+        epsilon = 1e-6
+        mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
+        Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
+        # mj.mj_jacSite(model, data, Cs[tk], None, site=model.site('').id)
+
+    lams[Tk-1, :model.nv] = lams_fin
+    grads = np.zeros((Tk, nufree))
+    # tau_loss_factor = 1e-9
+    tau_loss_factor = 0
+    loss_u = np.delete(us, fixed_act_inds, axis=1)
+
+    for tk in range(2, Tk):
+        lams[Tk-tk] = As[Tk-tk].T @ lams[Tk-tk+1]
+        # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
+        grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
+                + Bs[Tk-tk].T @ lams[Tk-tk+1]
+    # breakpoint()
+    return grads
+
+def stabilized_grad_descent(model, data, site1, site2, ctrls0, noisev=None):
+    Tk = ctrls0.shape[0] + 1
+    if noisev is None:
+        noisev = np.zeros((Tk-1, model.nu))
+    qpos0 = data.qpos.copy()
+    data_orig = copy.deepcopy(data)
+    joints = get_joint_names(model)
+    right_arm_j = joints['right_arm_joint_inds']
+    right_arm_a = joints['right_arm_act_inds']
+    other_a = joints['non_right_arm_act_inds']
+    util.reset(model, data, 10) # Need to deal with this
+    ctrls = ctrls0.copy()
+    qs, qvels = util.forward_sim(model, data, ctrls)
+
+    sites1 = site1.xpos
+    sites2 = site2.xpos
+    dlds = sites1 - sites2
+    C = np.zeros((3, model.nv))
+    mj.mj_jacSite(model, data, C, None, site=site1.id)
+    dldq = C.T @ dlds
+    lams_fin = dldq
+
+    losses = np.zeros(Tk)
+
+    util.reset(model, data, 10)
+    grads = traj_deriv(model, data, qs, qvels, ctrls, lams_fin, losses,
+                       fixed_act_inds=other_a)
+    ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - 20*grads[:Tk-1]
+    util.reset(model, data, 10)
+    right_arm_j = joints['right_arm_joint_inds']
+    qpos0n = qpos0.copy()
+    for k in range(Tk-1):
+        if k % 10 == 0:
+            qpos = data.qpos.copy()
+            # data.qpos[:] = qpos0
+            qpos0n[right_arm_j] = data.qpos[right_arm_j]
+            data.qpos[:] = qpos0n
+            ctrl0 = get_ctrl0(model, data)
+            data.ctrl[:] = ctrl0
+            K = get_feedback_ctrl_matrix(model, data)
+            data.qpos[:] = qpos
+        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
+        ctrl[right_arm_a] = ctrls[k, right_arm_a]
+        
+        mj.mj_step1(model, data)
+        inp = ctrl + noisev[k]
+        data.ctrl[:] = ctrl + noisev[k]
+        mj.mj_step2(model, data)
+        qs[k+1] = data.qpos.copy()
+        qvels[k+1] = data.qvel.copy()
+        # print()
+        # # print(ctrl)
+        print(noisev[k])
+        # # print(inp)
+        # # print(qs[:3,:3])
+        # print()
+        sys.exit()
+    return qs, qvels, ctrls
+        # out = env.step(ctrl + noisev[k])
+        # observation, reward, terminated, __, info = out
+        # qs[k+1] = observation[:model.nq]
+        # qvels[k+1] = observation[model.nq:]
