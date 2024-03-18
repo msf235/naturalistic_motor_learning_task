@@ -159,23 +159,17 @@ def get_stabilized_ctrls(model, data, Tk=50, noisev=None):
     qs = np.zeros((Tk, model.nq))
     qvels = np.zeros((Tk, model.nq))
     qs[0] = qpos0
-    qvels[0] = data.qvel.copy()
     ctrls = np.zeros((Tk-1, model.nu))
 
     ctrl = ctrl0
 
     for k in range(Tk-1):
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-        # out = env.step(ctrl + CTRL_STD*noise.sample())
-        mj.mj_step1(model, data)
         ctrls[k] = ctrl
-        inp = ctrls[k] + noisev[k]
-        data.ctrl[:] = ctrls[k] + noisev[k]
+        mj.mj_step1(model, data)
+        data.ctrl[:] = ctrl + noisev[k]
         mj.mj_step2(model, data)
-        # observation, reward, terminated, __, info = out
-        # qs[k+1] = observation[:model.nq]
         qs[k+1] = data.qpos.copy()
-        qvels[k+1] = data.qvel.copy()
 
     return qs, ctrls, K
 

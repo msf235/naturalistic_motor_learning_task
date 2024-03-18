@@ -15,12 +15,6 @@ env = h2d.Humanoid2dEnv(render_mode='human', frame_skip=1)
 env.reset(seed=seed)
 model = env.model
 data = env.data
-# with open('humanoid2d.xml', 'r') as f:
-    # xml = f.read()
-# model = mj.MjModel.from_xml_path('humanoid.xml')
-# data = mj.MjData(model)
-# data1.qpos[0] = 2.5
-# data2 = mj.MjData(model)
 
 # Get noise
 CTRL_STD = .05       # actuator units
@@ -40,9 +34,6 @@ for k in range(Tk-1):
     env.step(ctrls[k] + noisev[k])
 
 util.reset(model, data, 10)
-qs2 = util.forward_sim(model, data, ctrls + noisev)
-print(np.allclose(qs, qs2))
-breakpoint()
 
 # Gradient descent
 
