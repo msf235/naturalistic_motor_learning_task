@@ -68,3 +68,13 @@ def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
     # breakpoint()
     return grads
 
+def forward_sim(model, data, ctrls):
+    Tk = ctrls.shape[0]
+    qs = np.zeros((Tk+1, model.nq))
+    qs[0] = data.qpos.copy()
+    for k in range(Tk):
+        mj.mj_step1(model, data)
+        data.ctrl[:] = ctrls[k]
+        mj.mj_step2(model, data)
+        qs[k+1] = data.qpos.copy()
+    return qs

@@ -6,6 +6,7 @@ import scipy
 import control_logic as cl
 import sim_utils as util
 import humanoid2d as h2d
+import copy
 
 # xml_file = 'humanoid_and_baseball.xml'
 # with open(xml_file, 'r') as f:
@@ -14,11 +15,7 @@ CTRL_STD = 0.05       # actuator units
 CTRL_RATE = 0.8       # seconds
 
 def get_ctrl0(model, data):
-    # Get initial stabilizing controls
-    # THIS FUNCTION MODIFIES data!
-    # Attempts were made to avoid modifying data in a problematic way, but not
-    # being very familiar with mj_inverse I cannot guarantee this.
-    qvel = data.qvel; qacc = data.qacc  # Copy data to avoid modifying it.
+    data = copy.deepcopy(data)
     mj.mj_forward(model, data)
     data.qacc[:] = 0
     data.qvel[:] = 0
@@ -26,7 +23,6 @@ def get_ctrl0(model, data):
     qfrc0 = data.qfrc_inverse.copy()
     ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(data.actuator_moment)
     ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
-    data.qvel[:] = qvel; data.qacc[:] = qacc
     return ctrl0
 
 def get_joint_names(model, data=None):
@@ -127,6 +123,7 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R):
 def get_feedback_ctrl_matrix(model, data, excluded_state_inds=[], rv=None):
     # Assumes that data.ctrl has been set to ctrl0.
     # What about data.qpos, data.qvel, data.qacc?
+    data = copy.deepcopy(data)
     nq = model.nq
     nu = model.nu
     if rv is None:
@@ -153,6 +150,7 @@ def get_stabilized_ctrls(model, data, Tk=50, noisev=None):
     if noisev is None:
         noisev = np.zeros((Tk-1, model.nu))
     qpos0 = data.qpos.copy()
+    data = copy.deepcopy(data)
     ctrl0 = get_ctrl0(model, data)
     data.ctrl = ctrl0
     rv = np.ones(model.nu)
@@ -164,20 +162,20 @@ def get_stabilized_ctrls(model, data, Tk=50, noisev=None):
     qvels[0] = data.qvel.copy()
     ctrls = np.zeros((Tk-1, model.nu))
 
-    data.ctrl[:] = ctrl0
     ctrl = ctrl0
 
     for k in range(Tk-1):
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
         # out = env.step(ctrl + CTRL_STD*noise.sample())
         mj.mj_step1(model, data)
-        data.ctrl[:] = ctrl + noisev[k]
+        ctrls[k] = ctrl
+        inp = ctrls[k] + noisev[k]
+        data.ctrl[:] = ctrls[k] + noisev[k]
         mj.mj_step2(model, data)
         # observation, reward, terminated, __, info = out
         # qs[k+1] = observation[:model.nq]
         qs[k+1] = data.qpos.copy()
         qvels[k+1] = data.qvel.copy()
-        ctrls[k] = ctrl
 
     return qs, qvels, ctrls
 

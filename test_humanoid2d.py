@@ -15,9 +15,15 @@ env = h2d.Humanoid2dEnv(render_mode='human', frame_skip=1)
 env.reset(seed=seed)
 model = env.model
 data = env.data
+# with open('humanoid2d.xml', 'r') as f:
+    # xml = f.read()
+# model = mj.MjModel.from_xml_path('humanoid.xml')
+# data = mj.MjData(model)
+# data1.qpos[0] = 2.5
+# data2 = mj.MjData(model)
 
 # Get noise
-CTRL_STD = 0.05       # actuator units
+CTRL_STD = .05       # actuator units
 # CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 width = int(CTRL_RATE/model.opt.timestep)
@@ -29,19 +35,26 @@ noisev = noise.sample(Tk-1)
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10)
-
-# noise.reset(seed)
 out = lqr.get_stabilized_ctrls(model, data, Tk, noisev)
 qs = out[0]
 ctrls = out[2]
-qs2 = np.zeros((Tk-1, model.nq))
+qs2 = np.zeros((Tk, model.nq))
+# env.reset(seed=seed)
+util.reset(model, data, 10)
+qs2[0] = data.qpos.copy()
+# for k in range(Tk-1):
+    # inp = ctrls[k] + noisev[k]
+    # out = env.step(inp)
+    # qs2[k+1] = out[0][:model.nq]
 for k in range(Tk-1):
-    out = env.step(noisev[k])
-    qs2[k] = out[0][:model.nq]
+    out = env.step(ctrls[k] + noisev[k])
+    qs2[k+1] = out[0][:model.nq]
 
-breakpoint()
-
-# out = lqr.get_stabilized_ctrls(env, Tk=500, noise=noise)
+util.reset(model, data, 10)
+# qs2[0] = data.qpos.copy()
+qs3 = util.forward_sim(model, data, ctrls + noisev)
+print(np.allclose(qs, qs3))
+print(np.allclose(qs, qs2))
 
 sys.exit()
 
