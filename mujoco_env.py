@@ -256,9 +256,11 @@ class MujocoEnv(BaseMujocoEnv):
         mujoco.mj_forward(self.model, self.data)
 
     def _step_mujoco_simulation(self, ctrl, n_frames):
+        mujoco.mj_step1(self.model, self.data)
         self.data.ctrl[:] = ctrl
-
-        mujoco.mj_step(self.model, self.data, nstep=n_frames)
+        mujoco.mj_step2(self.model, self.data)
+        if n_frames > 1:
+            mujoco.mj_step(self.model, self.data, nstep=n_frames-1)
 
         # As of MuJoCo 2.0, force-related quantities like cacc are not computed
         # unless there's a force sensor in the model.
