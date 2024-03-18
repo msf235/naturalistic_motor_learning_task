@@ -123,7 +123,7 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R):
 def get_feedback_ctrl_matrix(model, data, excluded_state_inds=[], rv=None):
     # Assumes that data.ctrl has been set to ctrl0.
     # What about data.qpos, data.qvel, data.qacc?
-    data = copy.deepcopy(data)
+    # data = copy.deepcopy(data)
     nq = model.nq
     nu = model.nu
     if rv is None:
@@ -177,5 +177,5 @@ def get_stabilized_ctrls(model, data, Tk=50, noisev=None):
         qs[k+1] = data.qpos.copy()
         qvels[k+1] = data.qvel.copy()
 
-    return qs, qvels, ctrls
+    return qs, ctrls, K
 

@@ -31,72 +31,20 @@ kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
 noise = util.FilteredNoise(model.nu, kernel, rng, CTRL_STD)
 noisev = noise.sample(Tk-1)
-# noisev = np.stack([noise.sample() for k in range(Tk-1)])
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10)
-out = lqr.get_stabilized_ctrls(model, data, Tk, noisev)
-qs = out[0]
-ctrls = out[2]
-qs2 = np.zeros((Tk, model.nq))
-# env.reset(seed=seed)
+qs, ctrls, K = lqr.get_stabilized_ctrls(model, data, Tk, noisev)
 util.reset(model, data, 10)
-qs2[0] = data.qpos.copy()
-# for k in range(Tk-1):
-    # inp = ctrls[k] + noisev[k]
-    # out = env.step(inp)
-    # qs2[k+1] = out[0][:model.nq]
 for k in range(Tk-1):
-    out = env.step(ctrls[k] + noisev[k])
-    qs2[k+1] = out[0][:model.nq]
+    env.step(ctrls[k] + noisev[k])
 
 util.reset(model, data, 10)
-# qs2[0] = data.qpos.copy()
-qs3 = util.forward_sim(model, data, ctrls + noisev)
-print(np.allclose(qs, qs3))
+qs2 = util.forward_sim(model, data, ctrls + noisev)
 print(np.allclose(qs, qs2))
-
-sys.exit()
-
-qpos0 = data.qpos.copy()
-ctrl0 = lqr.get_ctrl0(model, data)
-data.ctrl = ctrl0
-rv = np.ones(model.nu)
-K = lqr.get_feedback_ctrl_matrix(model, data)
-
-# Tk = 200 # Too many steps messes up gradient near tk=0
-Tk = 50
-qs = np.zeros((Tk, model.nq))
-qvels = np.zeros((Tk, model.nq))
-qs[0] = qpos0
-qvels[0] = data.qvel.copy()
-# us = np.zeros((Tk, model.nu))
-losses = np.zeros((Tk,))
-ctrls = np.zeros((Tk-1, model.nu))
-
-data.ctrl[:] = ctrl0
-ctrl = ctrl0
-
-for k in range(Tk-1):
-    ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-    ctrls[k] = ctrl
-    out = env.step(ctrl + CTRL_STD*noise.sample())
-    observation, reward, terminated, __, info = out
-    qs[k+1] = observation[:model.nq]
-    qvels[k+1] = observation[model.nq:]
+breakpoint()
 
 # Gradient descent
-
-# sites1 = data.site('hand_right').xpos
-# sites2 = data.site('target').xpos
-# dlds = sites1 - sites2
-# # curr_loss = .5*np.linalg.norm(dlds)**2
-# # Cs = np.zeros((Tk, 3, model.nv))
-# C = np.zeros((3, model.nv))
-# mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
-
-# dldq = C.T @ dlds
-# lams_fin = dldq
 
 joints = lqr.get_joint_names(model)
 right_arm_j = joints['right_arm_joint_inds']
