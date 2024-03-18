@@ -6,6 +6,9 @@ import mujoco as mj
 import sys
 
 seed = 2
+rng = np.random.default_rng(seed)
+
+Tk = 50
 
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(render_mode='human', frame_skip=1)
@@ -14,34 +17,60 @@ model = env.model
 data = env.data
 
 # Get noise
-# CTRL_STD = 0.05       # actuator units
-CTRL_STD = 0       # actuator units
+CTRL_STD = 0.05       # actuator units
+# CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 width = int(CTRL_RATE/model.opt.timestep)
 kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
-noise = util.FilteredNoise(model.nu, kernel, 3*seed+7)
+noise = util.FilteredNoise(model.nu, kernel, rng, CTRL_STD)
+noisev = noise.sample(Tk-1)
+# noisev = np.stack([noise.sample() for k in range(Tk-1)])
 
-## Reset and burn in:
-def reset(model, data, nsteps):
-    mj.mj_resetData(model, data)
-    for k in range(nsteps):
-        mj.mj_step(model, data)
+### Get initial stabilizing controls
+util.reset(model, data, 10)
 
-def simulate_and_view(model, data, ctrls, noise=None):
-    if noise is None:
-        noise = util.BlankNoise()
-    for ctrl in ctrls:
-        out = env.step(ctrl + noise.sample())
-        # observation, reward, terminated, __, info = out
+# noise.reset(seed)
+out = lqr.get_stabilized_ctrls(model, data, Tk, noisev)
+qs = out[0]
+ctrls = out[2]
+qs2 = np.zeros((Tk-1, model.nq))
+for k in range(Tk-1):
+    out = env.step(noisev[k])
+    qs2[k] = out[0][:model.nq]
 
-reset(model, data, 10)
+breakpoint()
+
+# out = lqr.get_stabilized_ctrls(env, Tk=500, noise=noise)
+
+sys.exit()
+
+qpos0 = data.qpos.copy()
+ctrl0 = lqr.get_ctrl0(model, data)
+data.ctrl = ctrl0
+rv = np.ones(model.nu)
+K = lqr.get_feedback_ctrl_matrix(model, data)
 
 # Tk = 200 # Too many steps messes up gradient near tk=0
+Tk = 50
+qs = np.zeros((Tk, model.nq))
+qvels = np.zeros((Tk, model.nq))
+qs[0] = qpos0
+qvels[0] = data.qvel.copy()
+# us = np.zeros((Tk, model.nu))
+losses = np.zeros((Tk,))
+ctrls = np.zeros((Tk-1, model.nu))
 
-qs, qvels, ctrls = lqr.get_stabilized_ctrls(model, data)
-simulate_and_view(model, data, ctrls)
-breakpoint()
+data.ctrl[:] = ctrl0
+ctrl = ctrl0
+
+for k in range(Tk-1):
+    ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
+    ctrls[k] = ctrl
+    out = env.step(ctrl + CTRL_STD*noise.sample())
+    observation, reward, terminated, __, info = out
+    qs[k+1] = observation[:model.nq]
+    qvels[k+1] = observation[model.nq:]
 
 # Gradient descent
 

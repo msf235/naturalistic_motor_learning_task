@@ -10,6 +10,8 @@ import humanoid2d as h2d
 # xml_file = 'humanoid_and_baseball.xml'
 # with open(xml_file, 'r') as f:
   # xml = f.read()
+CTRL_STD = 0.05       # actuator units
+CTRL_RATE = 0.8       # seconds
 
 def get_ctrl0(model, data):
     # Get initial stabilizing controls
@@ -146,11 +148,10 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0):
     # K = get_feedback_ctrl_matrix(model, data)
     # return get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
 
-
 # Get stabilizing controls
-def get_stabilized_ctrls(model, data, Tk=50, noise=None):
-    if noise is None:
-        noise = util.BlankNoise()
+def get_stabilized_ctrls(model, data, Tk=50, noisev=None):
+    if noisev is None:
+        noisev = np.zeros((Tk-1, model.nu))
     qpos0 = data.qpos.copy()
     ctrl0 = get_ctrl0(model, data)
     data.ctrl = ctrl0
@@ -168,15 +169,15 @@ def get_stabilized_ctrls(model, data, Tk=50, noise=None):
 
     for k in range(Tk-1):
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-        ctrls[k] = ctrl
         # out = env.step(ctrl + CTRL_STD*noise.sample())
         mj.mj_step1(model, data)
-        data.ctrl[:] = ctrl + noise.sample()
+        data.ctrl[:] = ctrl + noisev[k]
         mj.mj_step2(model, data)
         # observation, reward, terminated, __, info = out
         # qs[k+1] = observation[:model.nq]
         qs[k+1] = data.qpos.copy()
         qvels[k+1] = data.qvel.copy()
+        ctrls[k] = ctrl
 
     return qs, qvels, ctrls
 
