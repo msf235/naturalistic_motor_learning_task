@@ -171,5 +171,5 @@ def get_stabilized_ctrls(model, data, Tk=50, noisev=None):
         mj.mj_step2(model, data)
         qs[k+1] = data.qpos.copy()
 
-    return qs, ctrls, K
+    return ctrls, K
 
