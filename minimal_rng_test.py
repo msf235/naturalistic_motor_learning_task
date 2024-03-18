@@ -8,6 +8,7 @@ import sys
 ### Set things up
 seed = 2
 rng = np.random.default_rng(seed)
+print(rng.standard_normal(3))
 nu = 4
 
 Tk = 50
@@ -19,14 +20,16 @@ CTRL_RATE = 0.8       # seconds
 width = int(CTRL_RATE/.005)
 kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
-# noise = util.FilteredNoise(nu, kernel, rng)
-noise = util.MinimalNoise(rng)
+noise = util.FilteredNoise(nu, kernel, rng)
+# print('h')
+# noise = util.MinimalNoise(rng)
 # noisev = CTRL_STD * noise.sample(Tk-1)
-noisev = CTRL_STD * noise.sample()
+# noisev = CTRL_STD * noise.sample()
+noisev = CTRL_STD * noise.sample_one()
 print()
 # print(noisev[0])
 print(noisev)
 print()
 sys.exit()
 
-print("test")
+# print("test")

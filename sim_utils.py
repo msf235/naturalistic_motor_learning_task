@@ -8,17 +8,31 @@ def reset(model, data, nsteps):
     for k in range(nsteps):
         mj.mj_step(model, data)
 
+# class MinimalNoise:
+    # def __init__(self, rng):
+        # self.rng = rng
+
+    # def sample(self):
+        # return self.rng.standard_normal()
+
 class MinimalNoise:
-    def __init__(self, rng):
+    def __init__(self, ind_dim, kernel, rng):
+        self.perturb = np.random.randn(ind_dim, len(kernel))
+        self.ind_dim = ind_dim
+        self.kernel = kernel
         self.rng = rng
 
     def sample(self):
-        return self.rng.standard_normal()
+        perturb_smoothed = self.perturb @ self.kernel
+        self.perturb[:] = np.roll(self.perturb, -1, axis=1)
+        self.perturb[:, -1] = self.rng.standard_normal(self.ind_dim)
+        return perturb_smoothed
 
 
 class FilteredNoise:
     def __init__(self, ind_dim, kernel, rng):
-        self.perturb = np.random.randn(ind_dim, len(kernel))
+        # self.perturb = np.random.randn(ind_dim, len(kernel))
+        self.perturb = rng.standard_normal((ind_dim, len(kernel)))
         self.ind_dim = ind_dim
         self.kernel = kernel
         self.rng = rng
@@ -31,7 +45,11 @@ class FilteredNoise:
         return perturb_smoothed
 
     def sample(self, nsamples=1):
-        return np.stack([self.sample_one() for k in range(nsamples)])
+        samples = []
+        for k in range(nsamples):
+            samples.append(self.sample_one())
+        return np.stack(samples)
+        # return np.stack([self.sample_one() for k in range(nsamples)])
 
     def reset(self, rng):
         self.rng = rng
