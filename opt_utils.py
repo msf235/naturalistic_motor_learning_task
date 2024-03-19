@@ -142,22 +142,122 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0):
     # return get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
 
 # Get stabilizing controls
-def get_stabilized_ctrls(model, data, Tk=50, noisev=None):
+def get_stabilized_ctrls(model, data, Tk=50, noisev=None,
+                         free_ctrl_idx=[], free_ctrls=None,
+                         K_update_time=None):
+    """
+    free_idx: indices of the joints are not controlled by the LQR controller.
+    free_ctrls: specify the controls for the free joints that are not
+    controlled by the LQR controller. ids for corresponding joints given by
+    free_idx (id of the corresponding actuators is found from this info).
+    """
+    data = copy.deepcopy(data)
+    if len(free_ctrl_idx) > 0:
+        assert free_ctrls is not None
+        free_joint_idx = [model.actuator(k).trnid[0] for k in free_ctrl_idx] 
+    else:
+        free_joint_idx = []
+    if noisev is None:
+        noisev = np.zeros((Tk-1, model.nu))
+    if K_update_time is None:
+        K_update_time = Tk+1 # One more than I need, just in case
+    qpos0 = data.qpos.copy()
+    data = copy.deepcopy(data)
+    # if ctrl0 is None:
+        # ctrl0 = get_ctrl0(model, data, qpos0)
+
+    qpos0n = data.qpos.copy()
+
+    qs = np.zeros((Tk, model.nq))
+    qs[0] = qpos0
+    qvels = np.zeros((Tk, model.nq))
+    qvels[0] = data.qvel.copy()
+
+    ctrls = np.zeros((Tk-1, model.nu))
+
+    for k in range(Tk-1):
+        if k % K_update_time == 0:
+            qpos0n[free_joint_idx] = data.qpos[free_joint_idx]
+            ctrl0 = get_ctrl0(model, data, qpos0n)
+            K = get_feedback_ctrl_matrix(model, data, ctrl0)
+
+        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
+        if free_ctrls is not None:
+            ctrl[free_ctrl_idx] = free_ctrls[k, free_ctrl_idx]
+        ctrls[k] = ctrl
+        mj.mj_step1(model, data)
+        data.ctrl[:] = ctrl + noisev[k]
+        mj.mj_step2(model, data)
+        qs[k+1] = data.qpos.copy()
+        qvels[k+1] = data.qvel.copy()
+
+    return ctrls, K, qs, qvels
+
+def get_stabilized_ctrls_dep(model, data, Tk=50, noisev=None,
+                         free_ctrl_idx=[], free_ctrls=None,
+                         K_update_time=None):
+    """
+    free_idx: indices of the joints are not controlled by the LQR controller.
+    free_ctrls: specify the controls for the free joints that are not
+    controlled by the LQR controller. ids for corresponding joints given by
+    free_idx (id of the corresponding actuators is found from this info).
+    """
+    data = copy.deepcopy(data)
+    if len(free_ctrl_idx) > 0:
+        assert free_ctrls is not None
+        free_joint_idx = [model.actuator(k).trnid[0] for k in free_ctrl_idx] 
+    else:
+        free_joint_idx = []
+    if noisev is None:
+        noisev = np.zeros((Tk-1, model.nu))
+    if K_update_time is None:
+        K_update_time = Tk+1 # One more than I need, just in case
+    qpos0 = data.qpos.copy()
+    data = copy.deepcopy(data)
+    # if ctrl0 is None:
+        # ctrl0 = get_ctrl0(model, data, qpos0)
+
+    qpos0n = data.qpos.copy()
+
+    qs = np.zeros((Tk, model.nq))
+    qs[0] = qpos0
+    qvels = np.zeros((Tk, model.nq))
+    qvels[0] = data.qvel.copy()
+
+    ctrls = np.zeros((Tk-1, model.nu))
+
+    for k in range(Tk-1):
+        if k % K_update_time == 0:
+            qpos0n[free_joint_idx] = data.qpos[free_joint_idx]
+            ctrl0 = get_ctrl0(model, data, qpos0n)
+            K = get_feedback_ctrl_matrix(model, data, ctrl0)
+
+        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
+        if free_ctrls is not None:
+            ctrl[free_ctrl_idx] = free_ctrls[k, free_ctrl_idx]
+        ctrls[k] = ctrl
+        mj.mj_step1(model, data)
+        data.ctrl[:] = ctrl + noisev[k]
+        mj.mj_step2(model, data)
+        qs[k+1] = data.qpos.copy()
+        qvels[k+1] = data.qvel.copy()
+
+    return ctrls, K, qs, qvels
+
+def get_stabilized_simple(model, data, Tk=50, noisev=None, ctrl0=None):
     if noisev is None:
         noisev = np.zeros((Tk-1, model.nu))
     qpos0 = data.qpos.copy()
     data = copy.deepcopy(data)
-    ctrl0 = get_ctrl0(model, data, qpos0)
+    if ctrl0 is None:
+        ctrl0 = get_ctrl0(model, data, qpos0)
     data.ctrl = ctrl0
-    rv = np.ones(model.nu)
     K = get_feedback_ctrl_matrix(model, data, ctrl0)
 
     qs = np.zeros((Tk, model.nq))
-    qvels = np.zeros((Tk, model.nq))
     qs[0] = qpos0
-    ctrls = np.zeros((Tk-1, model.nu))
 
-    ctrl = ctrl0
+    ctrls = np.zeros((Tk-1, model.nu))
 
     for k in range(Tk-1):
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
@@ -171,10 +271,9 @@ def get_stabilized_ctrls(model, data, Tk=50, noisev=None):
 
 ### Gradient descent
 def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
-               fixed_act_inds=[]):
+               fixed_act_inds=[], k0=None):
     data = copy.deepcopy(data)
     nufree = model.nu - len(fixed_act_inds)
-    # WARNING: changes data!
     Tk = qs.shape[0]
     As = np.zeros((Tk-1, 2*model.nv, 2*model.nv))
     Bs = np.zeros((Tk-1, 2*model.nv, nufree))
@@ -191,6 +290,8 @@ def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
         epsilon = 1e-6
         mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
         Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
+        if k0 == 1 and tk >= 5:
+            breakpoint()
         # mj.mj_jacSite(model, data, Cs[tk], None, site=model.site('').id)
 
     lams[Tk-1, :model.nv] = lams_fin
