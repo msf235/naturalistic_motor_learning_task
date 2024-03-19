@@ -1,5 +1,6 @@
 import humanoid2d as h2d
-import baseball_lqr as lqr
+# import baseball_lqr as lqr
+import opt_utils as opt_utils
 import numpy as np
 import sim_utils as util
 import mujoco as mj
@@ -29,7 +30,7 @@ noisev = CTRL_STD * noise.sample(Tk-1)
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10)
-ctrls, K = lqr.get_stabilized_ctrls(model, data, Tk, noisev)
+ctrls, K = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev)
 util.reset(model, data, 10)
 qs, qvels = util.forward_sim(model, data, ctrls)
 # for k in range(Tk-1):
@@ -39,7 +40,7 @@ util.reset(model, data, 10)
 
 ### Gradient descent
 
-joints = lqr.get_joint_names(model)
+joints = opt_utils.get_joint_names(model)
 right_arm_j = joints['right_arm_joint_inds']
 right_arm_a = joints['right_arm_act_inds']
 other_a = joints['non_right_arm_act_inds']
@@ -59,13 +60,13 @@ def grad_step(model, data):
     losses = np.zeros(Tk)
 
     util.reset(model, data, 10)
-    grads = util.traj_deriv(model, data, qs, qvels, ctrls,
+    grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls,
                             lams_fin, losses, fixed_act_inds=other_a)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - 20*grads[:Tk-1]
 
     env.reset(seed=seed)
     util.reset(model, data, 10)
-    joints = lqr.get_joint_names(model)
+    joints = opt_utils.get_joint_names(model)
     right_arm_j = joints['right_arm_joint_inds']
     qpos0n = qpos0.copy()
     for k in range(Tk-1):
@@ -73,11 +74,11 @@ def grad_step(model, data):
             qpos = data.qpos.copy()
             qpos0n[right_arm_j] = data.qpos[right_arm_j]
             data.qpos[:] = qpos0n
-            ctrl0 = lqr.get_ctrl0(model, data)
+            ctrl0 = opt_utils.get_ctrl0(model, data)
             data.ctrl[:] = ctrl0
-            K = lqr.get_feedback_ctrl_matrix(model, data)
+            K = opt_utils.get_feedback_ctrl_matrix(model, data)
             data.qpos[:] = qpos
-        ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
+        ctrl = opt_utils.get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
         ctrl[right_arm_a] = ctrls[k, right_arm_a]
         out = env.step(ctrl + noisev[k])
         observation, reward, terminated, __, info = out
