@@ -101,16 +101,13 @@ def get_stabilized_ctrls(model, data, right_arm_a, Tk, noisev,
         # if k0 == 1: # ctrls is different
             # breakpoint()
         out = env.step(ctrl + noisev[k])
-        # qs[k+1] = data.qpos.copy()
-        # qvels[k+1] = data.qvel.copy()
-        observation, reward, terminated, __, info = out
-        qs[k+1] = observation[:model.nq]
-        qvels[k+1] = observation[model.nq:]
-        if k0 == 1:
-            breakpoint()
-        # if k == 40:
-            # print(qs[k,:3])
-            # sys.exit()
+        qs[k+1] = data.qpos.copy()
+        qvels[k+1] = data.qvel.copy()
+        # observation, reward, terminated, __, info = out
+        # qs[k+1] = observation[:model.nq]
+        # qvels[k+1] = observation[model.nq:]
+        # if k0 == 1:
+            # breakpoint()
     print(qs[-3:,:3])
     print(qvels[-3:,:3])
     # return qs

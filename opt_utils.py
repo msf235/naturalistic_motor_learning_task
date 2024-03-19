@@ -290,8 +290,6 @@ def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
         epsilon = 1e-6
         mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
         Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
-        if k0 == 1 and tk >= 5:
-            breakpoint()
         # mj.mj_jacSite(model, data, Cs[tk], None, site=model.site('').id)
 
     lams[Tk-1, :model.nv] = lams_fin

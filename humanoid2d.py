@@ -283,7 +283,8 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
 
     def _get_obs(self):
         position = self.data.qpos.flatten()
-        velocity = np.clip(self.data.qvel.flatten(), -10, 10)
+        # velocity = np.clip(self.data.qvel.flatten(), -10, 10)
+        velocity = self.data.qvel.flatten()
 
         if self._exclude_current_positions_from_observation:
             position = position[1:]
