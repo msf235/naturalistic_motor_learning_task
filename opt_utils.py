@@ -218,13 +218,17 @@ def stabilized_grad_descent(model, data, site1, site2, ctrls0, noisev=None):
     other_a = joints['non_right_arm_act_inds']
     util.reset(model, data, 10) # Need to deal with this
     ctrls = ctrls0.copy()
-    qs, qvels = util.forward_sim(model, data, ctrls)
+    # qs, qvels = util.forward_sim(model, data, ctrls)
 
     sites1 = site1.xpos
     sites2 = site2.xpos
     dlds = sites1 - sites2
     C = np.zeros((3, model.nv))
+    # util.reset(model, data, 10)
+    # util.reset(model, data, 10)
+    qs, qvels = util.forward_sim(model, data, ctrls)
     mj.mj_jacSite(model, data, C, None, site=site1.id)
+    breakpoint()
     dldq = C.T @ dlds
     lams_fin = dldq
 
@@ -233,9 +237,9 @@ def stabilized_grad_descent(model, data, site1, site2, ctrls0, noisev=None):
     util.reset(model, data, 10)
     grads = traj_deriv(model, data, qs, qvels, ctrls, lams_fin, losses,
                        fixed_act_inds=other_a)
+    breakpoint()
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - 20*grads[:Tk-1]
     util.reset(model, data, 10)
-    right_arm_j = joints['right_arm_joint_inds']
     qpos0n = qpos0.copy()
     for k in range(Tk-1):
         if k % 10 == 0:
@@ -248,7 +252,14 @@ def stabilized_grad_descent(model, data, site1, site2, ctrls0, noisev=None):
             K = get_feedback_ctrl_matrix(model, data)
             data.qpos[:] = qpos
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
+        breakpoint()
         ctrl[right_arm_a] = ctrls[k, right_arm_a]
+        print()
+        print(k)
+        print(ctrl)
+        print()
+        if k == 1:
+            sys.exit()
         
         mj.mj_step1(model, data)
         inp = ctrl + noisev[k]
@@ -258,11 +269,13 @@ def stabilized_grad_descent(model, data, site1, site2, ctrls0, noisev=None):
         qvels[k+1] = data.qvel.copy()
         # print()
         # # print(ctrl)
-        print(noisev[k])
-        # # print(inp)
-        # # print(qs[:3,:3])
+        if k == 1:
+            # print(noisev[k])
+            print(ctrl)
+            # print(inp)
+            # print(qs[:3,:3])
+            sys.exit()
         # print()
-        sys.exit()
     return qs, qvels, ctrls
         # out = env.step(ctrl + noisev[k])
         # observation, reward, terminated, __, info = out
