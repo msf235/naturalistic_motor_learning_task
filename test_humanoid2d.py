@@ -46,7 +46,7 @@ other_a = joints['non_right_arm_act_inds']
 
 qpos0 = data.qpos.copy()
 
-while True:
+def grad_step(model, data):
     sites1 = data.site('hand_right').xpos
     sites2 = data.site('target').xpos
     dlds = sites1 - sites2
@@ -62,9 +62,6 @@ while True:
     grads = util.traj_deriv(model, data, qs, qvels, ctrls,
                             lams_fin, losses, fixed_act_inds=other_a)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - 20*grads[:Tk-1]
-    print(ctrls[:5, right_arm_a])
-    print(ctrls[-5:, right_arm_a])
-    # breakpoint()
 
     env.reset(seed=seed)
     util.reset(model, data, 10)
@@ -74,7 +71,6 @@ while True:
     for k in range(Tk-1):
         if k % 10 == 0:
             qpos = data.qpos.copy()
-            # data.qpos[:] = qpos0
             qpos0n[right_arm_j] = data.qpos[right_arm_j]
             data.qpos[:] = qpos0n
             ctrl0 = lqr.get_ctrl0(model, data)
@@ -83,10 +79,10 @@ while True:
             data.qpos[:] = qpos
         ctrl = lqr.get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
         ctrl[right_arm_a] = ctrls[k, right_arm_a]
-        # ctrl[5] = -2
-        # ctrl[6] = -2
         out = env.step(ctrl + noisev[k])
         observation, reward, terminated, __, info = out
         qs[k+1] = observation[:model.nq]
         qvels[k+1] = observation[model.nq:]
-    # breakpoint()
+
+while True:
+    grad_step(model, data)
