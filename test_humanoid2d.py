@@ -47,13 +47,13 @@ other_a = joints['non_right_arm_act_inds']
 
 qpos0 = data.qpos.copy()
 
-def grad_step(model, data, qpos0):
+def grad_step(model, data, qpos0, lr):
+
     sites1 = data.site('hand_right').xpos
     sites2 = data.site('target').xpos
     dlds = sites1 - sites2
     C = np.zeros((3, model.nv))
     mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
-
     dldq = C.T @ dlds
     lams_fin = dldq
 
@@ -62,9 +62,8 @@ def grad_step(model, data, qpos0):
     util.reset(model, data, 10)
     grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls,
                             lams_fin, losses, fixed_act_inds=other_a)
-    ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - 20*grads[:Tk-1]
+    ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
 
-    # env.reset(seed=seed)
     util.reset(model, data, 10)
     joints = opt_utils.get_joint_names(model)
     right_arm_j = joints['right_arm_joint_inds']
@@ -86,4 +85,4 @@ def grad_step(model, data, qpos0):
         qvels[k+1] = observation[model.nq:]
 
 while True:
-    grad_step(model, data, qpos0)
+    grad_step(model, data, qpos0, 20)
