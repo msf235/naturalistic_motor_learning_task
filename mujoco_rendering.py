@@ -510,7 +510,6 @@ class WindowViewer(BaseRender):
             print("Quitting.")
             glfw.destroy_window(self.window)
             glfw.terminate()
-            sys.exit()
 
     def _cursor_pos_callback(
         self, window: "glfw.LP__GLFWwindow", xpos: float, ypos: float

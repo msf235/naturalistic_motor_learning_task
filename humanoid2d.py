@@ -5,7 +5,9 @@ from typing import Dict, Tuple, Union
 import numpy as np
 
 from gymnasium import utils
-from gymnasium.envs.mujoco import MujocoEnv
+# import utils
+# from gymnasium.envs.mujoco import MujocoEnv
+from mujoco_env import MujocoEnv
 from gymnasium.spaces import Box
 
 # viewer.cam.distance = 10

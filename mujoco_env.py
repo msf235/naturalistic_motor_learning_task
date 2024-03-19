@@ -221,7 +221,8 @@ class MujocoEnv(BaseMujocoEnv):
             camera_name,
         )
 
-        from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer
+        # from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer
+        from mujoco_rendering import MujocoRenderer
 
         self.mujoco_renderer = MujocoRenderer(
             self.model,
