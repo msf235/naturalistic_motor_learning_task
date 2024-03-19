@@ -49,34 +49,23 @@ qpos0 = data.qpos.copy()
 
 def grad_step(model, data, qpos0, lr):
 
-    sites1 = data.site('hand_right').xpos
-    sites2 = data.site('target').xpos
-    dlds = sites1 - sites2
+    dlds = data.site('hand_right').xpos - data.site('target').xpos
     C = np.zeros((3, model.nv))
     mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
     dldq = C.T @ dlds
     lams_fin = dldq
 
-    losses = np.zeros(Tk)
-
     util.reset(model, data, 10)
     grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls,
-                            lams_fin, losses, fixed_act_inds=other_a)
+                            lams_fin, np.zeros(Tk), fixed_act_inds=other_a)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
 
-    util.reset(model, data, 10)
-    joints = opt_utils.get_joint_names(model)
-    right_arm_j = joints['right_arm_joint_inds']
     qpos0n = qpos0.copy()
     for k in range(Tk-1):
         if k % 10 == 0:
-            qpos = data.qpos.copy()
             qpos0n[right_arm_j] = data.qpos[right_arm_j]
-            data.qpos[:] = qpos0n
-            ctrl0 = opt_utils.get_ctrl0(model, data)
-            data.ctrl[:] = ctrl0
-            K = opt_utils.get_feedback_ctrl_matrix(model, data)
-            data.qpos[:] = qpos
+            ctrl0 = opt_utils.get_ctrl0(model, data, qpos0n)
+            K = opt_utils.get_feedback_ctrl_matrix(model, data, ctrl0)
         ctrl = opt_utils.get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
         ctrl[right_arm_a] = ctrls[k, right_arm_a]
         out = env.step(ctrl + noisev[k])

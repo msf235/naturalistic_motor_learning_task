@@ -9,8 +9,9 @@ import humanoid2d as h2d
 import copy
 
 ### LQR
-def get_ctrl0(model, data):
+def get_ctrl0(model, data, qpos0):
     data = copy.deepcopy(data)
+    data.qpos[:] = qpos0.copy()
     mj.mj_forward(model, data)
     data.qacc[:] = 0
     data.qvel[:] = 0
@@ -115,10 +116,10 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R):
     data.qvel[:] = qvel
     return K
 
-def get_feedback_ctrl_matrix(model, data, excluded_state_inds=[], rv=None):
-    # Assumes that data.ctrl has been set to ctrl0.
+def get_feedback_ctrl_matrix(model, data, ctrl0, excluded_state_inds=[], rv=None):
     # What about data.qpos, data.qvel, data.qacc?
     data = copy.deepcopy(data)
+    data.ctrl[:] = ctrl0
     nq = model.nq
     nu = model.nu
     if rv is None:
@@ -146,10 +147,10 @@ def get_stabilized_ctrls(model, data, Tk=50, noisev=None):
         noisev = np.zeros((Tk-1, model.nu))
     qpos0 = data.qpos.copy()
     data = copy.deepcopy(data)
-    ctrl0 = get_ctrl0(model, data)
+    ctrl0 = get_ctrl0(model, data, qpos0)
     data.ctrl = ctrl0
     rv = np.ones(model.nu)
-    K = get_feedback_ctrl_matrix(model, data)
+    K = get_feedback_ctrl_matrix(model, data, ctrl0)
 
     qs = np.zeros((Tk, model.nq))
     qvels = np.zeros((Tk, model.nq))
