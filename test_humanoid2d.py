@@ -13,7 +13,10 @@ rng = np.random.default_rng(seed)
 Tk = 50
 
 # Create a Humanoid2dEnv object
-env = h2d.Humanoid2dEnv(render_mode='human', frame_skip=1)
+env = h2d.Humanoid2dEnv(
+    # render_mode='human',
+    render_mode='rgb_array',
+    frame_skip=1)
 env.reset(seed=seed)
 model = env.model
 data = env.data
@@ -30,9 +33,12 @@ noisev = CTRL_STD * noise.sample(Tk-1)
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10)
-# ctrls, K = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev)
+# ctrls, K, __, __ = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
+                                          # data.qpos.copy())
 ctrls, K = opt_utils.get_stabilized_simple(model, data, Tk, noisev)
+print(ctrls[-5:])
 util.reset(model, data, 10)
+sys.exit()
 
 # util.reset(model, data, 10)
 # mj.mj_step1(model, data)
@@ -74,71 +80,47 @@ def get_losses(model, data, site1, site2):
     return np.zeros(Tk), lams_fin
 
 # for k0 in range(3):
-def get_stabilized_ctrls(model, data, right_arm_a, Tk, noisev,
-                        qpos0, ctrls, k0):
-    # util.reset(model, data, 10)
-    # mj.mj_step1(model, data)
-    # data.ctrl[:] = ctrls[0] + noisev[0]
-    # mj.mj_step2(model, data)
-    # print(data.qpos)
-    # util.reset(model, data, 10)
-    # env.step(ctrls[0] + noisev[0])
-    # print(data.qpos)
-    # sys.exit()
-    right_arm_j = [model.actuator(k).trnid[0] for k in right_arm_a]
+def get_stabilized_ctrls(model, data, Tk, noisev,
+                        qpos0, free_act_ids=None, free_ctrls=None):
+    if free_act_ids is None or len(free_act_ids) == 0:
+        assert free_ctrls is None
+        free_ctrls = np.empty((Tk, 0))
+        free_act_ids = []
+        free_jnt_ids = []
+    else:
+        free_jnt_ids = [model.actuator(k).trnid[0] for k in free_act_ids]
     qpos0n = qpos0.copy()
-    # qs = np.zeros((Tk, model.nq))
-    # qs[0] = data.qpos.copy()
-    # qvels = np.zeros((Tk, model.nq))
-    # qvels[0] = data.qvel.copy()
+    qs = np.zeros((Tk, model.nq))
+    qs[0] = data.qpos.copy()
+    qvels = np.zeros((Tk, model.nq))
+    qvels[0] = data.qvel.copy()
     for k in range(Tk-1):
         if k % 10 == 0:
-            qpos0n[right_arm_j] = data.qpos[right_arm_j]
+            qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
             ctrl0 = opt_utils.get_ctrl0(model, data, qpos0n)
             K = opt_utils.get_feedback_ctrl_matrix(model, data, ctrl0)
         ctrl = opt_utils.get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
-        ctrl[right_arm_a] = ctrls[k]
-        # if k0 == 1: # ctrls is different
-            # breakpoint()
-        out = env.step(ctrl + noisev[k])
+        ctrl[free_act_ids] = free_ctrls[k]
+        mj.mj_step1(model, data)
+        data.ctrl[:] = ctrl + noisev[k]
+        mj.mj_step2(model, data)
         qs[k+1] = data.qpos.copy()
         qvels[k+1] = data.qvel.copy()
-        # observation, reward, terminated, __, info = out
-        # qs[k+1] = observation[:model.nq]
-        # qvels[k+1] = observation[model.nq:]
-        # if k0 == 1:
-            # breakpoint()
-    print(qs[-3:,:3])
-    print(qvels[-3:,:3])
-    # return qs
     return qs, qvels
 
-for k0 in range(2):
+for k0 in range(3):
     lr = 20
     lams_fin = get_losses(model, data, data.site('hand_right'),
                           data.site('target'))[1]
     env.reset(seed=seed)
     util.reset(model, data, 10)
-    if k0 == 1:
-        print(ctrls[:2])
     grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls,
                             lams_fin, np.zeros(Tk), fixed_act_inds=other_a,
                                 k0=k0)
-    if k0 == 1:
-        print(grads[:2])
-        breakpoint()
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
 
-    # ctrls, K, qs, qvels = opt_utils.get_stabilized_ctrls(
-        # model, data, Tk, noisev, right_arm_a, ctrls, 10)
-    # get_stabilized_ctrls(model, data, right_arm_j, right_arm_a, Tk,
-                              # noisev, qpos0)
-    qs, qvels = get_stabilized_ctrls(model, data, right_arm_a, Tk,
-                                     noisev, qpos0,
-                                     ctrls[:, right_arm_a],
-                                     k0
-                                     # ctrls
-                                    )
-# print()
-# print(qs[-3:,:3])
+    __, __, qs, qvels = opt_utils.get_stabilized_ctrls(model, data, Tk,
+                                     noisev, qpos0, 10, right_arm_a,
+                                     ctrls[:, right_arm_a],)
+print(qs[-3:,:3])
 

@@ -141,109 +141,6 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0):
     # K = get_feedback_ctrl_matrix(model, data)
     # return get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
 
-# Get stabilizing controls
-def get_stabilized_ctrls(model, data, Tk=50, noisev=None,
-                         free_ctrl_idx=[], free_ctrls=None,
-                         K_update_time=None):
-    """
-    free_idx: indices of the joints are not controlled by the LQR controller.
-    free_ctrls: specify the controls for the free joints that are not
-    controlled by the LQR controller. ids for corresponding joints given by
-    free_idx (id of the corresponding actuators is found from this info).
-    """
-    data = copy.deepcopy(data)
-    if len(free_ctrl_idx) > 0:
-        assert free_ctrls is not None
-        free_joint_idx = [model.actuator(k).trnid[0] for k in free_ctrl_idx] 
-    else:
-        free_joint_idx = []
-    if noisev is None:
-        noisev = np.zeros((Tk-1, model.nu))
-    if K_update_time is None:
-        K_update_time = Tk+1 # One more than I need, just in case
-    qpos0 = data.qpos.copy()
-    data = copy.deepcopy(data)
-    # if ctrl0 is None:
-        # ctrl0 = get_ctrl0(model, data, qpos0)
-
-    qpos0n = data.qpos.copy()
-
-    qs = np.zeros((Tk, model.nq))
-    qs[0] = qpos0
-    qvels = np.zeros((Tk, model.nq))
-    qvels[0] = data.qvel.copy()
-
-    ctrls = np.zeros((Tk-1, model.nu))
-
-    for k in range(Tk-1):
-        if k % K_update_time == 0:
-            qpos0n[free_joint_idx] = data.qpos[free_joint_idx]
-            ctrl0 = get_ctrl0(model, data, qpos0n)
-            K = get_feedback_ctrl_matrix(model, data, ctrl0)
-
-        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-        if free_ctrls is not None:
-            ctrl[free_ctrl_idx] = free_ctrls[k, free_ctrl_idx]
-        ctrls[k] = ctrl
-        mj.mj_step1(model, data)
-        data.ctrl[:] = ctrl + noisev[k]
-        mj.mj_step2(model, data)
-        qs[k+1] = data.qpos.copy()
-        qvels[k+1] = data.qvel.copy()
-
-    return ctrls, K, qs, qvels
-
-def get_stabilized_ctrls_dep(model, data, Tk=50, noisev=None,
-                         free_ctrl_idx=[], free_ctrls=None,
-                         K_update_time=None):
-    """
-    free_idx: indices of the joints are not controlled by the LQR controller.
-    free_ctrls: specify the controls for the free joints that are not
-    controlled by the LQR controller. ids for corresponding joints given by
-    free_idx (id of the corresponding actuators is found from this info).
-    """
-    data = copy.deepcopy(data)
-    if len(free_ctrl_idx) > 0:
-        assert free_ctrls is not None
-        free_joint_idx = [model.actuator(k).trnid[0] for k in free_ctrl_idx] 
-    else:
-        free_joint_idx = []
-    if noisev is None:
-        noisev = np.zeros((Tk-1, model.nu))
-    if K_update_time is None:
-        K_update_time = Tk+1 # One more than I need, just in case
-    qpos0 = data.qpos.copy()
-    data = copy.deepcopy(data)
-    # if ctrl0 is None:
-        # ctrl0 = get_ctrl0(model, data, qpos0)
-
-    qpos0n = data.qpos.copy()
-
-    qs = np.zeros((Tk, model.nq))
-    qs[0] = qpos0
-    qvels = np.zeros((Tk, model.nq))
-    qvels[0] = data.qvel.copy()
-
-    ctrls = np.zeros((Tk-1, model.nu))
-
-    for k in range(Tk-1):
-        if k % K_update_time == 0:
-            qpos0n[free_joint_idx] = data.qpos[free_joint_idx]
-            ctrl0 = get_ctrl0(model, data, qpos0n)
-            K = get_feedback_ctrl_matrix(model, data, ctrl0)
-
-        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-        if free_ctrls is not None:
-            ctrl[free_ctrl_idx] = free_ctrls[k, free_ctrl_idx]
-        ctrls[k] = ctrl
-        mj.mj_step1(model, data)
-        data.ctrl[:] = ctrl + noisev[k]
-        mj.mj_step2(model, data)
-        qs[k+1] = data.qpos.copy()
-        qvels[k+1] = data.qvel.copy()
-
-    return ctrls, K, qs, qvels
-
 def get_stabilized_simple(model, data, Tk=50, noisev=None, ctrl0=None):
     if noisev is None:
         noisev = np.zeros((Tk-1, model.nu))
@@ -268,6 +165,39 @@ def get_stabilized_simple(model, data, Tk=50, noisev=None, ctrl0=None):
         qs[k+1] = data.qpos.copy()
 
     return ctrls, K
+
+def get_stabilized_ctrls(model, data, Tk, noisev,
+                        qpos0, K_update_interv=None, free_act_ids=None,
+                         free_ctrls=None):
+    if free_act_ids is None or len(free_act_ids) == 0:
+        assert free_ctrls is None
+        free_ctrls = np.empty((Tk, 0))
+        free_act_ids = []
+        free_jnt_ids = []
+    else:
+        free_jnt_ids = [model.actuator(k).trnid[0] for k in free_act_ids]
+    if K_update_interv is None:
+        K_update_interv = Tk+1
+    qpos0n = qpos0.copy()
+    qs = np.zeros((Tk, model.nq))
+    qs[0] = data.qpos.copy()
+    qvels = np.zeros((Tk, model.nq))
+    qvels[0] = data.qvel.copy()
+    ctrls = np.zeros((Tk-1, model.nu))
+    for k in range(Tk-1):
+        if k % K_update_interv == 0:
+            qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
+            ctrl0 = get_ctrl0(model, data, qpos0n)
+            K = get_feedback_ctrl_matrix(model, data, ctrl0)
+        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
+        ctrls[k] = ctrl
+        ctrl[free_act_ids] = free_ctrls[k]
+        mj.mj_step1(model, data)
+        data.ctrl[:] = ctrl + noisev[k]
+        mj.mj_step2(model, data)
+        qs[k+1] = data.qpos.copy()
+        qvels[k+1] = data.qvel.copy()
+    return ctrls, K, qs, qvels
 
 ### Gradient descent
 def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
@@ -306,78 +236,3 @@ def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
     # breakpoint()
     return grads
 
-def stabilized_grad_descent(model, data, site1, site2, ctrls0, noisev=None):
-    Tk = ctrls0.shape[0] + 1
-    if noisev is None:
-        noisev = np.zeros((Tk-1, model.nu))
-    qpos0 = data.qpos.copy()
-    data_orig = copy.deepcopy(data)
-    joints = get_joint_names(model)
-    right_arm_j = joints['right_arm_joint_inds']
-    right_arm_a = joints['right_arm_act_inds']
-    other_a = joints['non_right_arm_act_inds']
-    util.reset(model, data, 10) # Need to deal with this
-    ctrls = ctrls0.copy()
-    # qs, qvels = util.forward_sim(model, data, ctrls)
-
-    sites1 = site1.xpos
-    sites2 = site2.xpos
-    dlds = sites1 - sites2
-    C = np.zeros((3, model.nv))
-    # util.reset(model, data, 10)
-    # util.reset(model, data, 10)
-    qs, qvels = util.forward_sim(model, data, ctrls)
-    mj.mj_jacSite(model, data, C, None, site=site1.id)
-    breakpoint()
-    dldq = C.T @ dlds
-    lams_fin = dldq
-
-    losses = np.zeros(Tk)
-
-    util.reset(model, data, 10)
-    grads = traj_deriv(model, data, qs, qvels, ctrls, lams_fin, losses,
-                       fixed_act_inds=other_a)
-    breakpoint()
-    ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - 20*grads[:Tk-1]
-    util.reset(model, data, 10)
-    qpos0n = qpos0.copy()
-    for k in range(Tk-1):
-        if k % 10 == 0:
-            qpos = data.qpos.copy()
-            # data.qpos[:] = qpos0
-            qpos0n[right_arm_j] = data.qpos[right_arm_j]
-            data.qpos[:] = qpos0n
-            ctrl0 = get_ctrl0(model, data)
-            data.ctrl[:] = ctrl0
-            K = get_feedback_ctrl_matrix(model, data)
-            data.qpos[:] = qpos
-        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
-        breakpoint()
-        ctrl[right_arm_a] = ctrls[k, right_arm_a]
-        print()
-        print(k)
-        print(ctrl)
-        print()
-        if k == 1:
-            sys.exit()
-        
-        mj.mj_step1(model, data)
-        inp = ctrl + noisev[k]
-        data.ctrl[:] = ctrl + noisev[k]
-        mj.mj_step2(model, data)
-        qs[k+1] = data.qpos.copy()
-        qvels[k+1] = data.qvel.copy()
-        # print()
-        # # print(ctrl)
-        if k == 1:
-            # print(noisev[k])
-            print(ctrl)
-            # print(inp)
-            # print(qs[:3,:3])
-            sys.exit()
-        # print()
-    return qs, qvels, ctrls
-        # out = env.step(ctrl + noisev[k])
-        # observation, reward, terminated, __, info = out
-        # qs[k+1] = observation[:model.nq]
-        # qvels[k+1] = observation[model.nq:]
