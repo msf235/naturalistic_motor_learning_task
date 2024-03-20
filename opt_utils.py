@@ -137,35 +137,6 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0):
     # ctrl0 = get_ctrl0(model, data)
     return ctrl0 - K @ dx
 
-# def get_lqr_ctrl(model, data, qpos0, ctrl0):
-    # K = get_feedback_ctrl_matrix(model, data)
-    # return get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-
-def get_stabilized_simple(model, data, Tk=50, noisev=None, ctrl0=None):
-    if noisev is None:
-        noisev = np.zeros((Tk-1, model.nu))
-    qpos0 = data.qpos.copy()
-    data = copy.deepcopy(data)
-    if ctrl0 is None:
-        ctrl0 = get_ctrl0(model, data, qpos0)
-    data.ctrl = ctrl0
-    K = get_feedback_ctrl_matrix(model, data, ctrl0)
-
-    qs = np.zeros((Tk, model.nq))
-    qs[0] = qpos0
-
-    ctrls = np.zeros((Tk-1, model.nu))
-
-    for k in range(Tk-1):
-        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0)
-        ctrls[k] = ctrl
-        mj.mj_step1(model, data)
-        data.ctrl[:] = ctrl + noisev[k]
-        mj.mj_step2(model, data)
-        qs[k+1] = data.qpos.copy()
-
-    return ctrls, K
-
 def get_stabilized_ctrls(model, data, Tk, noisev,
                         qpos0, K_update_interv=None, free_act_ids=None,
                          free_ctrls=None):

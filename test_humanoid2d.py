@@ -33,31 +33,11 @@ noisev = CTRL_STD * noise.sample(Tk-1)
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10)
-# ctrls, K, __, __ = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
-                                          # data.qpos.copy())
-ctrls, K = opt_utils.get_stabilized_simple(model, data, Tk, noisev)
-print(ctrls[-5:])
+ctrls, K, __, __ = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
+                                          data.qpos.copy())
 util.reset(model, data, 10)
-sys.exit()
-
-# util.reset(model, data, 10)
-# mj.mj_step1(model, data)
-# data.ctrl[:] = ctrls[0] + noisev[0]
-# mj.mj_step2(model, data)
-# print(data.qpos)
-# util.reset(model, data, 10)
-# env.step(ctrls[0] + noisev[0])
-# print(data.qpos)
 
 qs, qvels = util.forward_sim(model, data, ctrls)
-# print(qs[-3:,:3])
-# sys.exit()
-# util.reset(model, data, 10)
-# ctrls, K = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev=noisev)
-# util.reset(model, data, 10)
-# qs, qvels = util.forward_sim(model, data, ctrls)
-# print(qs[-3:,:3])
-# sys.exit()
 
 util.reset(model, data, 10)
 
@@ -79,35 +59,6 @@ def get_losses(model, data, site1, site2):
     lams_fin = dldq
     return np.zeros(Tk), lams_fin
 
-# for k0 in range(3):
-def get_stabilized_ctrls(model, data, Tk, noisev,
-                        qpos0, free_act_ids=None, free_ctrls=None):
-    if free_act_ids is None or len(free_act_ids) == 0:
-        assert free_ctrls is None
-        free_ctrls = np.empty((Tk, 0))
-        free_act_ids = []
-        free_jnt_ids = []
-    else:
-        free_jnt_ids = [model.actuator(k).trnid[0] for k in free_act_ids]
-    qpos0n = qpos0.copy()
-    qs = np.zeros((Tk, model.nq))
-    qs[0] = data.qpos.copy()
-    qvels = np.zeros((Tk, model.nq))
-    qvels[0] = data.qvel.copy()
-    for k in range(Tk-1):
-        if k % 10 == 0:
-            qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
-            ctrl0 = opt_utils.get_ctrl0(model, data, qpos0n)
-            K = opt_utils.get_feedback_ctrl_matrix(model, data, ctrl0)
-        ctrl = opt_utils.get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
-        ctrl[free_act_ids] = free_ctrls[k]
-        mj.mj_step1(model, data)
-        data.ctrl[:] = ctrl + noisev[k]
-        mj.mj_step2(model, data)
-        qs[k+1] = data.qpos.copy()
-        qvels[k+1] = data.qvel.copy()
-    return qs, qvels
-
 for k0 in range(3):
     lr = 20
     lams_fin = get_losses(model, data, data.site('hand_right'),
@@ -119,8 +70,7 @@ for k0 in range(3):
                                 k0=k0)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
 
-    __, __, qs, qvels = opt_utils.get_stabilized_ctrls(model, data, Tk,
-                                     noisev, qpos0, 10, right_arm_a,
-                                     ctrls[:, right_arm_a],)
-print(qs[-3:,:3])
+    qs, qvels = opt_utils.get_stabilized_ctrls(
+        model, data, Tk, noisev, qpos0, 10, right_arm_a, ctrls[:, right_arm_a]
+    )[2:]
 
