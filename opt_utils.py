@@ -49,6 +49,10 @@ def get_joint_names(model, data=None):
     joints['right_arm_act_inds'] = [5,6]
     joints['non_right_arm_act_inds'] = [i for i in range(model.nu) if i not in
                                         joints['right_arm_act_inds']]
+    # try:
+        # joints['adhesion_ind'] = model.actuator('hand_right_adh').trnid[0]
+    # except KeyError:
+        # pass
     return joints
 
 
@@ -172,7 +176,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev,
 
 ### Gradient descent
 def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
-               fixed_act_inds=[], k0=None):
+               fixed_act_inds=[]):
     data = copy.deepcopy(data)
     nufree = model.nu - len(fixed_act_inds)
     Tk = qs.shape[0]
@@ -204,6 +208,5 @@ def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
         # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
         grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
                 + Bs[Tk-tk].T @ lams[Tk-tk+1]
-    # breakpoint()
     return grads
 

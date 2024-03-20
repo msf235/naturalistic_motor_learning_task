@@ -48,6 +48,8 @@ right_arm_j = joints['right_arm_joint_inds']
 right_arm_a = joints['right_arm_act_inds']
 other_a = joints['non_right_arm_act_inds']
 
+# lqr_free_a_ids = right_arm_a + joints['adhesion_ind']
+
 qpos0 = data.qpos.copy()
 
 def get_losses(model, data, site1, site2):
@@ -64,14 +66,24 @@ for k0 in range(3):
     lr = 20
     lams_fin = get_losses(model, data, data.site('hand_right'),
                           data.site('target'))[1]
-    env.reset(seed=seed)
     util.reset(model, data, 10)
     grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls,
-                            lams_fin, np.zeros(Tk), fixed_act_inds=other_a,
-                                k0=k0)
+                            lams_fin, np.zeros(Tk), fixed_act_inds=other_a)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
 
     qs, qvels = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, qpos0, 10, right_arm_a, ctrls[:, right_arm_a]
     )[2:]
+
+print(qs[-3:,:3])
+
+util.reset(model, data, 10)
+for k0 in range(10):
+    for k in range(Tk-1):
+        env.step(ctrls[k]+noisev[k])
+    util.reset(model, data, 10)
+
+# util.reset(model, data, 10)
+# for k in range(Tk-1):
+    # env.step(ctrls[k]+noisev[k])
 
