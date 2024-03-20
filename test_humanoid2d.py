@@ -48,8 +48,6 @@ right_arm_j = joints['right_arm_joint_inds']
 right_arm_a = joints['right_arm_act_inds']
 other_a = joints['non_right_arm_act_inds']
 
-# lqr_free_a_ids = right_arm_a + joints['adhesion_ind']
-
 qpos0 = data.qpos.copy()
 
 def get_losses(model, data, site1, site2):
@@ -77,13 +75,4 @@ for k0 in range(3):
 
 print(qs[-3:,:3])
 
-util.reset(model, data, 10)
-for k0 in range(10):
-    for k in range(Tk-1):
-        env.step(ctrls[k]+noisev[k])
-    util.reset(model, data, 10)
-
-# util.reset(model, data, 10)
-# for k in range(Tk-1):
-    # env.step(ctrls[k]+noisev[k])
 

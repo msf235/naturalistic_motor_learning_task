@@ -25,7 +25,7 @@
 
   <default>
     <motor ctrlrange="-1 1" ctrllimited="true"/>
-    <adhesion ctrlrange="0 1"/>
+    <!--<adhesion ctrlrange="0 1"/>-->
     <default class="body">
 
       <!-- geoms -->
@@ -222,7 +222,7 @@
     <motor name="shoulder1_left"  gear="20"  joint="shoulder1_left"/>
     <!--<motor name="shoulder2_left"  gear="20"  joint="shoulder2_left"/>-->
     <motor name="elbow_left"      gear="40"  joint="elbow_left"/>
-    <!--<adhesion name="hand_right_adh" body="hand_right" gain="10"/>-->
+    <!--<adhesion name="hand_right" body="hand_right" gain="10"/>-->
   </actuator>
 
   <!--<keyframe>-->

@@ -49,10 +49,6 @@ def get_joint_names(model, data=None):
     joints['right_arm_act_inds'] = [5,6]
     joints['non_right_arm_act_inds'] = [i for i in range(model.nu) if i not in
                                         joints['right_arm_act_inds']]
-    # try:
-        # joints['adhesion_ind'] = model.actuator('hand_right_adh').trnid[0]
-    # except KeyError:
-        # pass
     return joints
 
 
