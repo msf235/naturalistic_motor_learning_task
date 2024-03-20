@@ -21,6 +21,12 @@ env.reset(seed=seed)
 model = env.model
 data = env.data
 
+joints = opt_utils.get_joint_names(model)
+right_arm_j = joints['right_arm_joint_inds']
+right_arm_a = joints['right_arm_act_inds']
+other_a = joints['non_right_arm_act_inds']
+adh_ids = joints['adhesion']
+
 # Get noise
 CTRL_STD = .05       # actuator units
 # CTRL_STD = 0       # actuator units
@@ -33,8 +39,11 @@ noisev = CTRL_STD * noise.sample(Tk-1)
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10)
-ctrls, K = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
-                                          data.qpos.copy())[:2]
+ctrls, K = opt_utils.get_stabilized_ctrls(
+    model, data, Tk, noisev, data.qpos.copy(),
+    free_act_ids=adh_ids
+)[:2]
+breakpoint()
 util.reset(model, data, 10)
 
 qs, qvels = util.forward_sim(model, data, ctrls)
@@ -43,10 +52,6 @@ util.reset(model, data, 10)
 
 ### Gradient descent
 
-joints = opt_utils.get_joint_names(model)
-right_arm_j = joints['right_arm_joint_inds']
-right_arm_a = joints['right_arm_act_inds']
-other_a = joints['non_right_arm_act_inds']
 
 qpos0 = data.qpos.copy()
 

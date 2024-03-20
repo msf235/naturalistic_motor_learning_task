@@ -49,6 +49,10 @@ def get_joint_names(model, data=None):
     joints['right_arm_act_inds'] = [5,6]
     joints['non_right_arm_act_inds'] = [i for i in range(model.nu) if i not in
                                         joints['right_arm_act_inds']]
+    try:
+        joints['adhesion'] = [model.actuator('right_hand_adh').id]
+    except KeyError:
+        joints['adhesion'] = None
     return joints
 
 
@@ -116,7 +120,15 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R):
     data.qvel[:] = qvel
     return K
 
-def get_feedback_ctrl_matrix(model, data, ctrl0, excluded_state_inds=[], rv=None):
+def get_feedback_ctrl_matrix(model, data, ctrl0,
+                             free_act_ids=None, rv=None):
+    if free_act_ids is None or len(free_act_ids) == 0:
+        free_act_ids = []
+        free_jnt_ids = []
+        ctrl_act_ids = range(model.nu)
+    else:
+        free_jnt_ids = [model.actuator(k).trnid[0] for k in free_act_ids]
+        ctrl_act_ids = [i for i in range(model.nu) if i not in free_act_ids]
     # What about data.qpos, data.qvel, data.qacc?
     data = copy.deepcopy(data)
     data.ctrl[:] = ctrl0
@@ -126,7 +138,7 @@ def get_feedback_ctrl_matrix(model, data, ctrl0, excluded_state_inds=[], rv=None
         R = np.eye(nu)
     else:
         R = np.diag(rv)
-    Q = get_Q_matrix(model, data, excluded_state_inds)
+    Q = get_Q_matrix(model, data, free_jnt_ids)
     K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R)
     return K
 
@@ -134,6 +146,7 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0):
     dq = np.zeros(model.nq)
     mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)
     dx = np.hstack((dq, data.qvel)).T
+    breakpoint()
     # ctrl0 = get_ctrl0(model, data)
     return ctrl0 - K @ dx
 
@@ -147,6 +160,8 @@ def get_stabilized_ctrls(model, data, Tk, noisev,
         free_jnt_ids = []
     else:
         free_jnt_ids = [model.actuator(k).trnid[0] for k in free_act_ids]
+        if free_ctrls is None:
+            free_ctrls = np.zeros((Tk, len(free_act_ids)))
     if K_update_interv is None:
         K_update_interv = Tk+1
     qpos0n = qpos0.copy()
@@ -158,9 +173,10 @@ def get_stabilized_ctrls(model, data, Tk, noisev,
     for k in range(Tk-1):
         if k % K_update_interv == 0:
             qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
-            ctrl0 = get_ctrl0(model, data, qpos0n)
+            ctrl0 = np.delete(get_ctrl0(model, data, qpos0n), free_act_ids)
             K = get_feedback_ctrl_matrix(model, data, ctrl0)
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
+        breakpoint()
         ctrls[k] = ctrl
         ctrl[free_act_ids] = free_ctrls[k]
         mj.mj_step1(model, data)
