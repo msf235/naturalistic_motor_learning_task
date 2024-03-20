@@ -33,8 +33,8 @@ noisev = CTRL_STD * noise.sample(Tk-1)
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10)
-ctrls, K, __, __ = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
-                                          data.qpos.copy())
+ctrls, K = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
+                                          data.qpos.copy())[:2]
 util.reset(model, data, 10)
 
 qs, qvels = util.forward_sim(model, data, ctrls)
@@ -58,6 +58,7 @@ def get_losses(model, data, site1, site2):
     dldq = C.T @ dlds
     lams_fin = dldq
     return np.zeros(Tk), lams_fin
+
 
 for k0 in range(3):
     lr = 20
