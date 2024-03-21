@@ -105,7 +105,7 @@
       <camera name="side" pos="0 -3 1" xyaxes="1 0 0 0 1 2" mode="trackcom"/>
       <!--<freejoint name="root"/>-->
       <joint name="z_root" type="slide" axis="0 0 1" range="-100 100"/>
-      <joint name="x_root" type="slide" axis="1 0 0" range="-100 100"/>
+      <joint name="x_root" type="slide" axis="0 1 0" range="-100 100"/>
       <joint name="hinge_root" type="hinge" axis="1 0 0" range="-1000 1000"/>
       <geom name="torso" fromto="0 -.07 0 0 .07 0" size=".07"/>
       <geom name="waist_upper" fromto="-.01 -.06 -.12 -.01 .06 -.12" size=".06"/>

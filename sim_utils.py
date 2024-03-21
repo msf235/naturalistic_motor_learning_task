@@ -3,8 +3,10 @@ import mujoco as mj
 import copy
 
 ## Reset and burn in:
-def reset(model, data, nsteps):
+def reset(model, data, nsteps, humanoid_x0=None):
     mj.mj_resetData(model, data)
+    if humanoid_x0 is not None:
+        data.qpos[1] = humanoid_x0
     for k in range(nsteps):
         mj.mj_step(model, data)
 

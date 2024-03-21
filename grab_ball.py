@@ -12,6 +12,8 @@ rng = np.random.default_rng(seed)
 
 Tk = 50
 
+body_pos = -0.4
+
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
     render_mode='human',
@@ -43,16 +45,16 @@ noisev = CTRL_STD * noise.sample(Tk-1)
 noisev[:, adh] = 0
 
 ### Get initial stabilizing controls
-util.reset(model, data, 10)
+util.reset(model, data, 10, body_pos)
 ctrls, K = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
                                           data.qpos.copy(), free_act_ids=adh)[:2]
-util.reset(model, data, 10)
+util.reset(model, data, 10, body_pos)
 
 show_forward_sim(model, data, ctrls+noisev)
 
 qs, qvels = util.forward_sim(model, data, ctrls)
 
-util.reset(model, data, 10)
+util.reset(model, data, 10, body_pos)
 
 ### Gradient descent
 
@@ -72,9 +74,9 @@ for k0 in range(3):
     lr = 20
     lams_fin = get_losses(model, data, data.site('hand_right'),
                           data.site('target'))[1]
-    util.reset(model, data, 10)
+    util.reset(model, data, 10, body_pos)
     show_forward_sim(model, data, ctrls+noisev)
-    util.reset(model, data, 10)
+    util.reset(model, data, 10, body_pos)
     grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls,
                             lams_fin, np.zeros(Tk), fixed_act_inds=other_a)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
