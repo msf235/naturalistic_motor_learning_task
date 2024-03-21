@@ -10,7 +10,7 @@ import sys
 seed = 2
 rng = np.random.default_rng(seed)
 
-Tk = 500
+Tk = 50
 
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
@@ -47,8 +47,6 @@ util.reset(model, data, 10)
 ctrls, K = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
                                           data.qpos.copy(), free_act_ids=adh)[:2]
 util.reset(model, data, 10)
-for k in range(Tk-1):
-    env.step(ctrls[k]+noisev[k])
 
 show_forward_sim(model, data, ctrls+noisev)
 
