@@ -73,6 +73,8 @@ for k0 in range(3):
     lams_fin = get_losses(model, data, data.site('hand_right'),
                           data.site('target'))[1]
     util.reset(model, data, 10)
+    show_forward_sim(model, data, ctrls+noisev)
+    util.reset(model, data, 10)
     grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls,
                             lams_fin, np.zeros(Tk), fixed_act_inds=other_a)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
