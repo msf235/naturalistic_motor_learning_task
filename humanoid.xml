@@ -222,7 +222,12 @@
     <motor name="shoulder1_left"  gear="20"  joint="shoulder1_left"/>
     <!--<motor name="shoulder2_left"  gear="20"  joint="shoulder2_left"/>-->
     <motor name="elbow_left"      gear="40"  joint="elbow_left"/>
+<<<<<<< HEAD
     <adhesion name="hand_right_adh" body="hand_right" gain="10" ctrlrange="0 1"/>
+=======
+    <adhesion name="hand_right_adh" body="hand_right" gain="10"
+      ctrlrange="0 1"/>
+>>>>>>> rollback2
   </actuator>
 
   <!--<keyframe>-->

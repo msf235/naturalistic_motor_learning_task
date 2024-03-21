@@ -50,9 +50,15 @@ def get_joint_names(model, data=None):
     joints['non_right_arm_act_inds'] = [i for i in range(model.nu) if i not in
                                         joints['right_arm_act_inds']]
     try:
+<<<<<<< HEAD
         joints['adhesion'] = [model.actuator('hand_right_adh').id]
     except KeyError:
         joints['adhesion'] = []
+=======
+        joints['adh_right_hand'] = [model.actuator('hand_right_adh').id]
+    except KeyError:
+        joints['adh_right_hand'] = []
+>>>>>>> rollback2
     return joints
 
 
@@ -157,12 +163,19 @@ def get_stabilized_ctrls(model, data, Tk, noisev,
         free_act_ids = []
         free_jnt_ids = []
     else:
+<<<<<<< HEAD
         free_jnt_ids = [model.actuator(k).trnid[0] for k in free_act_ids if 
                         model.actuator(k).trntype[0]==0]
         if free_ctrls is None:
             free_ctrls = np.zeros((Tk, len(free_act_ids)))
 
     ctrl_act_ids = [i for i in range(model.nu) if i not in free_act_ids]
+=======
+        free_jnt_ids = [model.actuator(k).trnid[0] for k in free_act_ids if
+                        model.actuator(k).trntype == 0]
+        if free_ctrls is None:
+            free_ctrls = np.zeros((Tk, len(free_act_ids)))
+>>>>>>> rollback2
     if K_update_interv is None:
         K_update_interv = Tk+1
     qpos0n = qpos0.copy()

@@ -25,9 +25,11 @@ joints = opt_utils.get_joint_names(model)
 right_arm_j = joints['right_arm_joint_inds']
 right_arm_a = joints['right_arm_act_inds']
 other_a = joints['non_right_arm_act_inds']
-adh_ids = joints['adhesion']
-# mu_opt = model.mu - len(adh_ids) # Number of actuators for optimization
+adh = joints['adh_right_hand']
 
+def show_forward_sim(model, data, ctrls):
+    for k in range(ctrls.shape[0]-1):
+        env.step(ctrls[k])
 
 # Get noise
 CTRL_STD = .05       # actuator units
@@ -38,26 +40,23 @@ kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
 noise = util.FilteredNoise(model.nu, kernel, rng)
 noisev = CTRL_STD * noise.sample(Tk-1)
-noisev[:, adh_ids] = 0
+noisev[:, adh] = 0
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10)
-ctrls, K = opt_utils.get_stabilized_ctrls(
-    model, data, Tk, noisev, data.qpos.copy(),
-    free_act_ids=adh_ids
-)[:2]
-print(ctrls[-3:])
+ctrls, K = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
+                                          data.qpos.copy(), free_act_ids=adh)[:2]
 util.reset(model, data, 10)
 for k in range(Tk-1):
     env.step(ctrls[k]+noisev[k])
-breakpoint()
+
+show_forward_sim(model, data, ctrls+noisev)
 
 qs, qvels = util.forward_sim(model, data, ctrls)
 
 util.reset(model, data, 10)
 
 ### Gradient descent
-
 
 qpos0 = data.qpos.copy()
 
