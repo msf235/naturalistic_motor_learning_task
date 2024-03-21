@@ -10,12 +10,12 @@ import sys
 seed = 2
 rng = np.random.default_rng(seed)
 
-Tk = 50
+Tk = 500
 
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
-    # render_mode='human',
-    render_mode='rgb_array',
+    render_mode='human',
+    # render_mode='rgb_array',
     frame_skip=1)
 env.reset(seed=seed)
 model = env.model
@@ -26,6 +26,8 @@ right_arm_j = joints['right_arm_joint_inds']
 right_arm_a = joints['right_arm_act_inds']
 other_a = joints['non_right_arm_act_inds']
 adh_ids = joints['adhesion']
+# mu_opt = model.mu - len(adh_ids) # Number of actuators for optimization
+
 
 # Get noise
 CTRL_STD = .05       # actuator units
@@ -36,6 +38,7 @@ kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
 noise = util.FilteredNoise(model.nu, kernel, rng)
 noisev = CTRL_STD * noise.sample(Tk-1)
+noisev[:, adh_ids] = 0
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10)
@@ -43,8 +46,11 @@ ctrls, K = opt_utils.get_stabilized_ctrls(
     model, data, Tk, noisev, data.qpos.copy(),
     free_act_ids=adh_ids
 )[:2]
-breakpoint()
+print(ctrls[-3:])
 util.reset(model, data, 10)
+for k in range(Tk-1):
+    env.step(ctrls[k]+noisev[k])
+breakpoint()
 
 qs, qvels = util.forward_sim(model, data, ctrls)
 
