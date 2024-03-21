@@ -14,12 +14,22 @@ Tk = 50
 
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
-    # render_mode='human',
-    render_mode='rgb_array',
+    render_mode='human',
+    # render_mode='rgb_array',
     frame_skip=1)
 env.reset(seed=seed)
 model = env.model
 data = env.data
+
+joints = opt_utils.get_joint_names(model)
+right_arm_j = joints['right_arm_joint_inds']
+right_arm_a = joints['right_arm_act_inds']
+other_a = joints['non_right_arm_act_inds']
+adh = joints['adh_right_hand']
+
+def show_forward_sim(model, data, ctrls):
+    for k in range(ctrls.shape[0]-1):
+        env.step(ctrls[k])
 
 # Get noise
 CTRL_STD = .05       # actuator units
@@ -30,23 +40,21 @@ kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
 kernel /= np.linalg.norm(kernel)
 noise = util.FilteredNoise(model.nu, kernel, rng)
 noisev = CTRL_STD * noise.sample(Tk-1)
+noisev[:, adh] = 0
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10)
 ctrls, K = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
-                                          data.qpos.copy())[:2]
+                                          data.qpos.copy(), free_act_ids=adh)[:2]
 util.reset(model, data, 10)
+
+show_forward_sim(model, data, ctrls+noisev)
 
 qs, qvels = util.forward_sim(model, data, ctrls)
 
 util.reset(model, data, 10)
 
 ### Gradient descent
-
-joints = opt_utils.get_joint_names(model)
-right_arm_j = joints['right_arm_joint_inds']
-right_arm_a = joints['right_arm_act_inds']
-other_a = joints['non_right_arm_act_inds']
 
 qpos0 = data.qpos.copy()
 
