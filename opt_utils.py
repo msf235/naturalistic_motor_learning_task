@@ -151,7 +151,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev,
         free_jnt_ids = []
     else:
         free_jnt_ids = [model.actuator(k).trnid[0] for k in free_act_ids if
-                        model.actuator(k).trntype == 0]
+                        model.actuator(k).trntype[0] == 0]
         if free_ctrls is None:
             free_ctrls = np.zeros((Tk, len(free_act_ids)))
     if K_update_interv is None:
