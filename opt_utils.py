@@ -43,13 +43,13 @@ def get_joint_names(model, data=None):
     joints['balance_dofs'] = joints['abdomen_dofs'] + joints['leg_dofs']
     joints['other_dofs'] = np.setdiff1d(joints['body_dofs'],
                                         joints['balance_dofs'])
-    joints['right_arm_joint_inds'] = [
+    joints['right_arm'] = [
         model.joint(name).dofadr[0] for name in joints['joint_names']
         if ('shoulder' in name or 'elbow' in name) and 'right' in name
     ]
 
-    joints['non_right_arm_joint_inds'] = [i for i in range(model.nq) if i not
-                                          in joints['right_arm_joint_inds']]
+    joints['non_right_arm'] = [i for i in range(model.nq) if i not
+                                          in joints['right_arm']]
     return joints
 
 def get_act_names(model, data=None):
@@ -60,6 +60,8 @@ def get_act_names(model, data=None):
         for name in acts['act_names']
         if ('shoulder' in name or 'elbow' in name) and 'right' in name
     ]
+    acts['non_right_arm'] = [i for i in range(model.nu) if i not in
+                               acts['right_arm']]
     try:
         acts['adh_right_hand'] = [
             model.actuator(name).id

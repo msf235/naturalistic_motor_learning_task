@@ -19,16 +19,17 @@ env = h2d.Humanoid2dEnv(
     render_mode='human',
     # render_mode='rgb_array',
     frame_skip=1)
-env.reset(seed=seed)
 model = env.model
 data = env.data
+# env.reset(seed=seed) # necessary?
+util.reset(model, data, 10, body_pos)
 
 joints = opt_utils.get_joint_names(model)
 acts = opt_utils.get_act_names(model)
-right_arm_j = joints['right_arm_joint_inds']
-# right_arm_a = joints['right_arm_act_inds']
-# other_a = joints['non_right_arm_act_inds']
+right_arm_j = joints['right_arm']
+right_arm_a = acts['right_arm']
 adh = acts['adh_right_hand']
+other_a = acts['non_right_arm']
 
 def show_forward_sim(model, data, ctrls):
     for k in range(ctrls.shape[0]-1):
@@ -76,8 +77,16 @@ for k0 in range(3):
     lams_fin = get_losses(model, data, data.site('hand_right'),
                           data.site('target'))[1]
     util.reset(model, data, 10, body_pos)
-    show_forward_sim(model, data, ctrls+noisev)
-    util.reset(model, data, 10, body_pos)
+    if k0 > 1:
+        for k in range(Tk-1):
+            util.step(model, data, ctrls[k]+noisev[k])
+            env.render()
+            contact_pairs = util.get_contact_pairs(model, data)
+            if 'ball' in contact_pairs:
+                breakpoint()
+    else:
+        show_forward_sim(model, data, ctrls+noisev)
+        
     grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
                                  np.zeros(Tk), fixed_act_inds=other_a)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
@@ -85,6 +94,7 @@ for k0 in range(3):
     qs, qvels = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, qpos0, 10, right_arm_a, ctrls[:, right_arm_a]
     )[2:]
+
 
 print(qs[-3:,:3])
 

@@ -10,6 +10,17 @@ def reset(model, data, nsteps, humanoid_x0=None):
     for k in range(nsteps):
         mj.mj_step(model, data)
 
+def step(model, data, ctrl):
+    mj.mj_step1(model, data)
+    data.ctrl[:] = ctrl
+    mj.mj_step2(model, data)
+
+def get_contact_pairs(model, data):
+    contact_pairs = [[model.geom(c.geom[0]).name, model.geom(c.geom[1]).name]
+                     for c in data.contact]
+    contact_pairs = np.stack(contact_pairs)
+    return contact_pairs
+
 # class MinimalNoise:
     # def __init__(self, rng):
         # self.rng = rng
