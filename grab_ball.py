@@ -24,10 +24,11 @@ model = env.model
 data = env.data
 
 joints = opt_utils.get_joint_names(model)
+acts = opt_utils.get_act_names(model)
 right_arm_j = joints['right_arm_joint_inds']
-right_arm_a = joints['right_arm_act_inds']
-other_a = joints['non_right_arm_act_inds']
-adh = joints['adh_right_hand']
+# right_arm_a = joints['right_arm_act_inds']
+# other_a = joints['non_right_arm_act_inds']
+adh = acts['adh_right_hand']
 
 def show_forward_sim(model, data, ctrls):
     for k in range(ctrls.shape[0]-1):
@@ -77,8 +78,8 @@ for k0 in range(3):
     util.reset(model, data, 10, body_pos)
     show_forward_sim(model, data, ctrls+noisev)
     util.reset(model, data, 10, body_pos)
-    grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls,
-                            lams_fin, np.zeros(Tk), fixed_act_inds=other_a)
+    grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
+                                 np.zeros(Tk), fixed_act_inds=other_a)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
 
     qs, qvels = opt_utils.get_stabilized_ctrls(

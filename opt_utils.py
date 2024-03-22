@@ -43,17 +43,32 @@ def get_joint_names(model, data=None):
     joints['balance_dofs'] = joints['abdomen_dofs'] + joints['leg_dofs']
     joints['other_dofs'] = np.setdiff1d(joints['body_dofs'],
                                         joints['balance_dofs'])
-    joints['right_arm_joint_inds'] = [8, 9]
+    joints['right_arm_joint_inds'] = [
+        model.joint(name).dofadr[0] for name in joints['joint_names']
+        if ('shoulder' in name or 'elbow' in name) and 'right' in name
+    ]
+
     joints['non_right_arm_joint_inds'] = [i for i in range(model.nq) if i not
                                           in joints['right_arm_joint_inds']]
-    joints['right_arm_act_inds'] = [5,6]
-    joints['non_right_arm_act_inds'] = [i for i in range(model.nu) if i not in
-                                        joints['right_arm_act_inds']]
-    try:
-        joints['adh_right_hand'] = [model.actuator('hand_right_adh').id]
-    except KeyError:
-        joints['adh_right_hand'] = []
     return joints
+
+def get_act_names(model, data=None):
+    acts = {}
+    acts['act_names'] = [model.actuator(i).name for i in range(model.nu)]
+    acts['right_arm'] = [
+        model.actuator(name).id
+        for name in acts['act_names']
+        if ('shoulder' in name or 'elbow' in name) and 'right' in name
+    ]
+    try:
+        acts['adh_right_hand'] = [
+            model.actuator(name).id
+            for name in acts['act_names']
+            if 'hand' in name and 'right' in name and 'adh' in name
+        ]
+    except KeyError:
+        acts['adh_right_hand'] = []
+    return acts
 
 
 def get_Q_balance(model, data):
