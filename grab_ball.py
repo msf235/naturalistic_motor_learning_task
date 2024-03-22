@@ -71,7 +71,7 @@ def get_losses(model, data, site1, site2):
     lams_fin = dldq
     return np.zeros(Tk), lams_fin
 
-
+ball_contact = False
 for k0 in range(3):
     lr = 20
     lams_fin = get_losses(model, data, data.site('hand_right'),
@@ -83,10 +83,12 @@ for k0 in range(3):
             env.render()
             contact_pairs = util.get_contact_pairs(model, data)
             if 'ball' in contact_pairs:
-                breakpoint()
+                ball_contact = True
+                break
     else:
         show_forward_sim(model, data, ctrls+noisev)
-        
+    if ball_contact:
+        break
     grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
                                  np.zeros(Tk), fixed_act_inds=other_a)
     ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
@@ -94,6 +96,7 @@ for k0 in range(3):
     qs, qvels = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, qpos0, 10, right_arm_a, ctrls[:, right_arm_a]
     )[2:]
+    print('hi')
 
 
 print(qs[-3:,:3])
