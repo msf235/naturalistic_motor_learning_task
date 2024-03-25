@@ -9,19 +9,23 @@ import humanoid2d as h2d
 import copy
 
 ### LQR
-def get_ctrl0(model, data, qpos0):
+def get_ctrl0(model, data, qpos0, stable_jnt_ids):
     data = copy.deepcopy(data)
     data.qpos[:] = qpos0.copy()
     mj.mj_forward(model, data)
     data.qacc[:] = 0
     data.qvel[:] = 0
     mj.mj_inverse(model, data)
-    qfrc0 = data.qfrc_inverse.copy()
-    ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(data.actuator_moment)
-    ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
+    qfrc0 = data.qfrc_inverse.copy()[stable_jnt_ids]
+    M = data.actuator_moment[:, stable_jnt_ids]
+    # Probably much better way to do this
+    # ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(M)
+    ctrl0 = np.linalg.lstsq(M.T, qfrc0, rcond=None)[0]
+    # ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
     return ctrl0
 
 def get_joint_names(model, data=None):
+    """Get joint names for body."""
     joints = {}
     joints['joint_names'] = [model.joint(i).name for i in range(model.njnt)]
 
@@ -47,9 +51,14 @@ def get_joint_names(model, data=None):
         model.joint(name).dofadr[0] for name in joints['joint_names']
         if ('shoulder' in name or 'elbow' in name) and 'right' in name
     ]
+    ball_jnts = [
+        model.joint(name).dofadr[0] for name in joints['joint_names']
+        if 'ball' in name
+    ]
 
     joints['non_right_arm'] = [i for i in range(model.nq) if i not
-                                          in joints['right_arm']]
+                                in joints['right_arm']+ball_jnts]
+    joints['body'] = [k for k in range(model.nq) if k not in ball_jnts]
     return joints
 
 def get_act_names(model, data=None):
@@ -116,11 +125,11 @@ def get_Q_matrix(model, data, excluded_state_inds=[]):
                   [np.zeros((nq, 2*nq))]])
     return Q
 
-def get_feedback_ctrl_matrix_from_QR(model, data, Q, R):
+def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,):
     # Assumes that data.ctrl has been set to ctrl0 and data.qpos has been set
     # to qpos0.
+    data = copy.deepcopy(data)
     qvel = data.qvel.copy()
-    data.qvel[:] = 0
     nq = model.nq
     A = np.zeros((2*nq, 2*nq))
     B = np.zeros((2*nq, model.nu))
@@ -128,16 +137,18 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R):
     flg_centered = True
     mj.mjd_transitionFD(model, data, epsilon, flg_centered, A, B,
                         None, None)
-
+    stable_ids = stable_jnt_ids + [i+nq for i in stable_jnt_ids]
+    A = A[stable_ids][:, stable_ids]
+    B = B[stable_ids]
+    Q = Q[stable_ids][:, stable_ids]
     # Solve discrete Riccati equation.
     P = scipy.linalg.solve_discrete_are(A, B, Q, R)
 
     # Compute the feedback gain matrix K.
     K = np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A
-    data.qvel[:] = qvel
     return K
 
-def get_feedback_ctrl_matrix(model, data, ctrl0, excluded_state_inds=[], rv=None):
+def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids, rv=None):
     # What about data.qpos, data.qvel, data.qacc?
     data = copy.deepcopy(data)
     data.ctrl[:] = ctrl0
@@ -147,30 +158,27 @@ def get_feedback_ctrl_matrix(model, data, ctrl0, excluded_state_inds=[], rv=None
         R = np.eye(nu)
     else:
         R = np.diag(rv)
-    Q = get_Q_matrix(model, data, excluded_state_inds)
-    K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R)
+    Q = get_Q_matrix(model, data)
+    K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids)
     return K
 
-def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0):
+def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
     dq = np.zeros(model.nq)
     mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)
-    dx = np.hstack((dq, data.qvel)).T
+    dq = dq[stable_jnt_ids]
+    qvel = data.qvel[stable_jnt_ids]
+    dx = np.concatenate((dq, qvel))
+    # dx = np.hstack((dq, data.qvel)).T
     # ctrl0 = get_ctrl0(model, data)
     return ctrl0 - K @ dx
 
-def get_stabilized_ctrls(model, data, Tk, noisev,
-                        qpos0, K_update_interv=None, free_act_ids=None,
-                         free_ctrls=None):
-    if free_act_ids is None or len(free_act_ids) == 0:
-        assert free_ctrls is None
-        free_ctrls = np.empty((Tk, 0))
-        free_act_ids = []
-        free_jnt_ids = []
-    else:
-        free_jnt_ids = [model.actuator(k).trnid[0] for k in free_act_ids if
-                        model.actuator(k).trntype[0] == 0]
-        if free_ctrls is None:
-            free_ctrls = np.zeros((Tk, len(free_act_ids)))
+def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
+                         stable_jnt_ids,
+                         free_ctrls=None, K_update_interv=None,):
+    free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
+    free_jnt_ids = [k for k in range(model.njnt) if k not in stable_jnt_ids]
+    if free_ctrls is None:
+        free_ctrls = np.zeros((Tk, len(free_act_ids)))
     if K_update_interv is None:
         K_update_interv = Tk+1
     qpos0n = qpos0.copy()
@@ -182,9 +190,9 @@ def get_stabilized_ctrls(model, data, Tk, noisev,
     for k in range(Tk-1):
         if k % K_update_interv == 0:
             qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
-            ctrl0 = get_ctrl0(model, data, qpos0n)
-            K = get_feedback_ctrl_matrix(model, data, ctrl0)
-        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0)
+            ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_ids)
+            K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids)
+        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0, stable_jnt_ids)
         ctrls[k] = ctrl
         ctrl[free_act_ids] = free_ctrls[k]
         mj.mj_step1(model, data)

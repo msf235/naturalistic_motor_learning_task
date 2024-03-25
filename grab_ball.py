@@ -10,7 +10,7 @@ import sys
 seed = 2
 rng = np.random.default_rng(seed)
 
-Tk = 50
+Tk = 500
 
 body_pos = -0.4
 
@@ -25,11 +25,13 @@ data = env.data
 util.reset(model, data, 10, body_pos)
 
 joints = opt_utils.get_joint_names(model)
-acts = opt_utils.get_act_names(model)
 right_arm_j = joints['right_arm']
+body_j = joints['body']
+acts = opt_utils.get_act_names(model)
 right_arm_a = acts['right_arm']
 adh = acts['adh_right_hand']
 other_a = acts['non_right_arm']
+all_act_ids = list(range(model.nu))
 
 def show_forward_sim(model, data, ctrls):
     for k in range(ctrls.shape[0]-1):
@@ -48,11 +50,13 @@ noisev[:, adh] = 0
 
 ### Get initial stabilizing controls
 util.reset(model, data, 10, body_pos)
-ctrls, K = opt_utils.get_stabilized_ctrls(model, data, Tk, noisev,
-                                          data.qpos.copy(), free_act_ids=adh)[:2]
+ctrls, K = opt_utils.get_stabilized_ctrls(
+    model, data, Tk, noisev, data.qpos.copy(), all_act_ids, body_j)[:2]
 util.reset(model, data, 10, body_pos)
 
 show_forward_sim(model, data, ctrls+noisev)
+
+sys.exit()
 
 qs, qvels = util.forward_sim(model, data, ctrls)
 
@@ -96,9 +100,12 @@ for k0 in range(3):
     qs, qvels = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, qpos0, 10, right_arm_a, ctrls[:, right_arm_a]
     )[2:]
-    print('hi')
 
-
-print(qs[-3:,:3])
-
-
+ctrl = ctrls[k]
+ctrl[adh] = 1
+ctrl[right_arm_a] = 1
+# data.ctrl[-1] = 1
+# data.ctrl[5] = 1
+for k in range(100):
+    util.step(model, data, ctrl)
+    env.render()
