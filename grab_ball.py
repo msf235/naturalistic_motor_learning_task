@@ -21,8 +21,16 @@ env = h2d.Humanoid2dEnv(
     frame_skip=1)
 model = env.model
 data = env.data
-# env.reset(seed=seed) # necessary?
+env.reset(seed=seed) # necessary?
+
+def show_forward_sim(model, data, ctrls):
+    for k in range(ctrls.shape[0]-1):
+        env.step(ctrls[k])
+
+breakpoint()
 util.reset(model, data, 10, body_pos)
+
+show_forward_sim(model, data, np.zeros((Tk, model.nu)))
 
 joints = opt_utils.get_joint_names(model)
 right_arm_j = joints['right_arm']
@@ -33,9 +41,6 @@ adh = acts['adh_right_hand']
 other_a = acts['non_right_arm']
 all_act_ids = list(range(model.nu))
 
-def show_forward_sim(model, data, ctrls):
-    for k in range(ctrls.shape[0]-1):
-        env.step(ctrls[k])
 
 # Get noise
 CTRL_STD = .05       # actuator units
@@ -95,7 +100,7 @@ for k0 in range(3):
         break
     grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
                                  np.zeros(Tk), fixed_act_inds=other_a)
-    ctrls[:,right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
+    ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
 
     qs, qvels = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, qpos0, 10, right_arm_a, ctrls[:, right_arm_a]

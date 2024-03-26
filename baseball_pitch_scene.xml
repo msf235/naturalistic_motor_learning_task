@@ -61,7 +61,7 @@
 
     <geom name="ballstand" size=".1 .1 .5" pos="0 -.9 .5" type="box"
       material="obj" condim="3"/>
-    <body name="ball" pos="0 -0.9 .95">
+    <body name="ball" pos="0 -0.9 1.05">
       <geom name="ball" size=".05 .05 .05" pos="0 0 0" type="sphere"
         material="obj" condim="3"/>
       <site name="target" pos="0 0 0" size=".01" rgba="0 0 0 0"/>

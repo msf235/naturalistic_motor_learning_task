@@ -173,8 +173,8 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
     return ctrl0 - K @ dx
 
 def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
-                         stable_jnt_ids,
-                         free_ctrls=None, K_update_interv=None,):
+                         stable_jnt_ids, free_ctrls=None,
+                         K_update_interv=None,):
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
     free_jnt_ids = [k for k in range(model.njnt) if k not in stable_jnt_ids]
     if free_ctrls is None:
