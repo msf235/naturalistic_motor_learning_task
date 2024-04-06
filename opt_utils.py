@@ -192,7 +192,8 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
             qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
             ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_ids)
             K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids)
-        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0, stable_jnt_ids)
+        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
+                                   stable_jnt_ids)
         ctrls[k] = ctrl
         ctrl[free_act_ids] = free_ctrls[k]
         mj.mj_step1(model, data)
