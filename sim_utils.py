@@ -4,9 +4,10 @@ import copy
 
 ## Reset and burn in:
 def reset(model, data, nsteps, humanoid_x0=None):
+    jid = model.joint('x_root').jntid
     mj.mj_resetData(model, data)
     if humanoid_x0 is not None:
-        data.qpos[1] = humanoid_x0
+        data.qpos[jid] = humanoid_x0
     for k in range(nsteps):
         mj.mj_step(model, data)
 
@@ -18,7 +19,7 @@ def step(model, data, ctrl):
 def get_contact_pairs(model, data):
     contact_pairs = [[model.geom(c.geom[0]).name, model.geom(c.geom[1]).name]
                      for c in data.contact]
-    contact_pairs = np.stack(contact_pairs)
+    # contact_pairs = np.stack(contact_pairs)
     return contact_pairs
 
 # class MinimalNoise:

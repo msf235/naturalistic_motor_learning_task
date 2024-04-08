@@ -9,7 +9,7 @@ import humanoid2d as h2d
 import copy
 
 ### LQR
-def get_ctrl0(model, data, qpos0, stable_jnt_ids):
+def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     data = copy.deepcopy(data)
     data.qpos[:] = qpos0.copy()
     mj.mj_forward(model, data)
@@ -17,10 +17,12 @@ def get_ctrl0(model, data, qpos0, stable_jnt_ids):
     data.qvel[:] = 0
     mj.mj_inverse(model, data)
     qfrc0 = data.qfrc_inverse.copy()[stable_jnt_ids]
-    M = data.actuator_moment[:, stable_jnt_ids]
+    # M = data.actuator_moment[:, stable_jnt_ids]
+    M = data.actuator_moment[ctrl_act_ids][:, stable_jnt_ids]
     # Probably much better way to do this
     # ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(M)
     ctrl0 = np.linalg.lstsq(M.T, qfrc0, rcond=None)[0]
+    breakpoint()
     # ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
     return ctrl0
 
@@ -79,6 +81,8 @@ def get_act_names(model, data=None):
         ]
     except KeyError:
         acts['adh_right_hand'] = []
+    acts['non_adh'] = [i for i in range(model.nu) if i not in
+                       acts['adh_right_hand']]
     return acts
 
 
@@ -125,7 +129,8 @@ def get_Q_matrix(model, data, excluded_state_inds=[]):
                   [np.zeros((nq, 2*nq))]])
     return Q
 
-def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,):
+def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
+                                     active_ctrl_ids):
     # Assumes that data.ctrl has been set to ctrl0 and data.qpos has been set
     # to qpos0.
     data = copy.deepcopy(data)
@@ -139,7 +144,7 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,):
                         None, None)
     stable_ids = stable_jnt_ids + [i+nq for i in stable_jnt_ids]
     A = A[stable_ids][:, stable_ids]
-    B = B[stable_ids]
+    B = B[stable_ids][:, active_ctrl_ids]
     Q = Q[stable_ids][:, stable_ids]
     # Solve discrete Riccati equation.
     P = scipy.linalg.solve_discrete_are(A, B, Q, R)
@@ -148,18 +153,18 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,):
     K = np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A
     return K
 
-def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids, rv=None):
+def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
+                             active_ctrl_ids):
     # What about data.qpos, data.qvel, data.qacc?
     data = copy.deepcopy(data)
     data.ctrl[:] = ctrl0
     nq = model.nq
     nu = model.nu
-    if rv is None:
-        R = np.eye(nu)
-    else:
-        R = np.diag(rv)
+    R = np.eye(nu - len(active_ctrl_ids))
     Q = get_Q_matrix(model, data)
-    K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids)
+    K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
+                                         active_ctrl_ids)
+    breakpoint()
     return K
 
 def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
@@ -175,6 +180,24 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
 def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                          stable_jnt_ids, free_ctrls=None,
                          K_update_interv=None,):
+    """Get stabilized controls.
+
+    Args:
+        model: Mujoco model.
+        data: Mujoco data.
+        Tk: Number of time steps.
+        noisev: Noise vector.
+        qpos0: Initial position.
+        ctrl_act_ids: IDs for actuators that will be used for stabilization
+            control.
+        free_act_ids: IDs for actuators that will not be used for stabilization
+            control.
+        stable_jnt_ids: IDs for joints that will be stabilized (kept from
+            moving).
+        free_ctrls: Free controls.
+        K_update_interv: Update interval for K.
+        """
+
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
     free_jnt_ids = [k for k in range(model.njnt) if k not in stable_jnt_ids]
     if free_ctrls is None:
@@ -190,17 +213,19 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
     for k in range(Tk-1):
         if k % K_update_interv == 0:
             qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
-            ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_ids)
-            K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids)
+            ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_ids,
+                              ctrl_act_ids)
+            K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
+                                         ctrl_act_ids)
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
                                    stable_jnt_ids)
-        ctrls[k] = ctrl
         ctrl[free_act_ids] = free_ctrls[k]
         mj.mj_step1(model, data)
         data.ctrl[:] = ctrl + noisev[k]
         mj.mj_step2(model, data)
         qs[k+1] = data.qpos.copy()
         qvels[k+1] = data.qvel.copy()
+        ctrls[k] = ctrl
     return ctrls, K, qs, qvels
 
 ### Gradient descent
