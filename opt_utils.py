@@ -22,7 +22,6 @@ def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     # Probably much better way to do this
     # ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(M)
     ctrl0 = np.linalg.lstsq(M.T, qfrc0, rcond=None)[0]
-    breakpoint()
     # ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
     return ctrl0
 
@@ -157,14 +156,13 @@ def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
                              active_ctrl_ids):
     # What about data.qpos, data.qvel, data.qacc?
     data = copy.deepcopy(data)
-    data.ctrl[:] = ctrl0
+    data.ctrl[active_ctrl_ids] = ctrl0
     nq = model.nq
     nu = model.nu
-    R = np.eye(nu - len(active_ctrl_ids))
+    R = np.eye(len(active_ctrl_ids))
     Q = get_Q_matrix(model, data)
     K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
                                          active_ctrl_ids)
-    breakpoint()
     return K
 
 def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
@@ -219,13 +217,13 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                                          ctrl_act_ids)
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
                                    stable_jnt_ids)
-        ctrl[free_act_ids] = free_ctrls[k]
+        ctrls[k][ctrl_act_ids] = ctrl
+        ctrls[k][free_act_ids] = free_ctrls[k]
         mj.mj_step1(model, data)
-        data.ctrl[:] = ctrl + noisev[k]
+        data.ctrl[:] = ctrls[k] + noisev[k]
         mj.mj_step2(model, data)
         qs[k+1] = data.qpos.copy()
         qvels[k+1] = data.qvel.copy()
-        ctrls[k] = ctrl
     return ctrls, K, qs, qvels
 
 ### Gradient descent
