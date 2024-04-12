@@ -130,7 +130,7 @@ show_forward_sim(model, data, ctrls+noisev)
 # ctrl = ctrls[k]
 # ctrl[adh] = 1
 # ctrl[right_arm_a] = -.1
-fact = -.6
+fact = -.2
 qpos0 = data.qpos.copy()
 ctrls2 = opt_utils.get_stabilized_ctrls(
     model, data, Tk, noisev, qpos0, other_a, right_arm_a,
@@ -144,4 +144,4 @@ for k in range(Tk-1):
     util.step(model, data, ctrls2[k])
     env.render()
 
-breakpoint()
+# breakpoint()

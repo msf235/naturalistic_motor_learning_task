@@ -63,7 +63,7 @@
       material="obj" condim="3"/>
     <body name="ball" pos="0 -0.9 1.05">
       <geom name="ball" size=".05 .05 .05" pos="0 0 0" type="sphere"
-        material="obj" condim="3"/>
+        material="obj" condim="3" friction="2 .01 .0002"/>
       <site name="target" pos="0 0 0" size=".01" rgba="0 0 0 0"/>
       <joint name="ball_z_root" type="slide" axis="0 0 1" range="-100 100"/>
       <joint name="ball_x_root" type="slide" axis="0 1 0" range="-100 100"/>
