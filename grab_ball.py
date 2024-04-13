@@ -2,15 +2,16 @@ import humanoid2d as h2d
 # import baseball_lqr as lqr
 import opt_utils as opt_utils
 import numpy as np
-import sim_utils as util
+import sim_util as util
 import mujoco as mj
 import sys
 import os
+import copy
+import time
 import pickle as pkl
 
 ### Set things up
 seed = 2
-rng = np.random.default_rng(seed)
 out_f = 'grab_ball_ctrl.np'
 # rerun = False
 rerun = True
@@ -44,7 +45,9 @@ def show_forward_sim(model, data, ctrls):
     for k in range(ctrls.shape[0]-1):
         # if k == 30:
             # breakpoint()
-        env.step(ctrls[k])
+        util.step(model, data, ctrls[k])
+        env.render()
+        # env.step(ctrls[k])
 
 util.reset(model, data, 10, body_pos)
 
@@ -54,12 +57,6 @@ util.reset(model, data, 10, body_pos)
 CTRL_STD = .05       # actuator units
 # CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
-width = int(CTRL_RATE/model.opt.timestep)
-kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
-kernel /= np.linalg.norm(kernel)
-noise = util.FilteredNoise(model.nu, kernel, rng)
-noisev = CTRL_STD * noise.sample(Tk-1)
-noisev[:, adh] = 0
 
 
 def get_losses(model, data, site1, site2):
@@ -71,20 +68,42 @@ def get_losses(model, data, site1, site2):
     lams_fin = dldq
     return np.zeros(Tk), lams_fin
 
-if rerun or not os.path.exists(out_f):
+def make_noisev(seed, Tk, CTRL_STD, CTRL_RATE):
+    rng = np.random.default_rng(seed)
+    width = int(CTRL_RATE/model.opt.timestep)
+    kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
+    kernel /= np.linalg.norm(kernel)
+    noise = util.FilteredNoise(model.nu, kernel, rng)
+    noisev = CTRL_STD * noise.sample(Tk-1)
+    noisev[:, adh] = 0
+    return noisev
+
+# if rerun or not os.path.exists(out_f):
+def right_arm_target(model, data, target, body_pos, seed, CTRL_RATE, CTRL_STD,
+                     Tk):
+
+    data0 = copy.deepcopy(data)
+    noisev = make_noisev(seed, Tk, CTRL_STD, CTRL_RATE)
     ### Get initial stabilizing controls
-    util.reset(model, data, 10, body_pos)
+    # util.reset(model, data, 10, body_pos)
     # ctrls, K = opt_utils.get_stabilized_ctrls(
         # model, data, Tk, noisev, data.qpos.copy(), all_act_ids, body_j)[:2]
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j)[:2]
     util.reset(model, data, 10, body_pos)
+    # data = copy.deepcopy(data0)
+    util.reset_state(data, data0)
 
+    # show_forward_sim(model, data, ctrls+noisev)
+
+    # time.sleep(2)
+    # data = copy.deepcopy(data0)
     show_forward_sim(model, data, ctrls+noisev)
-
+    
     qs, qvels = util.forward_sim(model, data, ctrls)
 
-    util.reset(model, data, 10, body_pos)
+    # util.reset(model, data, 10, body_pos)
+    util.reset_state(data, data0)
 
     ### Gradient descent
     qpos0 = data.qpos.copy()
@@ -93,8 +112,9 @@ if rerun or not os.path.exists(out_f):
     for k0 in range(10):
         lr = 10
         lams_fin = get_losses(model, data, data.site('hand_right'),
-                              data.site('target'))[1]
-        util.reset(model, data, 10, body_pos)
+                              target)[1]
+        # util.reset(model, data, 10, body_pos)
+        util.reset_state(data, data0)
         if k0 > 1:
             for k in range(Tk-1):
                 util.step(model, data, ctrls[k]+noisev[k])
@@ -115,7 +135,13 @@ if rerun or not os.path.exists(out_f):
             model, data, Tk, noisev, qpos0, other_a, right_arm_a,
             ctrls[:, right_arm_a]
         )[2:] # should I update ctrls after this?
+    return ctrls, k
 
+if rerun or not os.path.exists(out_f):
+    target = data.site('target')
+    # util.reset(model, data, 10, body_pos)
+    ctrls, k = right_arm_target(model, data, target, body_pos, seed, CTRL_RATE,
+                                CTRL_STD, Tk)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'k': k}, f)
 else:
@@ -124,18 +150,21 @@ else:
         ctrls = out['ctrls']
         k = out['k']
 
+noisev = make_noisev(seed, Tk, CTRL_STD, CTRL_RATE)
+
 util.reset(model, data, 10, body_pos)
-show_forward_sim(model, data, ctrls+noisev)
+show_forward_sim(model, data, (ctrls+noisev)[:k+1])
 
 # ctrl = ctrls[k]
 # ctrl[adh] = 1
 # ctrl[right_arm_a] = -.1
-fact = -.2
+fact = -.7
 qpos0 = data.qpos.copy()
 ctrls2 = opt_utils.get_stabilized_ctrls(
     model, data, Tk, noisev, qpos0, other_a, right_arm_a,
     fact*np.ones((Tk-1, 2))
 )[0]
+ctrls2[:,adh]=1
 # data.ctrl[-1] = 1
 # data.ctrl[5] = 1
 util.reset(model, data, 10, body_pos)
@@ -143,5 +172,7 @@ show_forward_sim(model, data, ctrls+noisev)
 for k in range(Tk-1):
     util.step(model, data, ctrls2[k])
     env.render()
+
+throw_targ = [-0.2, 0.4, 0]
 
 # breakpoint()

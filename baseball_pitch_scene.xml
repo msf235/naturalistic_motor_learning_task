@@ -63,11 +63,15 @@
       material="obj" condim="3"/>
     <body name="ball" pos="0 -0.9 1.05">
       <geom name="ball" size=".05 .05 .05" pos="0 0 0" type="sphere"
-        material="obj" condim="3" friction="2 .01 .0002"/>
+        material="obj" condim="3" friction="4 .02 .0004"/>
       <site name="target" pos="0 0 0" size=".01" rgba="0 0 0 0"/>
       <joint name="ball_z_root" type="slide" axis="0 0 1" range="-100 100"/>
       <joint name="ball_x_root" type="slide" axis="0 1 0" range="-100 100"/>
       <joint name="ball_hinge_root" type="hinge" axis="1 0 0" range="-1000 1000"/>
+    </body>
+
+    <body name="target1" pos="0 .2 1.8">
+      <site name="target1" pos="0 0 0" size=".06" rgba="1 1 0 .5"/>
     </body>
   </worldbody>
 </mujoco>

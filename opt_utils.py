@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import scipy
 import control_logic as cl
-import sim_utils as util
+import sim_util as util
 import humanoid2d as h2d
 import copy
 
