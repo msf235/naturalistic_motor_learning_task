@@ -1,23 +1,18 @@
+import humanoid2d as h2d
+# import baseball_lqr as lqr
+import opt_utils as opt_utils
+import numpy as np
+import sim_util as util
+import mujoco as mj
+import sys
+import os
+import copy
+import time
+import pickle as pkl
 
-def show_forward_sim(model, data, ctrls):
-    for k in range(ctrls.shape[0]-1):
-        # if k == 30:
-            # breakpoint()
-        util.step(model, data, ctrls[k])
-        env.render()
-        # env.step(ctrls[k])
-
-
-def get_losses(model, data, site1, site2):
-    # I could put a forward sim here for safety (but less efficient)
-    dlds = site1.xpos - site2.xpos
-    C = np.zeros((3, model.nv))
-    mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
-    dldq = C.T @ dlds
-    lams_fin = dldq
-    return np.zeros(Tk), lams_fin
-
-def make_noisev(seed, Tk, CTRL_STD, CTRL_RATE):
+def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
+    acts = opt_utils.get_act_names(model)
+    adh = acts['adh_right_hand']
     rng = np.random.default_rng(seed)
     width = int(CTRL_RATE/model.opt.timestep)
     kernel = np.exp(-0.5*np.linspace(-3, 3, width)**2)
@@ -27,12 +22,37 @@ def make_noisev(seed, Tk, CTRL_STD, CTRL_RATE):
     noisev[:, adh] = 0
     return noisev
 
-# if rerun or not os.path.exists(out_f):
-def right_arm_target(model, data, target, body_pos, seed, CTRL_RATE, CTRL_STD,
+def show_forward_sim(model, data, env, ctrls):
+    for k in range(ctrls.shape[0]-1):
+        # if k == 30:
+            # breakpoint()
+        util.step(model, data, ctrls[k])
+        env.render()
+        # env.step(ctrls[k])
+
+def get_losses(model, data, site1, site2, Tk):
+    # I could put a forward sim here for safety (but less efficient)
+    dlds = site1.xpos - site2.xpos
+    C = np.zeros((3, model.nv))
+    mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
+    dldq = C.T @ dlds
+    lams_fin = dldq
+    return np.zeros(Tk), lams_fin
+
+
+def right_arm_target(model, data, env, target, body_pos, seed, CTRL_RATE, CTRL_STD,
                      Tk):
 
+    joints = opt_utils.get_joint_names(model)
+    right_arm_j = joints['right_arm']
+    body_j = joints['body']
+    acts = opt_utils.get_act_names(model)
+    right_arm_a = acts['right_arm']
+    adh = acts['adh_right_hand']
+    non_adh = acts['non_adh']
+    other_a = acts['non_right_arm']
     data0 = copy.deepcopy(data)
-    noisev = make_noisev(seed, Tk, CTRL_STD, CTRL_RATE)
+    noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
     ### Get initial stabilizing controls
     # util.reset(model, data, 10, body_pos)
     # ctrls, K = opt_utils.get_stabilized_ctrls(
@@ -47,7 +67,7 @@ def right_arm_target(model, data, target, body_pos, seed, CTRL_RATE, CTRL_STD,
 
     # time.sleep(2)
     # data = copy.deepcopy(data0)
-    show_forward_sim(model, data, ctrls+noisev)
+    show_forward_sim(model, data, env, ctrls+noisev)
     
     qs, qvels = util.forward_sim(model, data, ctrls)
 
@@ -61,7 +81,7 @@ def right_arm_target(model, data, target, body_pos, seed, CTRL_RATE, CTRL_STD,
     for k0 in range(10):
         lr = 10
         lams_fin = get_losses(model, data, data.site('hand_right'),
-                              target)[1]
+                              target, Tk)[1]
         # util.reset(model, data, 10, body_pos)
         util.reset_state(data, data0)
         if k0 > 1:
@@ -74,7 +94,7 @@ def right_arm_target(model, data, target, body_pos, seed, CTRL_RATE, CTRL_STD,
                         ball_contact = True
                         break
         else:
-            show_forward_sim(model, data, ctrls+noisev)
+            show_forward_sim(model, data, env, ctrls+noisev)
         if ball_contact:
             break
         grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
@@ -85,43 +105,3 @@ def right_arm_target(model, data, target, body_pos, seed, CTRL_RATE, CTRL_STD,
             ctrls[:, right_arm_a]
         )[2:] # should I update ctrls after this?
     return ctrls, k
-
-if rerun or not os.path.exists(out_f):
-    target = data.site('target')
-    # util.reset(model, data, 10, body_pos)
-    ctrls, k = right_arm_target(model, data, target, body_pos, seed, CTRL_RATE,
-                                CTRL_STD, Tk)
-    with open(out_f, 'wb') as f:
-        pkl.dump({'ctrls': ctrls, 'k': k}, f)
-else:
-    with open(out_f, 'rb') as f:
-        out = pkl.load(f)
-        ctrls = out['ctrls']
-        k = out['k']
-
-noisev = make_noisev(seed, Tk, CTRL_STD, CTRL_RATE)
-
-util.reset(model, data, 10, body_pos)
-show_forward_sim(model, data, (ctrls+noisev)[:k+1])
-
-# ctrl = ctrls[k]
-# ctrl[adh] = 1
-# ctrl[right_arm_a] = -.1
-fact = -.7
-qpos0 = data.qpos.copy()
-ctrls2 = opt_utils.get_stabilized_ctrls(
-    model, data, Tk, noisev, qpos0, other_a, right_arm_a,
-    fact*np.ones((Tk-1, 2))
-)[0]
-ctrls2[:,adh]=1
-# data.ctrl[-1] = 1
-# data.ctrl[5] = 1
-util.reset(model, data, 10, body_pos)
-show_forward_sim(model, data, ctrls+noisev)
-for k in range(Tk-1):
-    util.step(model, data, ctrls2[k])
-    env.render()
-
-throw_targ = [-0.2, 0.4, 0]
-
-# breakpoint()

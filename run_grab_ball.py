@@ -1,4 +1,3 @@
-
 import humanoid2d as h2d
 # import baseball_lqr as lqr
 import opt_utils as opt_utils
@@ -10,6 +9,7 @@ import os
 import copy
 import time
 import pickle as pkl
+import grab_ball
 
 ### Set things up
 seed = 2
@@ -51,3 +51,46 @@ CTRL_STD = .05       # actuator units
 # CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 
+
+
+# if rerun or not os.path.exists(out_f):
+
+if rerun or not os.path.exists(out_f):
+    target = data.site('target')
+    # util.reset(model, data, 10, body_pos)
+    ctrls, k = grab_ball.right_arm_target(model, data, env, target, body_pos,
+                                          seed, CTRL_RATE, CTRL_STD, Tk)
+    with open(out_f, 'wb') as f:
+        pkl.dump({'ctrls': ctrls, 'k': k}, f)
+else:
+    with open(out_f, 'rb') as f:
+        out = pkl.load(f)
+        ctrls = out['ctrls']
+        k = out['k']
+
+noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+
+util.reset(model, data, 10, body_pos)
+show_forward_sim(model, data, env, (ctrls+noisev)[:k+1])
+
+# ctrl = ctrls[k]
+# ctrl[adh] = 1
+# ctrl[right_arm_a] = -.1
+fact = -.7
+qpos0 = data.qpos.copy()
+ctrls2 = opt_utils.get_stabilized_ctrls(
+    model, data, Tk, noisev, qpos0, other_a, right_arm_a,
+    fact*np.ones((Tk-1, 2))
+)[0]
+ctrls2[:,adh]=1
+# data.ctrl[-1] = 1
+# data.ctrl[5] = 1
+util.reset(model, data, 10, body_pos)
+show_forward_sim(model, data, env, ctrls+noisev)
+for k in range(Tk-1):
+    util.step(model, data, ctrls2[k])
+    env.render()
+
+throw_targ = [-0.2, 0.4, 0]
+
+# breakpoint()
