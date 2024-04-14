@@ -22,11 +22,11 @@ def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     noisev[:, adh] = 0
     return noisev
 
-def show_forward_sim(model, data, env, ctrls):
+def show_forward_sim(env, ctrls):
     for k in range(ctrls.shape[0]-1):
         # if k == 30:
             # breakpoint()
-        util.step(model, data, ctrls[k])
+        util.step(env.model, env.data, ctrls[k])
         env.render()
         # env.step(ctrls[k])
 
@@ -40,12 +40,15 @@ def get_losses(model, data, site1, site2, Tk):
     return np.zeros(Tk), lams_fin
 
 
-def right_arm_target(model, data, env, target, body_pos, seed, CTRL_RATE, CTRL_STD,
+def right_arm_target(env, target, body_pos, seed, CTRL_RATE, CTRL_STD,
                      Tk):
+    model = env.model
+    data = env.data
 
     joints = opt_utils.get_joint_names(model)
     right_arm_j = joints['right_arm']
     body_j = joints['body']
+    not_right_arm_j = [i for i in body_j if i not in right_arm_j]
     acts = opt_utils.get_act_names(model)
     right_arm_a = acts['right_arm']
     adh = acts['adh_right_hand']
@@ -54,24 +57,14 @@ def right_arm_target(model, data, env, target, body_pos, seed, CTRL_RATE, CTRL_S
     data0 = copy.deepcopy(data)
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
     ### Get initial stabilizing controls
-    # util.reset(model, data, 10, body_pos)
-    # ctrls, K = opt_utils.get_stabilized_ctrls(
-        # model, data, Tk, noisev, data.qpos.copy(), all_act_ids, body_j)[:2]
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j)[:2]
-    util.reset(model, data, 10, body_pos)
-    # data = copy.deepcopy(data0)
     util.reset_state(data, data0)
 
-    # show_forward_sim(model, data, ctrls+noisev)
-
-    # time.sleep(2)
-    # data = copy.deepcopy(data0)
-    show_forward_sim(model, data, env, ctrls+noisev)
+    show_forward_sim(env, ctrls+noisev)
     
     qs, qvels = util.forward_sim(model, data, ctrls)
 
-    # util.reset(model, data, 10, body_pos)
     util.reset_state(data, data0)
 
     ### Gradient descent
@@ -94,14 +87,18 @@ def right_arm_target(model, data, env, target, body_pos, seed, CTRL_RATE, CTRL_S
                         ball_contact = True
                         break
         else:
-            show_forward_sim(model, data, env, ctrls+noisev)
+            show_forward_sim(env, ctrls+noisev)
         if ball_contact:
             break
         grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
                                      np.zeros(Tk), fixed_act_inds=other_a)
         ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
+        # qs, qvels = opt_utils.get_stabilized_ctrls(
+            # model, data, Tk, noisev, qpos0, other_a, right_arm_a,
+            # ctrls[:, right_arm_a]
+        # )[2:] # should I update ctrls after this?
         qs, qvels = opt_utils.get_stabilized_ctrls(
-            model, data, Tk, noisev, qpos0, other_a, right_arm_a,
+            model, data, Tk, noisev, qpos0, other_a, not_right_arm_j,
             ctrls[:, right_arm_a]
         )[2:] # should I update ctrls after this?
     return ctrls, k
