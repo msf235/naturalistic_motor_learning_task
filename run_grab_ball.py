@@ -22,11 +22,21 @@ Tk = 50
 
 body_pos = -0.4
 
+DEFAULT_CAMERA_CONFIG = {
+    "trackbodyid": 2,
+    # "distance": 4.0,
+    "distance": 5,
+    "lookat": np.array((0.0, 0.0, 1.15)),
+    # "elevation": -20.0,
+    "elevation": -10.0,
+    "azimuth": 180,
+}
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
     render_mode='human',
     # render_mode='rgb_array',
-    frame_skip=1)
+    frame_skip=1,
+    default_camera_config=DEFAULT_CAMERA_CONFIG)
 model = env.model
 data = env.data
 
@@ -38,7 +48,7 @@ acts = opt_utils.get_act_names(model)
 right_arm_a = acts['right_arm']
 adh = acts['adh_right_hand']
 non_adh = acts['non_adh']
-other_a = acts['non_right_arm']
+non_right_arm_a = acts['non_right_arm']
 all_act_ids = list(range(model.nu))
 
 env.reset(seed=seed) # necessary?
@@ -70,9 +80,8 @@ else:
 noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 util.reset(model, data, 10, body_pos)
-grab_ball.show_forward_sim(env, (ctrls+noisev)[:k+1])
-
-sys.exit()
+ctrls_n = (ctrls+noisev)[:k+1]
+grab_ball.show_forward_sim(env, ctrls_n)
 
 # ctrl = ctrls[k]
 # ctrl[adh] = 1
@@ -83,13 +92,15 @@ throw_ctrls[:, 0] = fact
 throw_ctrls[:, 1] = fact
 qpos0 = data.qpos.copy()
 ctrls2 = opt_utils.get_stabilized_ctrls(
-    model, data, Tk, noisev, qpos0, other_a, not_right_arm_j,
-    fact*np.ones((Tk-1, 2))
+    model, data, Tk, noisev, qpos0, non_right_arm_a, not_right_arm_j,
+    throw_ctrls
 )[0]
 ctrls2[:,adh]=1
 util.reset(model, data, 10, body_pos)
-grab_ball.show_forward_sim(env, ctrls+noisev)
+grab_ball.show_forward_sim(env, ctrls_n)
 grab_ball.show_forward_sim(env, ctrls2)
+
+breakpoint()
 
 throw_targ = [-0.2, 0.4, 0]
 
