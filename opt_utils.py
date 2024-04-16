@@ -229,7 +229,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
 ### Gradient descent
 def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
                fixed_act_inds=[]):
-    data = copy.deepcopy(data)
+    # data = copy.deepcopy(data)
     nufree = model.nu - len(fixed_act_inds)
     Tk = qs.shape[0]
     As = np.zeros((Tk-1, 2*model.nv, 2*model.nv))

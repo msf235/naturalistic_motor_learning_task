@@ -22,6 +22,11 @@ def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     noisev[:, adh] = 0
     return noisev
 
+def arc_traj(x0, r, theta0, theta1, rate):
+    theta = np.linspace(theta0, theta1, rate)
+    x = x0 + r*np.array([np.cos(theta), np.sin(theta)])
+    return x.T
+
 def show_forward_sim(env, ctrls):
     for k in range(ctrls.shape[0]-1):
         # if k == 30:
@@ -56,7 +61,7 @@ def forward_to_contact(env, ctrls, Tk, stop_on_contact=False):
                     break
     return k, ball_contact
 
-def right_arm_target(env, target, body_pos, seed, CTRL_RATE, CTRL_STD,
+def right_arm_target(env, target, ctrls, seed, CTRL_RATE, CTRL_STD,
                      Tk, stop_on_contact=False, target_name='ball',
                      max_its=30, lr=10):
     model = env.model
@@ -74,12 +79,6 @@ def right_arm_target(env, target, body_pos, seed, CTRL_RATE, CTRL_STD,
     data0 = copy.deepcopy(data)
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-    ### Get initial stabilizing controls
-    ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j
-    )[:2]
-    # ctrls[:, other_a] = ctrls_stab[:, other_a]
-    util.reset_state(data, data0)
     qs, qvels = util.forward_sim(model, data, ctrls)
     util.reset_state(data, data0)
 
@@ -91,7 +90,6 @@ def right_arm_target(env, target, body_pos, seed, CTRL_RATE, CTRL_STD,
     ball_contact = False
     for k0 in range(max_its):
         loss, lams_fin = get_final_loss(model, data, rhand.xpos, target.xpos)
-        # util.reset(model, data, 10, body_pos)
         util.reset_state(data, data0)
         # if k0 > 1:
         k, ball_contact = forward_to_contact(env, ctrls + noisev, Tk, stop_on_contact)
@@ -108,6 +106,7 @@ def right_arm_target(env, target, body_pos, seed, CTRL_RATE, CTRL_STD,
         grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
                                      np.zeros(Tk), fixed_act_inds=other_a)
         ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
+        util.reset_state(data, data0) # This is necessary, but why?
         # qs, qvels = opt_utils.get_stabilized_ctrls(
             # model, data, Tk, noisev, qpos0, other_a, right_arm_a,
             # ctrls[:, right_arm_a]
