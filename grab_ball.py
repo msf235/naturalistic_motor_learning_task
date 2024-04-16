@@ -30,18 +30,35 @@ def show_forward_sim(env, ctrls):
         env.render()
         # env.step(ctrls[k])
 
-def get_losses(model, data, site1, site2, Tk):
+def get_final_loss(model, data, xpos1, xpos2):
     # I could put a forward sim here for safety (but less efficient)
-    dlds = site1.xpos - site2.xpos
+    dlds = xpos1 - xpos2
     C = np.zeros((3, model.nv))
     mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
     dldq = C.T @ dlds
-    lams_fin = dldq
-    return np.zeros(Tk), lams_fin
+    lams_fin = dldq # 11 and 12 are currently right shoulder and elbow
+    loss = .5*np.mean(dlds**2)
+    print(f'loss: {loss}', f'xpos1: {xpos1}', f'xpos2: {xpos2}')
+    return loss, lams_fin
 
+def forward_to_contact(env, ctrls, Tk, stop_on_contact=False):
+    model = env.model
+    data = env.data
+    ball_contact = False
+    for k in range(Tk-1):
+        util.step(model, data, ctrls[k])
+        env.render()
+        contact_pairs = util.get_contact_pairs(model, data)
+        if stop_on_contact:
+            for cp in contact_pairs:
+                if 'ball' in cp and 'hand_right' in cp:
+                    ball_contact = True
+                    break
+    return k, ball_contact
 
 def right_arm_target(env, target, body_pos, seed, CTRL_RATE, CTRL_STD,
-                     Tk):
+                     Tk, stop_on_contact=False, target_name='ball',
+                     max_its=30, lr=10):
     model = env.model
     data = env.data
 
@@ -56,38 +73,36 @@ def right_arm_target(env, target, body_pos, seed, CTRL_RATE, CTRL_STD,
     other_a = acts['non_right_arm']
     data0 = copy.deepcopy(data)
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+
     ### Get initial stabilizing controls
     ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j)[:2]
+        model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j
+    )[:2]
+    # ctrls[:, other_a] = ctrls_stab[:, other_a]
     util.reset_state(data, data0)
-
-    show_forward_sim(env, ctrls+noisev)
-    
     qs, qvels = util.forward_sim(model, data, ctrls)
-
     util.reset_state(data, data0)
 
     ### Gradient descent
     qpos0 = data.qpos.copy()
 
+    rhand = data.site('hand_right')
+
     ball_contact = False
-    for k0 in range(10):
-        lr = 10
-        lams_fin = get_losses(model, data, data.site('hand_right'),
-                              target, Tk)[1]
+    for k0 in range(max_its):
+        loss, lams_fin = get_final_loss(model, data, rhand.xpos, target.xpos)
         # util.reset(model, data, 10, body_pos)
         util.reset_state(data, data0)
-        if k0 > 1:
-            for k in range(Tk-1):
-                util.step(model, data, ctrls[k]+noisev[k])
-                env.render()
-                contact_pairs = util.get_contact_pairs(model, data)
-                for cp in contact_pairs:
-                    if 'ball' in cp and 'hand_right' in cp:
-                        ball_contact = True
-                        break
-        else:
-            show_forward_sim(env, ctrls+noisev)
+        # if k0 > 1:
+        k, ball_contact = forward_to_contact(env, ctrls + noisev, Tk, stop_on_contact)
+        # for k in range(Tk-1):
+            # util.step(model, data, ctrls[k]+noisev[k])
+            # env.render()
+            # contact_pairs = util.get_contact_pairs(model, data)
+            # for cp in contact_pairs:
+                # if 'ball' in cp and 'hand_right' in cp:
+                    # ball_contact = True
+                    # break
         if ball_contact:
             break
         grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
@@ -97,8 +112,12 @@ def right_arm_target(env, target, body_pos, seed, CTRL_RATE, CTRL_STD,
             # model, data, Tk, noisev, qpos0, other_a, right_arm_a,
             # ctrls[:, right_arm_a]
         # )[2:] # should I update ctrls after this?
-        qs, qvels = opt_utils.get_stabilized_ctrls(
+        __, __, qs, qvels = opt_utils.get_stabilized_ctrls(
             model, data, Tk, noisev, qpos0, other_a, not_right_arm_j,
             ctrls[:, right_arm_a]
-        )[2:] # should I update ctrls after this?
+        )
+        if k0 > 100:
+            breakpoint()
+        print(ctrls[-5:,right_arm_a])
+        print()
     return ctrls, k

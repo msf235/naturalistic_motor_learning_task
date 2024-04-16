@@ -18,7 +18,7 @@ out_f = 'grab_ball_ctrl.np'
 rerun = True
 
 # Tk = 500
-Tk = 50
+Tk = 20
 
 body_pos = -0.4
 
@@ -63,12 +63,25 @@ CTRL_STD = .05       # actuator units
 CTRL_RATE = 0.8       # seconds
 
 # if rerun or not os.path.exists(out_f):
+# throw_target = data.site('target2')
+throw_target = data.site('target2')
+# throw_target.xpos[0] = 2
+
+# throw_targ = [-0.2, 0.4, 0]
+throw_target = data.site('target2')
+target = data.site('target2')
+# targ2 = data.body('target2')
+# target = data.site('ball').xpos
 
 if rerun or not os.path.exists(out_f):
-    target = data.site('target')
     util.reset(model, data, 10, body_pos)
     ctrls, k = grab_ball.right_arm_target(env, target, body_pos,
-                                          seed, CTRL_RATE, CTRL_STD, Tk)
+                                          seed, CTRL_RATE, CTRL_STD, Tk,
+                                          stop_on_contact=True, lr=2,
+                                          max_its=1000)
+    breakpoint()
+    # ctrls, k = grab_ball.right_arm_target(env, target, body_pos,
+                                          # seed, CTRL_RATE, CTRL_STD, Tk)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'k': k}, f)
 else:
@@ -82,6 +95,19 @@ noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 util.reset(model, data, 10, body_pos)
 ctrls_n = (ctrls+noisev)[:k+1]
 grab_ball.show_forward_sim(env, ctrls_n)
+
+
+ctrls, k = grab_ball.right_arm_target(env, throw_target, body_pos,
+                                      seed, CTRL_RATE, CTRL_STD, Tk//2,
+                                      lr=20, stop_on_contact=False)
+
+sys.exit()
+
+
+
+
+
+
 
 # ctrl = ctrls[k]
 # ctrl[adh] = 1
