@@ -80,10 +80,6 @@ class FilteredNoise:
     def reset(self, rng):
         self.rng = rng
 
-class BlankNoise:
-    def sample(self):
-        return 0
-
 
 def forward_sim(model, data, ctrls):
     Tk = ctrls.shape[0]
