@@ -77,7 +77,7 @@ r2 = elbowx - handx
 r2 = np.sum(r2**2)**.5
 r = r1 + r2
 
-Tk1 = 40
+Tk1 = 50
 
 arc_traj = grab_ball.arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
                               np.pi/2, Tk-Tk1)
@@ -87,9 +87,13 @@ grab_traj_r = -np.linspace(0, r, Tk1)
 grab_traj = np.zeros((Tk1, 3))
 grab_traj[:, 1] = grab_traj_r
 grab_traj += shouldx
-full_traj = np.concatenate((grab_traj, arc_traj), axis=0)
-full_traj = grab_traj
+# full_traj = np.concatenate((grab_traj, arc_traj), axis=0)
+# full_traj = grab_traj
 Tk = Tk1
+full_traj = np.zeros((Tk-1, 3))
+full_traj[-1] = data.site('target').xpos
+targ_traj_mask = np.zeros((Tk-1,))
+targ_traj_mask[-1] = 1
 # grab_traj = 
 
 # plt.plot(arc_traj[:,1], arc_traj[:,2])
@@ -111,8 +115,8 @@ if rerun or not os.path.exists(out_f):
                                           # stop_on_contact=True, lr=1,
                                           # max_its=10)
     ctrls, k = grab_ball.right_arm_target_traj(
-        env, full_traj, ctrls, 30, seed, CTRL_RATE, CTRL_STD, Tk,
-        stop_on_contact=True, lr=.01, max_its=1000)
+        env, full_traj, targ_traj_mask, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
+        Tk, stop_on_contact=True, lr=5, max_its=1000)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'k': k}, f)
 else:

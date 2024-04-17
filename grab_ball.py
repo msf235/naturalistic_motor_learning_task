@@ -61,9 +61,10 @@ def forward_to_contact(env, ctrls, Tk, stop_on_contact=False):
                     break
     return k, ball_contact
 
-def right_arm_target_traj(env, target_traj, ctrls, grad_trunc_tk, seed,
-                          CTRL_RATE, CTRL_STD, Tk, stop_on_contact=False,
-                          target_name='ball', max_its=30, lr=10):
+def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
+                          grad_trunc_tk, seed, CTRL_RATE, CTRL_STD, Tk,
+                          stop_on_contact=False, target_name='ball',
+                          max_its=30, lr=10):
     model = env.model
     data = env.data
 
@@ -95,6 +96,7 @@ def right_arm_target_traj(env, target_traj, ctrls, grad_trunc_tk, seed,
         if ball_contact:
             break
         grads = opt_utils.traj_deriv(model, data, ctrls, target_traj,
+                                     targ_traj_mask, grad_trunc_tk,
                                      fixed_act_inds=other_a)
         ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
         util.reset_state(data, data0) # This is necessary, but why?
