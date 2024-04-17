@@ -34,8 +34,8 @@ DEFAULT_CAMERA_CONFIG = {
 }
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
-    render_mode='human',
-    # render_mode='rgb_array',
+    # render_mode='human',
+    render_mode='rgb_array',
     frame_skip=1,
     default_camera_config=DEFAULT_CAMERA_CONFIG)
 model = env.model
@@ -66,6 +66,7 @@ CTRL_RATE = 0.8       # seconds
 # if rerun or not os.path.exists(out_f):
 throw_target = data.site('target2')
 target = data.site('target')
+breakpoint()
 # target = data.site('target2')
 
 shouldx = data.site('shoulder1_right').xpos
@@ -91,6 +92,8 @@ grab_traj += shouldx
 # full_traj = grab_traj
 Tk = Tk1
 full_traj = np.zeros((Tk-1, 3))
+util.reset(model, data, 10, body_pos)
+# mj.mj_forward(model, data)
 full_traj[-1] = data.site('target').xpos
 targ_traj_mask = np.zeros((Tk-1,))
 targ_traj_mask[-1] = 1
@@ -104,19 +107,24 @@ targ_traj_mask[-1] = 1
 
 noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
+# switch = False
+switch = True
 
 if rerun or not os.path.exists(out_f):
     ### Get initial stabilizing controls
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j)[:2]
     util.reset(model, data, 10, body_pos)
-    # ctrls, k = grab_ball.right_arm_target_traj(env, target, ctrls,
-                                          # seed, CTRL_RATE, CTRL_STD, Tk,
-                                          # stop_on_contact=True, lr=1,
-                                          # max_its=10)
-    ctrls, k = grab_ball.right_arm_target_traj(
-        env, full_traj, targ_traj_mask, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
-        Tk, stop_on_contact=True, lr=5, max_its=1000)
+    if switch:
+        breakpoint()
+        ctrls, k = grab_ball.right_arm_target(env, target.xpos, ctrls,
+                                              seed, CTRL_RATE, CTRL_STD, Tk,
+                                              stop_on_contact=True, lr=1,
+                                              max_its=10)
+    else:
+        ctrls, k = grab_ball.right_arm_target_traj(
+            env, full_traj, targ_traj_mask, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
+            Tk, stop_on_contact=True, lr=1, max_its=1000)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'k': k}, f)
 else:

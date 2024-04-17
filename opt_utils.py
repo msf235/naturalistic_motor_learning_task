@@ -233,14 +233,14 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
     # data = copy.deepcopy(data)
     nufree = model.nu - len(fixed_act_inds)
     Tk = ctrls.shape[0]
-    As = np.zeros((Tk, 2*model.nv, 2*model.nv))
-    Bs = np.zeros((Tk, 2*model.nv, nufree))
+    As = np.zeros((Tk+1, 2*model.nv, 2*model.nv))
+    Bs = np.zeros((Tk+1, 2*model.nv, nufree))
     B = np.zeros((2*model.nv, model.nu))
     C = np.zeros((3, model.nv))
     # Cs = np.zeros((Tk, 3, model.nv))
-    dldqs = np.zeros((Tk, 2*model.nv))
-    dldss = np.zeros((Tk, 3))
-    lams = np.zeros((Tk, 2*model.nv))
+    dldqs = np.zeros((Tk+1, 2*model.nv))
+    dldss = np.zeros((Tk+1, 3))
+    lams = np.zeros((Tk+1, 2*model.nv))
     not_fixed_act_inds = [i for i in range(model.nu) if i not in
                           fixed_act_inds]
     epsilon = 1e-6
@@ -249,9 +249,9 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
     hxs = np.zeros((Tk, 3))
 
     for tk in range(Tk):
-        Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
         sim_util.step(model, data, ctrls[tk])
-        mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
+        mj.mjd_transitionFD(model, data, epsilon, True, As[tk+1], B, None, None)
+        Bs[tk+1] = np.delete(B, fixed_act_inds, axis=1)
         mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
         dlds = data.site('hand_right').xpos - targ_traj[tk]
         dldss[tk] = dlds
@@ -259,6 +259,7 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
         dldq = C.T @ dlds
         # lams[Tk-tk-1, :model.nv] = dldq
         dldqs[Tk-tk-1, :model.nv] = dldq
+    breakpoint()
 
     ttm = targ_traj_mask.reshape(-1, 1)
     dldqs = dldqs * ttm
@@ -283,6 +284,7 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
         # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
         grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
                 + Bs[Tk-tk].T @ lams[Tk-tk+1]
+        breakpoint()
     return grads
 
 def get_final_loss(model, data, xpos1, xpos2):
@@ -302,21 +304,26 @@ def traj_deriv_dep(model, data, qs, vs, us, lams_fin, losses,
     # data = copy.deepcopy(data)
     nufree = model.nu - len(fixed_act_inds)
     Tk = qs.shape[0]
-    As = np.zeros((Tk-1, 2*model.nv, 2*model.nv))
-    Bs = np.zeros((Tk-1, 2*model.nv, nufree))
+    As = np.zeros((Tk, 2*model.nv, 2*model.nv))
+    Bs = np.zeros((Tk, 2*model.nv, nufree))
     B = np.zeros((2*model.nv, model.nu))
     # Cs = np.zeros((Tk, 3, model.nv))
     lams = np.zeros((Tk, 2*model.nv))
     not_fixed_act_inds = [i for i in range(model.nu) if i not in
                           fixed_act_inds]
 
-    for tk in range(Tk-1):
-        data.qpos[:] = qs[tk]
-        data.qvel[:] = vs[tk]
-        data.ctrl[:] = us[tk]
-        epsilon = 1e-6
-        mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
-        Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
+    epsilon = 1e-6
+    data.qpos[:] = qs[0]
+    data.qvel[:] = vs[0]
+    data.ctrl[:] = us[0]
+    mj.mjd_transitionFD(model, data, epsilon, True, As[0], B, None, None)
+    Bs[0] = np.delete(B, fixed_act_inds, axis=1)
+    for tk in range(Tk-2):
+        data.qpos[:] = qs[tk+1]
+        data.qvel[:] = vs[tk+1]
+        data.ctrl[:] = us[tk+1]
+        mj.mjd_transitionFD(model, data, epsilon, True, As[tk+1], B, None, None)
+        Bs[tk+1] = np.delete(B, fixed_act_inds, axis=1)
         # mj.mj_jacSite(model, data, Cs[tk], None, site=model.site('').id)
 
     lams[Tk-1, :model.nv] = lams_fin
@@ -330,5 +337,6 @@ def traj_deriv_dep(model, data, qs, vs, us, lams_fin, losses,
         # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
         grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
                 + Bs[Tk-tk].T @ lams[Tk-tk+1]
+        breakpoint()
     return grads
 

@@ -37,6 +37,7 @@ def show_forward_sim(env, ctrls):
 
 def get_final_loss(model, data, xpos1, xpos2):
     # I could put a forward sim here for safety (but less efficient)
+    mj.mj_forward(model, data)
     dlds = xpos1 - xpos2
     C = np.zeros((3, model.nv))
     mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
@@ -44,13 +45,15 @@ def get_final_loss(model, data, xpos1, xpos2):
     lams_fin = dldq # 11 and 12 are currently right shoulder and elbow
     loss = .5*np.mean(dlds**2)
     print(f'loss: {loss}', f'xpos1: {xpos1}', f'xpos2: {xpos2}')
+    breakpoint()
     return loss, lams_fin
 
-def forward_to_contact(env, ctrls, Tk, stop_on_contact=False):
+def forward_to_contact(env, ctrls, stop_on_contact=False):
     model = env.model
     data = env.data
     ball_contact = False
-    for k in range(Tk-1):
+    Tk = ctrls.shape[0]
+    for k in range(Tk):
         util.step(model, data, ctrls[k])
         env.render()
         contact_pairs = util.get_contact_pairs(model, data)
@@ -91,11 +94,12 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
     ball_contact = False
     for k0 in range(max_its):
         util.reset_state(data, data0)
-        k, ball_contact = forward_to_contact(env, ctrls + noisev, Tk,
+        k, ball_contact = forward_to_contact(env, ctrls + noisev,
                                              stop_on_contact)
         if ball_contact:
             break
-        grads = opt_utils.traj_deriv(model, data, ctrls, target_traj,
+        util.reset_state(data, data0)
+        grads = opt_utils.traj_deriv(model, data, ctrls + noisev, target_traj,
                                      targ_traj_mask, grad_trunc_tk,
                                      fixed_act_inds=other_a)
         ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
@@ -128,8 +132,10 @@ def right_arm_target(env, target, ctrls, seed, CTRL_RATE, CTRL_STD,
     data0 = copy.deepcopy(data)
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
+    breakpoint()
     qs, qvels = util.forward_sim(model, data, ctrls)
     util.reset_state(data, data0)
+    breakpoint()
 
     ### Gradient descent
     qpos0 = data.qpos.copy()
@@ -138,13 +144,21 @@ def right_arm_target(env, target, ctrls, seed, CTRL_RATE, CTRL_STD,
 
     ball_contact = False
     for k0 in range(max_its):
-        loss, lams_fin = get_final_loss(model, data, rhand.xpos, target.xpos)
         util.reset_state(data, data0)
-        k, ball_contact = forward_to_contact(env, ctrls + noisev, Tk, stop_on_contact)
+        mj.mj_forward(model, data)
+        # targ = target.xpos
+        breakpoint()
+        util.forward_sim(model, data, ctrls + noisev)
+        loss, lams_fin = get_final_loss(model, data, rhand.xpos, target)
+        util.reset_state(data, data0)
+        k, ball_contact = forward_to_contact(env, ctrls + noisev, stop_on_contact)
         if ball_contact:
             break
-        grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
-                                     np.zeros(Tk), fixed_act_inds=other_a)
+        grads = opt_utils.traj_deriv_dep(model, data, qs, qvels,
+                                         ctrls + noisev, lams_fin,
+                                         np.zeros(Tk),
+                                         fixed_act_inds=other_a)
+        breakpoint()
         ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
         util.reset_state(data, data0) # This is necessary, but why?
         # qs, qvels = opt_utils.get_stabilized_ctrls(
