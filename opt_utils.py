@@ -7,6 +7,7 @@ import control_logic as cl
 import sim_util as util
 import humanoid2d as h2d
 import copy
+import sim_util
 
 ### LQR
 def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
@@ -227,7 +228,72 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
     return ctrls, K, qs, qvels
 
 ### Gradient descent
-def traj_deriv(model, data, qs, vs, us, lams_fin, losses,
+def traj_deriv(model, data, ctrls, targ_traj, fixed_act_inds=[]):
+    # data = copy.deepcopy(data)
+    nufree = model.nu - len(fixed_act_inds)
+    Tk = ctrls.shape[0]
+    As = np.zeros((Tk, 2*model.nv, 2*model.nv))
+    Bs = np.zeros((Tk, 2*model.nv, nufree))
+    B = np.zeros((2*model.nv, model.nu))
+    C = np.zeros((3, model.nv))
+    # Cs = np.zeros((Tk, 3, model.nv))
+    dldqs = np.zeros((Tk, 2*model.nv))
+    dldss = np.zeros((Tk, 3))
+    lams = np.zeros((Tk, 2*model.nv))
+    not_fixed_act_inds = [i for i in range(model.nu) if i not in
+                          fixed_act_inds]
+    epsilon = 1e-6
+    mj.mjd_transitionFD(model, data, epsilon, True, As[0], B, None, None)
+    Bs[0] = np.delete(B, fixed_act_inds, axis=1)
+    hxs = np.zeros((Tk, 3))
+
+    for tk in range(Tk):
+        Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
+        sim_util.step(model, data, ctrls[tk])
+        mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
+        mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
+        dlds = data.site('hand_right').xpos - targ_traj[tk]
+        dldss[tk] = dlds
+        hxs[tk] = data.site('hand_right').xpos
+        dldq = C.T @ dlds
+        # lams[Tk-tk-1, :model.nv] = dldq
+        dldqs[Tk-tk-1, :model.nv] = dldq
+
+    print()
+    # print(hxs)
+    # print()
+    # print(targ_traj)
+    print(dldss[:20])
+    print()
+    print(.5*np.sum(dldss**2))
+    print()
+    # lams[Tk-1, :model.nv] = lams_fin
+    lams[-1] = dldqs[-1]
+    grads = np.zeros((Tk, nufree))
+    # tau_loss_factor = 1e-9
+    tau_loss_factor = 0
+    loss_u = np.delete(ctrls, fixed_act_inds, axis=1)
+
+    for tk in range(2, Tk):
+        lams[Tk-tk] = dldqs[Tk-tk] + As[Tk-tk].T @ lams[Tk-tk+1]
+        # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
+        grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
+                + Bs[Tk-tk].T @ lams[Tk-tk+1]
+    return grads
+
+def get_final_loss(model, data, xpos1, xpos2):
+    # I could put a forward sim here for safety (but less efficient)
+    dlds = xpos1 - xpos2
+    C = np.zeros((3, model.nv))
+    mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
+    dldq = C.T @ dlds
+    lams_fin = dldq # 11 and 12 are currently right shoulder and elbow
+    loss = .5*np.mean(dlds**2)
+    print(f'loss: {loss}', f'xpos1: {xpos1}', f'xpos2: {xpos2}')
+    return loss, lams_fin
+
+### Gradient descent
+def traj_deriv_dep(model, data, qs, vs, us, lams_fin, losses,
                fixed_act_inds=[]):
     # data = copy.deepcopy(data)
     nufree = model.nu - len(fixed_act_inds)

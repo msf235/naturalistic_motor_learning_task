@@ -10,6 +10,7 @@ import copy
 import time
 import pickle as pkl
 import grab_ball
+from matplotlib import pyplot as plt
 
 ### Set things up
 seed = 2
@@ -18,7 +19,7 @@ out_f = 'grab_ball_ctrl.np'
 rerun = True
 
 # Tk = 500
-Tk = 50
+Tk = 100
 
 body_pos = -0.4
 
@@ -67,17 +68,51 @@ throw_target = data.site('target2')
 target = data.site('target')
 # target = data.site('target2')
 
+shouldx = data.site('shoulder1_right').xpos
+elbowx = data.site('elbow_right').xpos
+handx = data.site('hand_right').xpos
+r1 = shouldx - elbowx
+r1 = np.sum(r1**2)**.5
+r2 = elbowx - handx
+r2 = np.sum(r2**2)**.5
+r = r1 + r2
+
+Tk1 = 40
+
+arc_traj = grab_ball.arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+                              np.pi/2, Tk-Tk1)
+
+grab_targ = np.array((0, r, 0)) + shouldx
+grab_traj_r = -np.linspace(0, r, Tk1)
+grab_traj = np.zeros((Tk1, 3))
+grab_traj[:, 1] = grab_traj_r
+grab_traj += shouldx
+full_traj = np.concatenate((grab_traj, arc_traj), axis=0)
+full_traj = grab_traj
+Tk = Tk1
+# grab_traj = 
+
+# plt.plot(arc_traj[:,1], arc_traj[:,2])
+# plt.plot(full_traj[:,1], full_traj[:,2])
+# plt.axis('square')
+# plt.show()
+# target_traj = grab_ball.arc_traj(model.joint('shoulder1_right'), 
+
 noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+
 
 if rerun or not os.path.exists(out_f):
     ### Get initial stabilizing controls
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j)[:2]
     util.reset(model, data, 10, body_pos)
-    ctrls, k = grab_ball.right_arm_target(env, target, ctrls,
-                                          seed, CTRL_RATE, CTRL_STD, Tk,
-                                          stop_on_contact=True, lr=1,
-                                          max_its=10)
+    # ctrls, k = grab_ball.right_arm_target_traj(env, target, ctrls,
+                                          # seed, CTRL_RATE, CTRL_STD, Tk,
+                                          # stop_on_contact=True, lr=1,
+                                          # max_its=10)
+    ctrls, k = grab_ball.right_arm_target_traj(
+        env, full_traj, ctrls, 30, seed, CTRL_RATE, CTRL_STD, Tk,
+        stop_on_contact=True, lr=.01, max_its=1000)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'k': k}, f)
 else:
@@ -91,8 +126,6 @@ noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 util.reset(model, data, 10, body_pos)
 ctrls_n = (ctrls+noisev)[:k+1]
 grab_ball.show_forward_sim(env, ctrls_n)
-
-breakpoint()
 
 ctrls, k = grab_ball.right_arm_target(env, throw_target, ctrls_n,
                                       seed, CTRL_RATE, CTRL_STD, 10*Tk,

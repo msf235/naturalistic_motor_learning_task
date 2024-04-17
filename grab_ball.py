@@ -22,10 +22,10 @@ def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     noisev[:, adh] = 0
     return noisev
 
-def arc_traj(x0, r, theta0, theta1, rate):
-    theta = np.linspace(theta0, theta1, rate)
-    x = x0 + r*np.array([np.cos(theta), np.sin(theta)])
-    return x.T
+def arc_traj(x0, r, theta0, theta1, n):
+    theta = np.linspace(theta0, theta1, n)
+    x = x0 + r*np.array([0*theta, np.cos(theta), np.sin(theta)]).T
+    return x
 
 def show_forward_sim(env, ctrls):
     for k in range(ctrls.shape[0]-1):
@@ -89,36 +89,23 @@ def right_arm_target_traj(env, target_traj, ctrls, grad_trunc_tk, seed,
 
     ball_contact = False
     for k0 in range(max_its):
-        loss, lams_fin = get_final_loss(model, data, rhand.xpos, target.xpos)
         util.reset_state(data, data0)
-        # if k0 > 1:
-        k, ball_contact = forward_to_contact(env, ctrls + noisev, Tk, stop_on_contact)
-        # for k in range(Tk-1):
-            # util.step(model, data, ctrls[k]+noisev[k])
-            # env.render()
-            # contact_pairs = util.get_contact_pairs(model, data)
-            # for cp in contact_pairs:
-                # if 'ball' in cp and 'hand_right' in cp:
-                    # ball_contact = True
-                    # break
+        k, ball_contact = forward_to_contact(env, ctrls + noisev, Tk,
+                                             stop_on_contact)
         if ball_contact:
             break
-        grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
-                                     np.zeros(Tk), fixed_act_inds=other_a)
+        grads = opt_utils.traj_deriv(model, data, ctrls, target_traj,
+                                     fixed_act_inds=other_a)
         ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
         util.reset_state(data, data0) # This is necessary, but why?
-        # qs, qvels = opt_utils.get_stabilized_ctrls(
-            # model, data, Tk, noisev, qpos0, other_a, right_arm_a,
-            # ctrls[:, right_arm_a]
-        # )[2:] # should I update ctrls after this?
         __, __, qs, qvels = opt_utils.get_stabilized_ctrls(
             model, data, Tk, noisev, qpos0, other_a, not_right_arm_j,
             ctrls[:, right_arm_a]
         )
         if k0 > 100:
             breakpoint()
-        print(ctrls[-5:,right_arm_a])
-        print()
+        # print(ctrls[-5:,right_arm_a])
+        # print()
     return ctrls, k
 
 def right_arm_target(env, target, ctrls, seed, CTRL_RATE, CTRL_STD,
@@ -151,16 +138,7 @@ def right_arm_target(env, target, ctrls, seed, CTRL_RATE, CTRL_STD,
     for k0 in range(max_its):
         loss, lams_fin = get_final_loss(model, data, rhand.xpos, target.xpos)
         util.reset_state(data, data0)
-        # if k0 > 1:
         k, ball_contact = forward_to_contact(env, ctrls + noisev, Tk, stop_on_contact)
-        # for k in range(Tk-1):
-            # util.step(model, data, ctrls[k]+noisev[k])
-            # env.render()
-            # contact_pairs = util.get_contact_pairs(model, data)
-            # for cp in contact_pairs:
-                # if 'ball' in cp and 'hand_right' in cp:
-                    # ball_contact = True
-                    # break
         if ball_contact:
             break
         grads = opt_utils.traj_deriv(model, data, qs, qvels, ctrls, lams_fin,
