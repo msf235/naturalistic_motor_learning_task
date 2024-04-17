@@ -66,7 +66,6 @@ CTRL_RATE = 0.8       # seconds
 # if rerun or not os.path.exists(out_f):
 throw_target = data.site('target2')
 target = data.site('target')
-breakpoint()
 # target = data.site('target2')
 
 shouldx = data.site('shoulder1_right').xpos
@@ -95,7 +94,8 @@ full_traj = np.zeros((Tk-1, 3))
 util.reset(model, data, 10, body_pos)
 # mj.mj_forward(model, data)
 full_traj[-1] = data.site('target').xpos
-targ_traj_mask = np.zeros((Tk-1,))
+breakpoint()
+targ_traj_mask = np.zeros((Tk,))
 targ_traj_mask[-1] = 1
 # grab_traj = 
 
@@ -116,8 +116,7 @@ if rerun or not os.path.exists(out_f):
         model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j)[:2]
     util.reset(model, data, 10, body_pos)
     if switch:
-        breakpoint()
-        ctrls, k = grab_ball.right_arm_target(env, target.xpos, ctrls,
+        ctrls, k = grab_ball.right_arm_target(env, target.xpos.copy(), ctrls,
                                               seed, CTRL_RATE, CTRL_STD, Tk,
                                               stop_on_contact=True, lr=1,
                                               max_its=10)

@@ -244,25 +244,27 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
     not_fixed_act_inds = [i for i in range(model.nu) if i not in
                           fixed_act_inds]
     epsilon = 1e-6
-    mj.mjd_transitionFD(model, data, epsilon, True, As[0], B, None, None)
-    Bs[0] = np.delete(B, fixed_act_inds, axis=1)
+    # mj.mjd_transitionFD(model, data, epsilon, True, As[0], B, None, None)
+    # Bs[0] = np.delete(B, fixed_act_inds, axis=1)
     hxs = np.zeros((Tk, 3))
 
     for tk in range(Tk):
-        sim_util.step(model, data, ctrls[tk])
-        mj.mjd_transitionFD(model, data, epsilon, True, As[tk+1], B, None, None)
-        Bs[tk+1] = np.delete(B, fixed_act_inds, axis=1)
+        mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
+        Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
         mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
         dlds = data.site('hand_right').xpos - targ_traj[tk]
         dldss[tk] = dlds
         hxs[tk] = data.site('hand_right').xpos
         dldq = C.T @ dlds
         # lams[Tk-tk-1, :model.nv] = dldq
-        dldqs[Tk-tk-1, :model.nv] = dldq
-    breakpoint()
+        dldqs[tk, :model.nv] = dldq
+        
+        if tk < Tk-1:
+            sim_util.step(model, data, ctrls[tk])
 
     ttm = targ_traj_mask.reshape(-1, 1)
     dldqs = dldqs * ttm
+    breakpoint()
     print()
     # print(hxs)
     # print()
@@ -284,7 +286,7 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
         # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
         grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
                 + Bs[Tk-tk].T @ lams[Tk-tk+1]
-        breakpoint()
+    breakpoint()
     return grads
 
 def get_final_loss(model, data, xpos1, xpos2):
