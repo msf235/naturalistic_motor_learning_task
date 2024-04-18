@@ -45,7 +45,6 @@ def get_final_loss(model, data, xpos1, xpos2):
     lams_fin = dldq # 11 and 12 are currently right shoulder and elbow
     loss = .5*np.mean(dlds**2)
     print(f'loss: {loss}', f'xpos1: {xpos1}', f'xpos2: {xpos2}')
-    breakpoint()
     return loss, lams_fin
 
 def forward_to_contact(env, ctrls, stop_on_contact=False):
@@ -133,7 +132,7 @@ def right_arm_target(env, target, ctrls, seed, CTRL_RATE, CTRL_STD,
     data0 = copy.deepcopy(data)
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-    qs, qvels = util.forward_sim(model, data, ctrls)
+    qs, qvels = util.forward_sim(model, data, ctrls + noisev)
     util.reset_state(data, data0)
 
     ### Gradient descent
@@ -148,7 +147,6 @@ def right_arm_target(env, target, ctrls, seed, CTRL_RATE, CTRL_STD,
         # targ = target.xpos
         util.forward_sim(model, data, (ctrls + noisev)[:-1])
         mj.mj_forward(model, data)
-        breakpoint()
         loss, lams_fin = get_final_loss(model, data, rhand.xpos, target)
         util.reset_state(data, data0)
         k, ball_contact = forward_to_contact(env, ctrls + noisev, stop_on_contact)
@@ -158,7 +156,6 @@ def right_arm_target(env, target, ctrls, seed, CTRL_RATE, CTRL_STD,
                                          ctrls + noisev, lams_fin,
                                          np.zeros(Tk),
                                          fixed_act_inds=other_a)
-        breakpoint()
         ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
         util.reset_state(data, data0) # This is necessary, but why?
         # qs, qvels = opt_utils.get_stabilized_ctrls(

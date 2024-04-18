@@ -94,8 +94,7 @@ full_traj = np.zeros((Tk-1, 3))
 util.reset(model, data, 10, body_pos)
 # mj.mj_forward(model, data)
 full_traj[-1] = data.site('target').xpos
-breakpoint()
-targ_traj_mask = np.zeros((Tk,))
+targ_traj_mask = np.zeros((Tk-1,))
 targ_traj_mask[-1] = 1
 # grab_traj = 
 
