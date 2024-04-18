@@ -34,8 +34,8 @@ DEFAULT_CAMERA_CONFIG = {
 }
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
-    render_mode='human',
-    # render_mode='rgb_array',
+    # render_mode='human',
+    render_mode='rgb_array',
     frame_skip=1,
     default_camera_config=DEFAULT_CAMERA_CONFIG)
 model = env.model
@@ -92,10 +92,14 @@ grab_traj += shouldx
 Tk = Tk1
 full_traj = np.zeros((Tk-1, 3))
 util.reset(model, data, 10, body_pos)
-# mj.mj_forward(model, data)
-full_traj[-1] = data.site('target').xpos
+mj.mj_forward(model, data)
+full_traj[:10] = data.site('hand_right').xpos
+full_traj[10:20] = data.site('hand_right').xpos - np.array((0, .1, -.1))
+full_traj[-5:] = data.site('target').xpos
 targ_traj_mask = np.zeros((Tk-1,))
-targ_traj_mask[-1] = 1
+# targ_traj_mask[:20] = 1
+targ_traj_mask[10:20] = 1
+# targ_traj_mask[-5:] = 1
 
 # plt.plot(arc_traj[:,1], arc_traj[:,2])
 # plt.plot(full_traj[:,1], full_traj[:,2])
@@ -113,7 +117,10 @@ if rerun or not os.path.exists(out_f):
     util.reset(model, data, 10, body_pos)
     ctrls, k = grab_ball.right_arm_target_traj(
         env, full_traj, targ_traj_mask, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
-        Tk, stop_on_contact=True, lr=1, max_its=1000)
+        Tk,
+        # stop_on_contact=True,
+        stop_on_contact=False,
+        lr=10, max_its=20)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'k': k}, f)
 else:

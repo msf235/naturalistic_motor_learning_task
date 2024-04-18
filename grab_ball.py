@@ -90,6 +90,10 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
 
     rhand = data.site('hand_right')
 
+    from matplotlib import pyplot as plt
+    dt = model.opt.timestep
+    T = Tk*dt
+    tt = np.arange(0, T-dt, dt)
     ball_contact = False
     for k0 in range(max_its):
         util.reset_state(data, data0)
@@ -98,14 +102,23 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
         if ball_contact:
             break
         util.reset_state(data, data0)
-        grads = opt_utils.traj_deriv(model, data, ctrls + noisev, target_traj,
-                                     targ_traj_mask, grad_trunc_tk,
-                                     fixed_act_inds=other_a)
+        grads, hxs = opt_utils.traj_deriv(model, data, ctrls + noisev,
+                                          target_traj, targ_traj_mask,
+                                          grad_trunc_tk,
+                                          fixed_act_inds=other_a)
         ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
         util.reset_state(data, data0) # This is necessary, but why?
         __, __, qs, qvels = opt_utils.get_stabilized_ctrls(
             model, data, Tk, noisev, qpos0, other_a, not_right_arm_j,
             ctrls[:, right_arm_a]
         )
+    fig, ax = plt.subplots()
+    # ax.axis('square')
+    ax.plot(tt, hxs[:,1], color='blue')
+    ax.plot(tt, target_traj[:,1]*targ_traj_mask, '--', color='blue')
+    ax.plot(tt, hxs[:,2], color='red')
+    ax.plot(tt, target_traj[:,2]*targ_traj_mask, '--', color='red')
+    plt.show()
+    breakpoint()
     return ctrls, k
 

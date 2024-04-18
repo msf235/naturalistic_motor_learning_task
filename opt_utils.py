@@ -270,7 +270,7 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
         # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
         grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
                 + Bs[Tk-tk].T @ lams[Tk-tk+1]
-    return grads
+    return grads, hxs
 
 def get_final_loss(model, data, xpos1, xpos2):
     # I could put a forward sim here for safety (but less efficient)
