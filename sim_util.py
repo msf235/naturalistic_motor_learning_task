@@ -34,27 +34,6 @@ def get_contact_pairs(model, data):
     # contact_pairs = np.stack(contact_pairs)
     return contact_pairs
 
-# class MinimalNoise:
-    # def __init__(self, rng):
-        # self.rng = rng
-
-    # def sample(self):
-        # return self.rng.standard_normal()
-
-class MinimalNoise:
-    def __init__(self, ind_dim, kernel, rng):
-        self.perturb = np.random.randn(ind_dim, len(kernel))
-        self.ind_dim = ind_dim
-        self.kernel = kernel
-        self.rng = rng
-
-    def sample(self):
-        perturb_smoothed = self.perturb @ self.kernel
-        self.perturb[:] = np.roll(self.perturb, -1, axis=1)
-        self.perturb[:, -1] = self.rng.standard_normal(self.ind_dim)
-        return perturb_smoothed
-
-
 class FilteredNoise:
     def __init__(self, ind_dim, kernel, rng):
         # self.perturb = np.random.randn(ind_dim, len(kernel))
@@ -62,7 +41,6 @@ class FilteredNoise:
         self.ind_dim = ind_dim
         self.kernel = kernel
         self.rng = rng
-        # print(self.rng.standard_normal(3))
 
     def sample_one(self):
         perturb_smoothed = self.perturb @ self.kernel
@@ -75,7 +53,6 @@ class FilteredNoise:
         for k in range(nsamples):
             samples.append(self.sample_one())
         return np.stack(samples)
-        # return np.stack([self.sample_one() for k in range(nsamples)])
 
     def reset(self, rng):
         self.rng = rng

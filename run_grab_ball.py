@@ -34,8 +34,8 @@ DEFAULT_CAMERA_CONFIG = {
 }
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
-    # render_mode='human',
-    render_mode='rgb_array',
+    render_mode='human',
+    # render_mode='rgb_array',
     frame_skip=1,
     default_camera_config=DEFAULT_CAMERA_CONFIG)
 model = env.model
@@ -96,7 +96,6 @@ util.reset(model, data, 10, body_pos)
 full_traj[-1] = data.site('target').xpos
 targ_traj_mask = np.zeros((Tk-1,))
 targ_traj_mask[-1] = 1
-# grab_traj = 
 
 # plt.plot(arc_traj[:,1], arc_traj[:,2])
 # plt.plot(full_traj[:,1], full_traj[:,2])
@@ -106,23 +105,15 @@ targ_traj_mask[-1] = 1
 
 noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-# switch = False
-switch = True
 
 if rerun or not os.path.exists(out_f):
     ### Get initial stabilizing controls
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j)[:2]
     util.reset(model, data, 10, body_pos)
-    if switch:
-        ctrls, k = grab_ball.right_arm_target(env, target.xpos.copy(), ctrls,
-                                              seed, CTRL_RATE, CTRL_STD, Tk,
-                                              stop_on_contact=True, lr=1,
-                                              max_its=10)
-    else:
-        ctrls, k = grab_ball.right_arm_target_traj(
-            env, full_traj, targ_traj_mask, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
-            Tk, stop_on_contact=True, lr=1, max_its=1000)
+    ctrls, k = grab_ball.right_arm_target_traj(
+        env, full_traj, targ_traj_mask, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
+        Tk, stop_on_contact=True, lr=1, max_its=1000)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'k': k}, f)
 else:

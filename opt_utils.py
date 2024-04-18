@@ -172,8 +172,6 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
     dq = dq[stable_jnt_ids]
     qvel = data.qvel[stable_jnt_ids]
     dx = np.concatenate((dq, qvel))
-    # dx = np.hstack((dq, data.qvel)).T
-    # ctrl0 = get_ctrl0(model, data)
     return ctrl0 - K @ dx
 
 def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
@@ -237,15 +235,12 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
     Bs = np.zeros((Tk+1, 2*model.nv, nufree))
     B = np.zeros((2*model.nv, model.nu))
     C = np.zeros((3, model.nv))
-    # Cs = np.zeros((Tk, 3, model.nv))
     dldqs = np.zeros((Tk, 2*model.nv))
     dldss = np.zeros((Tk, 3))
     lams = np.zeros((Tk, 2*model.nv))
     not_fixed_act_inds = [i for i in range(model.nu) if i not in
                           fixed_act_inds]
     epsilon = 1e-6
-    # mj.mjd_transitionFD(model, data, epsilon, True, As[0], B, None, None)
-    # Bs[0] = np.delete(B, fixed_act_inds, axis=1)
     hxs = np.zeros((Tk, 3))
 
     for tk in range(Tk):
@@ -257,7 +252,6 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
         dldss[tk] = dlds
         hxs[tk] = data.site('hand_right').xpos
         dldq = C.T @ dlds
-        # lams[Tk-tk-1, :model.nv] = dldq
         dldqs[tk, :model.nv] = dldq
         
         if tk < Tk-1:
@@ -265,16 +259,6 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
 
     ttm = targ_traj_mask.reshape(-1, 1)
     dldqs = dldqs * ttm
-    print()
-    # print(hxs)
-    # print()
-    # print(targ_traj)
-    # print(dldss[:20])
-    print((dldss*ttm)[-5:])
-    print()
-    print(.5*np.sum((dldss*ttm)**2))
-    print()
-    # lams[Tk-1, :model.nv] = lams_fin
     lams[-1] = dldqs[-1]
     grads = np.zeros((Tk, nufree))
     # tau_loss_factor = 1e-9
@@ -286,7 +270,6 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
         # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
         grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
                 + Bs[Tk-tk].T @ lams[Tk-tk+1]
-        breakpoint()
     return grads
 
 def get_final_loss(model, data, xpos1, xpos2):
@@ -299,48 +282,4 @@ def get_final_loss(model, data, xpos1, xpos2):
     loss = .5*np.mean(dlds**2)
     print(f'loss: {loss}', f'xpos1: {xpos1}', f'xpos2: {xpos2}')
     return loss, lams_fin
-
-### Gradient descent
-def traj_deriv_dep(model, data, qs, vs, us, lams_fin, losses,
-               fixed_act_inds=[]):
-    # data = copy.deepcopy(data)
-    nufree = model.nu - len(fixed_act_inds)
-    Tk = qs.shape[0]
-    As = np.zeros((Tk, 2*model.nv, 2*model.nv))
-    Bs = np.zeros((Tk, 2*model.nv, nufree))
-    B = np.zeros((2*model.nv, model.nu))
-    # Cs = np.zeros((Tk, 3, model.nv))
-    lams = np.zeros((Tk, 2*model.nv))
-    not_fixed_act_inds = [i for i in range(model.nu) if i not in
-                          fixed_act_inds]
-
-    epsilon = 1e-6
-    data.qpos[:] = qs[0]
-    data.qvel[:] = vs[0]
-    data.ctrl[:] = us[0]
-    mj.mj_forward(model, data)
-    mj.mjd_transitionFD(model, data, epsilon, True, As[0], B, None, None)
-    Bs[0] = np.delete(B, fixed_act_inds, axis=1)
-    for tk in range(Tk-2):
-        data.qpos[:] = qs[tk+1]
-        data.qvel[:] = vs[tk+1]
-        data.ctrl[:] = us[tk+1]
-        mj.mj_forward(model, data)
-        mj.mjd_transitionFD(model, data, epsilon, True, As[tk+1], B, None, None)
-        Bs[tk+1] = np.delete(B, fixed_act_inds, axis=1)
-        # mj.mj_jacSite(model, data, Cs[tk], None, site=model.site('').id)
-
-    lams[Tk-1, :model.nv] = lams_fin
-    grads = np.zeros((Tk, nufree))
-    # tau_loss_factor = 1e-9
-    tau_loss_factor = 0
-    loss_u = np.delete(us, fixed_act_inds, axis=1)
-
-    for tk in range(2, Tk):
-        lams[Tk-tk] = As[Tk-tk].T @ lams[Tk-tk+1]
-        # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
-        grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
-                + Bs[Tk-tk].T @ lams[Tk-tk+1]
-        breakpoint()
-    return grads
 
