@@ -34,8 +34,8 @@ DEFAULT_CAMERA_CONFIG = {
 }
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
-    # render_mode='human',
-    render_mode='rgb_array',
+    render_mode='human',
+    # render_mode='rgb_array',
     frame_skip=1,
     default_camera_config=DEFAULT_CAMERA_CONFIG)
 model = env.model
@@ -93,12 +93,14 @@ Tk = Tk1
 full_traj = np.zeros((Tk-1, 3))
 util.reset(model, data, 10, body_pos)
 mj.mj_forward(model, data)
-full_traj[:10] = data.site('hand_right').xpos
-full_traj[10:20] = data.site('hand_right').xpos - np.array((0, .1, -.1))
-full_traj[-5:] = data.site('target').xpos
+# full_traj[:10] = data.site('hand_right').xpos
+# full_traj[30:40] = data.site('hand_right').xpos - np.array((0, .1, -.1))
+full_traj[:] = data.site('hand_right').xpos - np.array((0, .1, -.1))
+# full_traj[-5:] = data.site('target').xpos
 targ_traj_mask = np.zeros((Tk-1,))
+targ_traj_mask[-20:-10] = 1
 # targ_traj_mask[:20] = 1
-targ_traj_mask[10:20] = 1
+# targ_traj_mask[30:40] = 1
 # targ_traj_mask[-5:] = 1
 
 # plt.plot(arc_traj[:,1], arc_traj[:,2])
@@ -120,7 +122,7 @@ if rerun or not os.path.exists(out_f):
         Tk,
         # stop_on_contact=True,
         stop_on_contact=False,
-        lr=10, max_its=20)
+        lr=1, max_its=20)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'k': k}, f)
 else:
