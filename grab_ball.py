@@ -1,6 +1,7 @@
 import humanoid2d as h2d
 # import baseball_lqr as lqr
 import opt_utils as opt_utils
+import optimizers as opts
 import numpy as np
 import sim_util as util
 import mujoco as mj
@@ -95,18 +96,33 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
     T = Tk*dt
     tt = np.arange(0, T-dt, dt)
     ball_contact = False
+    optm = opts.Adam(lr=lr)
+    targ_traj_mask_bool = False
+    if isinstance(targ_traj_mask, str) and targ_traj_mask == 'progressive':
+        targ_traj_mask_bool = True
+        targ_traj_mask = np.zeros((Tk-1,))
+        incr_per = 5 # increment period
+        incr_cnt = 0
+
     for k0 in range(max_its):
+        if targ_traj_mask_bool and k0 % incr_per == 0:
+            targ_traj_mask[10*incr_cnt:10*(incr_cnt+1)] = 1
+            incr_cnt += 1
+
         util.reset_state(data, data0)
         k, ball_contact = forward_to_contact(env, ctrls + noisev,
                                              stop_on_contact)
         if ball_contact:
             break
         util.reset_state(data, data0)
-        grads, hxs = opt_utils.traj_deriv(model, data, ctrls + noisev,
+        grads, hxs, dldss = opt_utils.traj_deriv(model, data, ctrls + noisev,
                                           target_traj, targ_traj_mask,
                                           grad_trunc_tk,
                                           fixed_act_inds=other_a)
-        ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
+        loss = np.mean(dldss**2)
+        ctrls[:, right_arm_a] = optm.update(ctrls[:, right_arm_a],
+                                            grads[:Tk-1], 'ctrls', loss)
+        # ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
         util.reset_state(data, data0) # This is necessary, but why?
         __, __, qs, qvels = opt_utils.get_stabilized_ctrls(
             model, data, Tk, noisev, qpos0, other_a, not_right_arm_j,
@@ -114,11 +130,11 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
         )
     fig, ax = plt.subplots()
     # ax.axis('square')
+    target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
     ax.plot(tt, hxs[:,1], color='blue')
-    ax.plot(tt, target_traj[:,1]*targ_traj_mask, '--', color='blue')
+    ax.plot(tt, target_traj[:,1], '--', color='blue')
     ax.plot(tt, hxs[:,2], color='red')
-    ax.plot(tt, target_traj[:,2]*targ_traj_mask, '--', color='red')
+    ax.plot(tt, target_traj[:,2], '--', color='red')
     plt.show()
-    breakpoint()
     return ctrls, k
 

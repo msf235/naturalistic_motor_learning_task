@@ -19,7 +19,9 @@ out_f = 'grab_ball_ctrl.np'
 rerun = True
 
 # Tk = 500
-Tk = 100
+# Tk = 100
+Tk = 150
+# Tk = 200
 
 body_pos = -0.4
 
@@ -59,7 +61,8 @@ util.reset(model, data, 10, body_pos)
 # show_forward_sim(model, data, np.zeros((Tk, model.nu)))
 
 # Get noise
-CTRL_STD = .05       # actuator units
+# CTRL_STD = .05       # actuator units
+CTRL_STD = 0       # actuator units
 # CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 
@@ -75,30 +78,47 @@ r1 = shouldx - elbowx
 r1 = np.sum(r1**2)**.5
 r2 = elbowx - handx
 r2 = np.sum(r2**2)**.5
-r = r1 + r2
+r = (r1 + r2)
 
-Tk1 = 50
 
+# Tk1 = 50
+Tk1 = Tk // 3
+Tk2 = int(3*Tk / 4)
 arc_traj = grab_ball.arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                              np.pi/2, Tk-Tk1)
+                              np.pi/2, Tk-Tk1-1)
 
 grab_targ = np.array((0, r, 0)) + shouldx
-grab_traj_r = -np.linspace(0, r, Tk1)
+grab_traj_r = np.linspace(handx[1], -r+shouldx[1], Tk1)
 grab_traj = np.zeros((Tk1, 3))
 grab_traj[:, 1] = grab_traj_r
-grab_traj += shouldx
-# full_traj = np.concatenate((grab_traj, arc_traj), axis=0)
+grab_traj[:, 2] = handx[2]
+# grab_traj += handx
+full_traj = np.concatenate((grab_traj, arc_traj), axis=0)
+targ_traj_mask = np.ones((Tk-1,))
+targ_traj_mask[Tk2:] = 0
+# breakpoint()
+
+targ_traj_mask = 'progressive'
+
+# lr = .1/Tk
+lr = 1/Tk
+# lr = .001
+# lr = .01
+# lr = .002
+
+max_its = 40
+
 # full_traj = grab_traj
-Tk = Tk1
-full_traj = np.zeros((Tk-1, 3))
-util.reset(model, data, 10, body_pos)
-mj.mj_forward(model, data)
+# Tk = Tk1
+# full_traj = np.zeros((Tk-1, 3))
+# util.reset(model, data, 10, body_pos)
+# mj.mj_forward(model, data)
 # full_traj[:10] = data.site('hand_right').xpos
 # full_traj[30:40] = data.site('hand_right').xpos - np.array((0, .1, -.1))
-full_traj[:] = data.site('hand_right').xpos - np.array((0, .1, -.1))
+# full_traj[:] = data.site('hand_right').xpos - np.array((0, .1, -.1))
 # full_traj[-5:] = data.site('target').xpos
-targ_traj_mask = np.zeros((Tk-1,))
-targ_traj_mask[-20:-10] = 1
+# targ_traj_mask = np.zeros((Tk-1,))
+# targ_traj_mask[-20:-10] = 1
 # targ_traj_mask[:20] = 1
 # targ_traj_mask[30:40] = 1
 # targ_traj_mask[-5:] = 1
@@ -114,6 +134,7 @@ noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 if rerun or not os.path.exists(out_f):
     ### Get initial stabilizing controls
+    util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j)[:2]
     util.reset(model, data, 10, body_pos)
@@ -122,7 +143,7 @@ if rerun or not os.path.exists(out_f):
         Tk,
         # stop_on_contact=True,
         stop_on_contact=False,
-        lr=1, max_its=20)
+        lr=lr, max_its=max_its)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'k': k}, f)
 else:
