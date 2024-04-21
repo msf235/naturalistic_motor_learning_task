@@ -48,14 +48,15 @@ def get_final_loss(model, data, xpos1, xpos2):
     print(f'loss: {loss}', f'xpos1: {xpos1}', f'xpos2: {xpos2}')
     return loss, lams_fin
 
-def forward_to_contact(env, ctrls, stop_on_contact=False):
+def forward_to_contact(env, ctrls, stop_on_contact=False, render=True):
     model = env.model
     data = env.data
     ball_contact = False
     Tk = ctrls.shape[0]
     for k in range(Tk):
         util.step(model, data, ctrls[k])
-        env.render()
+        if render:
+            env.render()
         contact_pairs = util.get_contact_pairs(model, data)
         if stop_on_contact:
             for cp in contact_pairs:
@@ -79,7 +80,7 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
     right_arm_a = acts['right_arm']
     adh = acts['adh_right_hand']
     non_adh = acts['non_adh']
-    other_a = acts['non_right_arm']
+    not_right_arm_a = acts['non_right_arm']
     data0 = copy.deepcopy(data)
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -111,23 +112,24 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
 
         util.reset_state(data, data0)
         k, ball_contact = forward_to_contact(env, ctrls + noisev,
-                                             stop_on_contact)
+                                             stop_on_contact, False)
         if ball_contact:
             break
         util.reset_state(data, data0)
         grads, hxs, dldss = opt_utils.traj_deriv(model, data, ctrls + noisev,
                                           target_traj, targ_traj_mask,
                                           grad_trunc_tk,
-                                          fixed_act_inds=other_a)
+                                          fixed_act_inds=not_right_arm_a)
         loss = np.mean(dldss**2)
         ctrls[:, right_arm_a] = optm.update(ctrls[:, right_arm_a],
                                             grads[:Tk-1], 'ctrls', loss)
         # ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
         util.reset_state(data, data0) # This is necessary, but why?
-        __, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-            model, data, Tk, noisev, qpos0, other_a, not_right_arm_j,
+        ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+            model, data, Tk, noisev, qpos0, not_right_arm_a, not_right_arm_j,
             ctrls[:, right_arm_a]
         )
+    util.reset_state(data, data0) # This is necessary, but why?
     fig, ax = plt.subplots()
     # ax.axis('square')
     target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
@@ -136,5 +138,6 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
     ax.plot(tt, hxs[:,2], color='red')
     ax.plot(tt, target_traj[:,2], '--', color='red')
     plt.show()
+    forward_to_contact(env, ctrls, stop_on_contact, True)
     return ctrls, k
 

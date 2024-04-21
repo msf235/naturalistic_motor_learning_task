@@ -63,7 +63,6 @@ util.reset(model, data, 10, body_pos)
 # Get noise
 # CTRL_STD = .05       # actuator units
 CTRL_STD = 0       # actuator units
-# CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 
 # if rerun or not os.path.exists(out_f):
@@ -85,7 +84,7 @@ r = (r1 + r2)
 Tk1 = Tk // 3
 Tk2 = int(3*Tk / 4)
 arc_traj = grab_ball.arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                              np.pi/2, Tk-Tk1-1)
+                              np.pi/4, Tk-Tk1-1)
 
 grab_targ = np.array((0, r, 0)) + shouldx
 grab_traj_r = np.linspace(handx[1], -r+shouldx[1], Tk1)
@@ -106,7 +105,8 @@ lr = 1/Tk
 # lr = .01
 # lr = .002
 
-max_its = 40
+max_its = 100
+# max_its = 50
 
 # full_traj = grab_traj
 # Tk = Tk1
