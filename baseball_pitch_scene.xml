@@ -65,14 +65,19 @@
       <geom name="ball" size=".05 .05 .05" pos="0 0 0" type="sphere"
         material="obj" condim="3" friction="1 0.005 0.0001"
         rgba=".7 0 0 1"/>
-      <site name="target" pos="0 0 0" size=".01"/>
+      <site name="ball_base" pos="0 0 -.05" size=".01"/>
       <joint name="ball_z_root" type="slide" axis="0 0 1" range="-100 100"/>
       <joint name="ball_x_root" type="slide" axis="0 1 0" range="-100 100"/>
       <joint name="ball_hinge_root" type="hinge" axis="1 0 0" range="-1000 1000"/>
     </body>
 
-    <site name="target2" pos="0 -.85 1.5" size=".06" rgba="1 1 0 .5"/>
-    <site name="temp" pos="0 -.84982217 1.496221" size=".03" rgba="1 .5 .5 .5"/>
+    <body name="target" pos="0 2 .5">
+      <geom name="target" type="cylinder" pos="0 0 0" size="1 .05"
+        zaxis="0 1 0"/>
+    </body>
+
+    <!--<site name="target2" pos="0 -.85 1.5" size=".06" rgba="1 1 0 .5"/>-->
+    <!--<site name="temp" pos="0 -.84982217 1.496221" size=".03" rgba="1 .5 .5 .5"/>-->
     <!--<site name="target3" pos="0 -.65 1.8" size=".06" rgba="1 1 0 .5"/>-->
     <!--<site name="target4" pos="0 -.3 2" size=".06" rgba="1 1 0 .5"/>-->
     <!--<body name="target2" pos="0 .2 1.8">-->

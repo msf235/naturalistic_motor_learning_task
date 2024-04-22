@@ -31,31 +31,40 @@ def arc_traj(x0, r, theta0, theta1, n, density_fn='uniform'):
         theta = np.linspace(theta0, theta1, n)
 
     x = x0 + r*np.array([0*theta, np.cos(theta), np.sin(theta)]).T
-    # from matplotlib import pyplot as plt
-    # breakpoint()
     return x
+
+def throw_traj(model, data, Tk):
+    shouldx = data.site('shoulder1_right').xpos
+    elbowx = data.site('elbow_right').xpos
+    handx = data.site('hand_right').xpos
+    ballx = data.site('ball_base').xpos
+    r1 = np.sum((shouldx - elbowx)**2)**.5
+    r2 = np.sum((elbowx - handx)**2)**.5
+    r = r1 + r2
+    Tk1 = int(Tk / 3)
+    Tk2 = int(2*Tk/4)
+    Tk3 = int((Tk+Tk2)/2)
+    arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+                                  np.pi/2.5, Tk-Tk2-1, density_fn='')
+    grab_targ = data.site('ball_base').xpos
+    s = np.tanh(5*np.linspace(0, 1, Tk1))
+    s = np.tile(s, (3, 1)).T
+    grab_traj = handx + s*(grab_targ - handx)
+
+    setup_traj = np.zeros((Tk2, 3))
+    s = np.linspace(0, 1, Tk2-Tk1)
+    s = np.stack((s, s, s)).T
+    setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
+    full_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
+    
+    return full_traj
 
 def show_forward_sim(env, ctrls):
     for k in range(ctrls.shape[0]-1):
-        # if k == 30:
-            # breakpoint()
         util.step(env.model, env.data, ctrls[k])
         env.render()
-        # env.step(ctrls[k])
 
-def get_final_loss(model, data, xpos1, xpos2):
-    # I could put a forward sim here for safety (but less efficient)
-    # mj.mj_forward(model, data)
-    dlds = xpos1 - xpos2
-    C = np.zeros((3, model.nv))
-    mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
-    dldq = C.T @ dlds
-    lams_fin = dldq # 11 and 12 are currently right shoulder and elbow
-    loss = .5*np.mean(dlds**2)
-    print(f'loss: {loss}', f'xpos1: {xpos1}', f'xpos2: {xpos2}')
-    return loss, lams_fin
-
-def forward_to_contact(env, ctrls, stop_on_contact=False, render=True):
+def forward_to_contact(env, ctrls, render=True):
     model = env.model
     data = env.data
     ball_contact = False
@@ -65,20 +74,14 @@ def forward_to_contact(env, ctrls, stop_on_contact=False, render=True):
         if render:
             env.render()
         contact_pairs = util.get_contact_pairs(model, data)
-        if stop_on_contact:
-            for cp in contact_pairs:
-                if 'ball' in cp and 'hand_right' in cp:
-                    pass
-                    # breakpoint()
-                    # ctrls[adh] = 1
-                    # ball_contact = True
-                    # break
+        for cp in contact_pairs:
+            if 'ball' in cp and 'hand_right' in cp:
+                ball_contact = True
     return k, ball_contact
 
 def right_arm_target_traj(env, target_traj, targ_traj_mask,
                           targ_traj_mask_type, ctrls,
                           grad_trunc_tk, seed, CTRL_RATE, CTRL_STD, Tk,
-                          stop_on_contact=False, target_name='ball',
                           max_its=30, lr=10):
     model = env.model
     data = env.data
@@ -126,9 +129,7 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
 
         util.reset_state(data, data0)
         k, ball_contact = forward_to_contact(env, ctrls + noisev,
-                                             stop_on_contact, render=False)
-        # if ball_contact:
-            # ctrls[adh] = 1
+                                             render=False)
         util.reset_state(data, data0)
         grads, hxs, dldss = opt_utils.traj_deriv(model, data, ctrls + noisev,
                                           target_traj, targ_traj_mask,
@@ -143,15 +144,13 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
             model, data, Tk, noisev, qpos0, not_right_arm_a, not_right_arm_j,
             ctrls[:, right_arm_a]
         )
-        # ctrls[adh] = 1
-    fig, ax = plt.subplots()
-    # ax.axis('square')
-    target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
-    ax.plot(tt, hxs[:,1], color='blue')
-    ax.plot(tt, target_traj[:,1], '--', color='blue')
-    ax.plot(tt, hxs[:,2], color='red')
-    ax.plot(tt, target_traj[:,2], '--', color='red')
-    plt.show()
+    # fig, ax = plt.subplots()
+    # target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
+    # ax.plot(tt, hxs[:,1], color='blue')
+    # ax.plot(tt, target_traj[:,1], '--', color='blue')
+    # ax.plot(tt, hxs[:,2], color='red')
+    # ax.plot(tt, target_traj[:,2], '--', color='red')
+    # plt.show()
 
     util.reset_state(data, data0)
     ctrls_end = ctrls[-1]
@@ -164,8 +163,5 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
         model, data, ctrls.shape[0], noisev, qpos0, not_right_arm_a, not_right_arm_j,
         ctrls[:, right_arm_a]
     )
-    util.reset_state(data, data0)
-    forward_to_contact(env, ctrls, stop_on_contact, True)
-    breakpoint()
-    return ctrls, k
+    return ctrls
 
