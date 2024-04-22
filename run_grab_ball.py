@@ -23,7 +23,7 @@ rerun = True
 Tk = 150
 # Tk = 200
 
-body_pos = -0.4
+body_pos = -0.3
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -73,29 +73,34 @@ target = data.site('target')
 shouldx = data.site('shoulder1_right').xpos
 elbowx = data.site('elbow_right').xpos
 handx = data.site('hand_right').xpos
+ballx = data.site('target').xpos
 r1 = shouldx - elbowx
 r1 = np.sum(r1**2)**.5
 r2 = elbowx - handx
 r2 = np.sum(r2**2)**.5
 r = (r1 + r2)
 
-
 # Tk1 = 50
-Tk1 = Tk // 3
-Tk2 = int(3*Tk / 4)
+Tk1 = Tk // 4
+Tk2 = Tk // 2
+# Tk2 = int(3*Tk / 4)
+# Get angle between ball and shoulder
 arc_traj = grab_ball.arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                              np.pi/4, Tk-Tk1-1)
+                              np.pi/4, Tk-Tk2-1)
 
-grab_targ = np.array((0, r, 0)) + shouldx
-grab_traj_r = np.linspace(handx[1], -r+shouldx[1], Tk1)
-grab_traj = np.zeros((Tk1, 3))
-grab_traj[:, 1] = grab_traj_r
-grab_traj[:, 2] = handx[2]
+grab_targ = data.site('target').xpos
+s = np.linspace(0, 1, Tk1)
+s = np.stack((s, s, s)).T
+grab_traj = handx + s*(grab_targ - handx)
+
+setup_traj = np.zeros((Tk2, 3))
+s = np.linspace(0, 1, Tk2-Tk1)
+s = np.stack((s, s, s)).T
+setup_traj = grab_traj[-1] + s*(arc_traj[0] - grab_traj[-1])
 # grab_traj += handx
-full_traj = np.concatenate((grab_traj, arc_traj), axis=0)
-targ_traj_mask = np.ones((Tk-1,))
-targ_traj_mask[Tk2:] = 0
-# breakpoint()
+full_traj = np.concatenate((grab_traj, setup_traj, arc_traj), axis=0)
+# targ_traj_mask = np.ones((Tk-1,))
+# targ_traj_mask[Tk2:] = 0
 
 targ_traj_mask = 'progressive'
 
@@ -135,14 +140,19 @@ noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 if rerun or not os.path.exists(out_f):
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
+    adhs = np.ones((Tk, 1))
     ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j)[:2]
+        model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j,
+        free_ctrls=adhs)[:2]
     util.reset(model, data, 10, body_pos)
+    # k, ball_contact = grab_ball.forward_to_contact(env, ctrls + noisev,
+                                         # False, render=True)
+    # ctrls[adh] = 1
     ctrls, k = grab_ball.right_arm_target_traj(
         env, full_traj, targ_traj_mask, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
         Tk,
-        # stop_on_contact=True,
-        stop_on_contact=False,
+        stop_on_contact=True,
+        # stop_on_contact=False,
         lr=lr, max_its=max_its)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'k': k}, f)
@@ -152,11 +162,14 @@ else:
         ctrls = out['ctrls']
         k = out['k']
 
+
 noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 util.reset(model, data, 10, body_pos)
 ctrls_n = (ctrls+noisev)[:k+1]
 grab_ball.show_forward_sim(env, ctrls_n)
+
+breakpoint()
 
 ctrls, k = grab_ball.right_arm_target(env, throw_target, ctrls_n,
                                       seed, CTRL_RATE, CTRL_STD, 10*Tk,

@@ -105,18 +105,19 @@ def get_act_names(model, data=None):
         for name in acts['act_names']
         if ('shoulder' in name or 'elbow' in name) and 'right' in name
     ]
-    acts['non_right_arm'] = [i for i in range(model.nu) if i not in
-                               acts['right_arm']]
     try:
         acts['adh_right_hand'] = [
             model.actuator(name).id
             for name in acts['act_names']
             if 'hand' in name and 'right' in name and 'adh' in name
         ]
+        acts['right_arm_with_adh'] = acts['right_arm'] + acts['adh_right_hand']
     except KeyError:
         acts['adh_right_hand'] = []
     acts['non_adh'] = [i for i in range(model.nu) if i not in
                        acts['adh_right_hand']]
+    acts['non_right_arm'] = [i for i in range(model.nu) if i not in
+                               acts['right_arm'] and i not in acts['adh_right_hand']]
     return acts
 
 

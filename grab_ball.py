@@ -61,8 +61,11 @@ def forward_to_contact(env, ctrls, stop_on_contact=False, render=True):
         if stop_on_contact:
             for cp in contact_pairs:
                 if 'ball' in cp and 'hand_right' in cp:
-                    ball_contact = True
-                    break
+                    pass
+                    # breakpoint()
+                    # ctrls[adh] = 1
+                    # ball_contact = True
+                    # break
     return k, ball_contact
 
 def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
@@ -77,7 +80,8 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
     body_j = joints['body']
     not_right_arm_j = [i for i in body_j if i not in right_arm_j]
     acts = opt_utils.get_act_names(model)
-    right_arm_a = acts['right_arm']
+    # right_arm_a = acts['right_arm']
+    right_arm_a = acts['right_arm_with_adh']
     adh = acts['adh_right_hand']
     non_adh = acts['non_adh']
     not_right_arm_a = acts['non_right_arm']
@@ -112,9 +116,9 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
 
         util.reset_state(data, data0)
         k, ball_contact = forward_to_contact(env, ctrls + noisev,
-                                             stop_on_contact, False)
-        if ball_contact:
-            break
+                                             stop_on_contact, render=False)
+        # if ball_contact:
+            # ctrls[adh] = 1
         util.reset_state(data, data0)
         grads, hxs, dldss = opt_utils.traj_deriv(model, data, ctrls + noisev,
                                           target_traj, targ_traj_mask,
@@ -129,6 +133,7 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
             model, data, Tk, noisev, qpos0, not_right_arm_a, not_right_arm_j,
             ctrls[:, right_arm_a]
         )
+        # ctrls[adh] = 1
     util.reset_state(data, data0) # This is necessary, but why?
     fig, ax = plt.subplots()
     # ax.axis('square')
