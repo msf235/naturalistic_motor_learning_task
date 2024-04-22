@@ -19,8 +19,8 @@ out_f = 'grab_ball_ctrl.np'
 rerun = True
 
 # Tk = 500
-# Tk = 100
-Tk = 150
+Tk = 100
+# Tk = 150
 # Tk = 200
 
 body_pos = -0.3
@@ -82,11 +82,12 @@ r = (r1 + r2)
 
 # Tk1 = 50
 Tk1 = Tk // 4
-Tk2 = Tk // 2
+Tk2 = int(3*Tk/4)
+Tk3 = int((Tk+Tk2)/2)
 # Tk2 = int(3*Tk / 4)
 # Get angle between ball and shoulder
 arc_traj = grab_ball.arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                              np.pi/4, Tk-Tk2-1)
+                              np.pi/4, Tk-Tk2-1, density_fn='')
 
 grab_targ = data.site('target').xpos
 s = np.linspace(0, 1, Tk1)
@@ -99,10 +100,15 @@ s = np.stack((s, s, s)).T
 setup_traj = grab_traj[-1] + s*(arc_traj[0] - grab_traj[-1])
 # grab_traj += handx
 full_traj = np.concatenate((grab_traj, setup_traj, arc_traj), axis=0)
-# targ_traj_mask = np.ones((Tk-1,))
+targ_traj_mask = np.ones((Tk-1,))
+# targ_traj_mask[Tk2:] = 0
+# targ_traj_mask[-1] = 1
+# targ_traj_mask[Tk3] = 1
+# targ_traj_mask[Tk3] = 1
 # targ_traj_mask[Tk2:] = 0
 
-targ_traj_mask = 'progressive'
+targ_traj_mask_type = 'progressive'
+
 
 # lr = .1/Tk
 lr = 1/Tk
@@ -149,8 +155,8 @@ if rerun or not os.path.exists(out_f):
                                          # False, render=True)
     # ctrls[adh] = 1
     ctrls, k = grab_ball.right_arm_target_traj(
-        env, full_traj, targ_traj_mask, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
-        Tk,
+        env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
+        CTRL_RATE, CTRL_STD, Tk,
         stop_on_contact=True,
         # stop_on_contact=False,
         lr=lr, max_its=max_its)

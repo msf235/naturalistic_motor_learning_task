@@ -23,9 +23,16 @@ def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     noisev[:, adh] = 0
     return noisev
 
-def arc_traj(x0, r, theta0, theta1, n):
-    theta = np.linspace(theta0, theta1, n)
+def arc_traj(x0, r, theta0, theta1, n, density_fn='uniform'):
+    if density_fn != 'uniform':
+        unif = np.linspace(0, 1, n)
+        theta = (theta1-theta0)*unif**2 + theta0
+    else:
+        theta = np.linspace(theta0, theta1, n)
+
     x = x0 + r*np.array([0*theta, np.cos(theta), np.sin(theta)]).T
+    # from matplotlib import pyplot as plt
+    # breakpoint()
     return x
 
 def show_forward_sim(env, ctrls):
@@ -68,7 +75,8 @@ def forward_to_contact(env, ctrls, stop_on_contact=False, render=True):
                     # break
     return k, ball_contact
 
-def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
+def right_arm_target_traj(env, target_traj, targ_traj_mask,
+                          targ_traj_mask_type, ctrls,
                           grad_trunc_tk, seed, CTRL_RATE, CTRL_STD, Tk,
                           stop_on_contact=False, target_name='ball',
                           max_its=30, lr=10):
@@ -102,16 +110,18 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
     tt = np.arange(0, T-dt, dt)
     ball_contact = False
     optm = opts.Adam(lr=lr)
-    targ_traj_mask_bool = False
-    if isinstance(targ_traj_mask, str) and targ_traj_mask == 'progressive':
-        targ_traj_mask_bool = True
-        targ_traj_mask = np.zeros((Tk-1,))
+    targ_traj_prog = (isinstance(targ_traj_mask_type, str)
+                      and targ_traj_mask_type == 'progressive')
+    targ_traj_mask_curr = targ_traj_mask
+    if targ_traj_prog:
+        targ_traj_mask_curr = np.zeros((Tk-1,))
         incr_per = 5 # increment period
         incr_cnt = 0
 
     for k0 in range(max_its):
-        if targ_traj_mask_bool and k0 % incr_per == 0:
-            targ_traj_mask[10*incr_cnt:10*(incr_cnt+1)] = 1
+        if targ_traj_prog and k0 % incr_per == 0:
+            idx = slice(10*incr_cnt, 10*(incr_cnt+1))
+            targ_traj_mask_curr[idx] = targ_traj_mask[idx]
             incr_cnt += 1
 
         util.reset_state(data, data0)
@@ -134,7 +144,6 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
             ctrls[:, right_arm_a]
         )
         # ctrls[adh] = 1
-    util.reset_state(data, data0) # This is necessary, but why?
     fig, ax = plt.subplots()
     # ax.axis('square')
     target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
@@ -143,6 +152,19 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask, ctrls,
     ax.plot(tt, hxs[:,2], color='red')
     ax.plot(tt, target_traj[:,2], '--', color='red')
     plt.show()
+
+    util.reset_state(data, data0)
+    ctrls_end = ctrls[-1]
+    ctrls_end = np.tile(ctrls_end, (20, 1))
+    ctrls_end[:, right_arm_a] = 0
+    ctrls = np.concatenate([ctrls, ctrls_end])
+    noisev = make_noisev(model, seed, ctrls.shape[0], CTRL_STD, CTRL_RATE)
+    ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+        model, data, ctrls.shape[0], noisev, qpos0, not_right_arm_a, not_right_arm_j,
+        ctrls[:, right_arm_a]
+    )
+    util.reset_state(data, data0)
     forward_to_contact(env, ctrls, stop_on_contact, True)
+    breakpoint()
     return ctrls, k
 
