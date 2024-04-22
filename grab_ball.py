@@ -26,7 +26,7 @@ def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
 def arc_traj(x0, r, theta0, theta1, n, density_fn='uniform'):
     if density_fn != 'uniform':
         unif = np.linspace(0, 1, n)
-        theta = (theta1-theta0)*unif**2 + theta0
+        theta = (theta1-theta0)*unif**1.5 + theta0
     else:
         theta = np.linspace(theta0, theta1, n)
 
@@ -155,7 +155,8 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
 
     util.reset_state(data, data0)
     ctrls_end = ctrls[-1]
-    ctrls_end = np.tile(ctrls_end, (20, 1))
+    end_T = 300
+    ctrls_end = np.tile(ctrls_end, (end_T, 1))
     ctrls_end[:, right_arm_a] = 0
     ctrls = np.concatenate([ctrls, ctrls_end])
     noisev = make_noisev(model, seed, ctrls.shape[0], CTRL_STD, CTRL_RATE)

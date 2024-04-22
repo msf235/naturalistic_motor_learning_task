@@ -19,8 +19,10 @@ out_f = 'grab_ball_ctrl.np'
 rerun = True
 
 # Tk = 500
-Tk = 100
-# Tk = 150
+# Tk = 200
+# Tk = 100
+# Tk = 80
+Tk = 120
 # Tk = 200
 
 body_pos = -0.3
@@ -66,14 +68,14 @@ CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 
 # if rerun or not os.path.exists(out_f):
-throw_target = data.site('target2')
-target = data.site('target')
+# throw_target = data.site('target2')
+target = data.site('ball_base')
 # target = data.site('target2')
 
 shouldx = data.site('shoulder1_right').xpos
 elbowx = data.site('elbow_right').xpos
 handx = data.site('hand_right').xpos
-ballx = data.site('target').xpos
+ballx = data.site('ball_base').xpos
 r1 = shouldx - elbowx
 r1 = np.sum(r1**2)**.5
 r2 = elbowx - handx
@@ -81,17 +83,26 @@ r2 = np.sum(r2**2)**.5
 r = (r1 + r2)
 
 # Tk1 = 50
-Tk1 = Tk // 4
-Tk2 = int(3*Tk/4)
+# Tk1 = Tk // 4
+Tk1 = int(Tk / 3)
+# Tk2 = int(3*Tk/4)
+Tk2 = int(2*Tk/4)
 Tk3 = int((Tk+Tk2)/2)
 # Tk2 = int(3*Tk / 4)
 # Get angle between ball and shoulder
 arc_traj = grab_ball.arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                              np.pi/4, Tk-Tk2-1, density_fn='')
-
-grab_targ = data.site('target').xpos
-s = np.linspace(0, 1, Tk1)
-s = np.stack((s, s, s)).T
+                              np.pi/2.5, Tk-Tk2-1, density_fn='')
+# from matplotlib import pyplot as plt
+# plt.plot(arc_traj[:,1], arc_traj[:,2], '-x')
+# plt.axis('square')
+# plt.show()
+# sys.exit()
+grab_targ = data.site('ball_base').xpos
+s = np.tanh(5*np.linspace(0, 1, Tk1))
+s = np.tile(s, (3, 1)).T
+# from matplotlib import pyplot as plt
+# plt.plot(s[:,0])
+# plt.show()
 grab_traj = handx + s*(grab_targ - handx)
 
 setup_traj = np.zeros((Tk2, 3))
@@ -111,7 +122,8 @@ targ_traj_mask_type = 'progressive'
 
 
 # lr = .1/Tk
-lr = 1/Tk
+# lr = 1/Tk
+lr = 2/Tk
 # lr = .001
 # lr = .01
 # lr = .002
