@@ -92,6 +92,8 @@ def get_joint_names(model, data=None):
         if 'ball' in name
     ]
 
+    joints['ball_jnts'] = ball_jnts
+
     joints['non_right_arm'] = [i for i in range(model.nq) if i not
                                 in joints['right_arm']+ball_jnts]
     joints['body'] = [k for k in range(model.nq) if k not in ball_jnts]

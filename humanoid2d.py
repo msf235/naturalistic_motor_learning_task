@@ -1,14 +1,19 @@
 __credits__ = ["Kallinteris-Andreas"]
 
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, Optional
 
 import numpy as np
+
+import sim_util as util
+import opt_utils
 
 from gymnasium import utils
 # import utils
 # from gymnasium.envs.mujoco import MujocoEnv
 from mujoco_env import MujocoEnv
 from gymnasium.spaces import Box
+from gym.utils import seeding # Todo: need to address this 
+# from gymasium.utils import seeding
 
 # viewer.cam.distance = 10
 # viewer.cam.elevation = -10
@@ -184,6 +189,7 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         # xml_file: str = "walker2d_v5.xml",
         xml_file: str = "./humanoid_and_baseball.xml",
         frame_skip: int = 4,
+        body_pos: float = 0.0,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA_CONFIG,
         forward_reward_weight: float = 1.0,
         ctrl_cost_weight: float = 1e-3,
@@ -211,11 +217,13 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             **kwargs,
         )
 
+        self.body_pos = body_pos
         self._forward_reward_weight = forward_reward_weight
         self._ctrl_cost_weight = ctrl_cost_weight
 
         self._healthy_reward = healthy_reward
         self._terminate_when_unhealthy = terminate_when_unhealthy
+        self.terminated = False
 
         self._healthy_z_range = healthy_z_range
         self._healthy_angle_range = healthy_angle_range
@@ -260,6 +268,14 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             "qvel": self.data.qvel.size,
         }
 
+        joints = opt_utils.get_joint_names(self.model)
+        self.ball_joints = joints['ball_jnts']
+        jid = self.model.joint('x_root').jntid
+        # mj.mj_resetData(model, data)
+        # mj.mj_forward(model, data)
+        if self.body_pos is not None:
+            self.init_qpos[jid] = self.body_pos
+
     @property
     def healthy_reward(self):
         return self.is_healthy * self._healthy_reward
@@ -294,43 +310,87 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
 
     def step(self, action):
         x_position_before = self.data.qpos[0]
+        ball_x_pos_before = self.data.qpos[self.ball_joints[0]]
         self.do_simulation(action, self.frame_skip)
+        contacts = util.get_contact_pairs(self.model, self.data)
+        for cp in contacts:
+            if 'ball' in cp and 'target' in cp:
+                self.terminated = True
+        
         x_position_after = self.data.qpos[0]
+        ball_x_pos_after = self.data.qpos[self.ball_joints[0]]
         x_velocity = (x_position_after - x_position_before) / self.dt
+        ball_x_velocity = (ball_x_pos_after - ball_x_pos_before) / self.dt
+        
 
         observation = self._get_obs()
-        reward, reward_info = self._get_rew(x_velocity, action)
-        terminated = (not self.is_healthy) and self._terminate_when_unhealthy
+        reward, reward_info = self._get_rew(ball_x_velocity, action)
+        # terminated = (not self.is_healthy) and self._terminate_when_unhealthy
         info = {
             "x_position": x_position_after,
+            "ball_x_position": ball_x_pos_after,
             "z_distance_from_origin": self.data.qpos[1] - self.init_qpos[1],
             "x_velocity": x_velocity,
+            "ball_x_velocity": ball_x_velocity,
             **reward_info,
         }
 
         if self.render_mode == "human":
             self.render()
         # truncation=False as the time limit is handled by the `TimeLimit` wrapper added during `make`
-        return observation, reward, terminated, False, info
+        return observation, reward, self.terminated, False, info
 
-    def _get_rew(self, x_velocity: float, action):
-        forward_reward = self._forward_reward_weight * x_velocity
-        healthy_reward = self.healthy_reward
-        rewards = forward_reward + healthy_reward
+    def reward_fn(self, x1, x2, sig=1):
+        diff = x1 - x2
+        dist = np.linalg.norm(diff)
+        # Gaussian function of dist
+        fact = sig * np.sqrt(2 * np.pi)
+        return_val = np.exp(-dist ** 2 / (2 * sig ** 2)) / fact
+        return return_val
+
+    def _get_rew(self, ball_x_velocity: float, action):
+        if self.terminated:
+            reward_acc = self.reward_fn(diff, data.site('ball'),
+                                    data.site('bullseye'))
+            reward_speed = self._forward_reward_weight * ball_x_velocity
+            rewards = reward_acc + reward_speed
+        else:
+            reward_acc = 0
+            reward_speed = 0
+            rewards = 0
 
         ctrl_cost = self.control_cost(action)
         costs = ctrl_cost
         reward = rewards - costs
 
         reward_info = {
-            "reward_forward": forward_reward,
+            "reward_acc": reward_acc,
+            "reward_forward": reward_speed,
             "reward_ctrl": -ctrl_cost,
-            "reward_survive": healthy_reward,
         }
 
         return reward, reward_info
 
-    def reset_model(self):
+    def reset(
+        self,
+        *,
+        seed: Optional[int] = None,
+        n_steps: int = 0,
+        options: Optional[dict] = None,
+    ):
+        if seed is not None:
+            self._np_random, self._np_random_seed = seeding.np_random(seed)
+
+        self._reset_simulation()
+
+        ob = self.reset_model(n_steps=n_steps)
+        info = self._get_reset_info()
+
+        if self.render_mode == "human":
+            self.render()
+        return ob, info
+
+    def reset_model(self, n_steps: int = 0):
         noise_low = -self._reset_noise_scale
         noise_high = self._reset_noise_scale
 
@@ -343,7 +403,13 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
 
         self.set_state(qpos, qvel)
 
+        self.terminated = False
+      
+        for tk in range(n_steps):
+            self.step(np.zeros(self.action_space.shape))
+
         observation = self._get_obs()
+
         return observation
 
     def _get_reset_info(self):

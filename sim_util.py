@@ -6,6 +6,7 @@ import copy
 def reset(model, data, nsteps, humanoid_x0=None):
     jid = model.joint('x_root').jntid
     mj.mj_resetData(model, data)
+    mj.mj_forward(model, data)
     if humanoid_x0 is not None:
         data.qpos[jid] = humanoid_x0
     for k in range(nsteps):
