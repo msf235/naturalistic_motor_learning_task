@@ -265,6 +265,8 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
 ### Gradient descent
 def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
                grad_trunc_tk, fixed_act_inds=[]):
+    """fixed_act_inds specifies the indices of the actuators that will NOT be
+    updated (for instance, the actuators not related to the right arm)."""
     # data = copy.deepcopy(data)
     nufree = model.nu - len(fixed_act_inds)
     Tk = ctrls.shape[0]
@@ -302,7 +304,7 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
     tau_loss_factor = 0
     loss_u = np.delete(ctrls, fixed_act_inds, axis=1)
 
-    for tk in range(2, Tk):
+    for tk in range(2, Tk): # Go backwards in time
         lams[Tk-tk] = dldqs[Tk-tk] + As[Tk-tk].T @ lams[Tk-tk+1]
         # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
         grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \

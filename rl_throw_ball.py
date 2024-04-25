@@ -1,5 +1,4 @@
 import humanoid2d as h2d
-# import baseball_lqr as lqr
 import opt_utils as opt_utils
 import numpy as np
 import sim_util as util
@@ -21,8 +20,8 @@ import matplotlib.pyplot as plt
 ### Set things up
 seed = 2
 out_f = 'grab_ball_ctrl.npy'
-rerun = False
-# rerun = True
+# rerun = False
+rerun = True
 
 Tk = 120
 
@@ -91,8 +90,11 @@ if rerun or not os.path.exists(out_f):
 else:
     ctrls = np.load(out_f)
 
-# util.reset(model, data, 10, body_pos)
-# grab_ball.forward_to_contact(env, ctrls, True)
+util.reset(model, data, 10, body_pos)
+ctrls_full = np.concatenate((ctrls, np.zeros_like(ctrls)))
+grab_ball.forward_to_contact(env, ctrls, True)
+
+sys.exit()
 
 util.reset(model, data, 10, body_pos)
 wrapped_env = gym.wrappers.RecordEpisodeStatistics(env, 50)  # Records episode-reward
@@ -108,7 +110,7 @@ rewards_over_seeds = []
 # obs = wrapped_env.reset_model(seed=seed, n_steps=10)
 # obs = wrapped_env.reset(seed=seed, n_steps=10)
 
-for seed in [1, 2, 3, 5, 8]:  # Fibonacci seeds
+for seed in [1]:  # Fibonacci seeds
     if rerun:
         # set seed
         torch.manual_seed(seed)
@@ -151,6 +153,9 @@ for seed in [1, 2, 3, 5, 8]:  # Fibonacci seeds
             losses.append(loss.item())
             print(losses[-1])
 
+        save_dict = {'state_dict': agent.net.state_dict(), 'losses': losses,
+                     'actions': actions}
+        torch.save(save_dict, f'net_params_{seed}.pt')
         plt.plot(losses); plt.show()
         wrapped_env.reset(seed=seed, n_steps=10)
         actions_full = np.concatenate((actions, np.zeros_like(actions)))

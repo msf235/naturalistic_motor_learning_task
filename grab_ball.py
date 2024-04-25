@@ -83,8 +83,14 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
                           targ_traj_mask_type, ctrls,
                           grad_trunc_tk, seed, CTRL_RATE, CTRL_STD, Tk,
                           max_its=30, lr=10):
+    """Trains the right arm to follow the target trajectory (targ_traj). This
+    involves gradient steps to update the arm controls and alternating with
+    computing an LQR stabilizer to keep the rest of the body stable while the
+    arm is moving."""
     model = env.model
     data = env.data
+
+    data0 = copy.deepcopy(data)
 
     joints = opt_utils.get_joint_names(model)
     right_arm_j = joints['right_arm']
@@ -96,7 +102,6 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
     adh = acts['adh_right_hand']
     non_adh = acts['non_adh']
     not_right_arm_a = acts['non_right_arm']
-    data0 = copy.deepcopy(data)
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
     qs, qvels = util.forward_sim(model, data, ctrls)
@@ -156,7 +161,7 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
     ctrls_end = ctrls[-1]
     end_T = 300
     ctrls_end = np.tile(ctrls_end, (end_T, 1))
-    ctrls_end[:, right_arm_a] = 0
+    ctrls_end[:, right_arm_a] = 0 # Also zeros out actuation (to release ball)
     ctrls = np.concatenate([ctrls, ctrls_end])
     noisev = make_noisev(model, seed, ctrls.shape[0], CTRL_STD, CTRL_RATE)
     ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
