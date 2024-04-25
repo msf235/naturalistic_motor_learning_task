@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 ### Set things up
 seed = 2
 out_f = 'grab_ball_ctrl.npy'
-# rerun = False
-rerun = True
+rerun = False
+# rerun = True
 
 Tk = 120
 
@@ -75,6 +75,7 @@ max_its = 100
 
 noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
+
 if rerun or not os.path.exists(out_f):
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
@@ -90,11 +91,10 @@ if rerun or not os.path.exists(out_f):
 else:
     ctrls = np.load(out_f)
 
-util.reset(model, data, 10, body_pos)
-ctrls_full = np.concatenate((ctrls, np.zeros_like(ctrls)))
-grab_ball.forward_to_contact(env, ctrls, True)
-
-sys.exit()
+# util.reset(model, data, 10, body_pos)
+# ctrls_full = np.concatenate((ctrls, np.zeros_like(ctrls)))
+# grab_ball.forward_to_contact(env, ctrls, True)
+# sys.exit()
 
 util.reset(model, data, 10, body_pos)
 wrapped_env = gym.wrappers.RecordEpisodeStatistics(env, 50)  # Records episode-reward
@@ -142,7 +142,7 @@ for seed in [1]:  # Fibonacci seeds
             for k in range(Tk):
                 loss_factor = 1
                 if k < Tk1:
-                    loss_factor = 4
+                    loss_factor = 5
                 action = agent.sample_action(obs[0])
                 loss += loss_factor*((action - ctrlst[k])**2).mean()
                 actions[k] = action.detach().numpy()
@@ -176,9 +176,8 @@ for seed in [1]:  # Fibonacci seeds
             obs = env.step(actions[k], render=False)
 
         actions_full = np.concatenate((actions, np.zeros_like(actions)))
+        wrapped_env.reset(seed=seed, n_steps=10)
         grab_ball.forward_to_contact(env, actions, True)
-
-        breakpoint()
 
 
     for episode in range(total_num_episodes):
