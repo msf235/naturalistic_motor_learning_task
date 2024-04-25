@@ -127,7 +127,7 @@ for seed in [1]:  # Fibonacci seeds
         # opt = torch.optim.Adam(agent.net.parameters(), lr=.1)
         opt = torch.optim.SGD(agent.net.parameters(), lr=.01)
         losses = []
-        for episode in range(10000):
+        for episode in range(100):
             opt.zero_grad()
             options = dict(render=False)
             obs = wrapped_env.reset(seed=seed, n_steps=10, options=options)
@@ -167,7 +167,7 @@ for seed in [1]:  # Fibonacci seeds
 
     else:
         agent = REINFORCE(obs_space_dims, action_space_dims)
-        obs = wrapped_env.reset(seed=seed, n_steps=10)
+        obs = wrapped_env.reset(seed=seed, n_steps=10, options=options)
         save_dict = torch.load(f'net_params_{seed}.pt')
         agent.net.load_state_dict(save_dict['state_dict'])
         losses = save_dict['losses']
