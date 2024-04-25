@@ -79,8 +79,8 @@ class Policy_Network(nn.Module):
         """
         super().__init__()
 
-        hidden_space1 = 16  # Nothing special with 16, feel free to change
-        hidden_space2 = 32  # Nothing special with 32, feel free to change
+        hidden_space1 = 8*16  # Nothing special with 16, feel free to change
+        hidden_space2 = 8*32  # Nothing special with 32, feel free to change
 
         # Shared Network
         self.shared_net = nn.Sequential(
@@ -158,10 +158,10 @@ class REINFORCE:
         # create a normal distribution from the predicted
         #   mean and standard deviation and sample an action
         distrib = Normal(action_means[0] + self.eps, action_stddevs[0] + self.eps)
-        action = distrib.sample()
-        prob = distrib.log_prob(action)
+        action = distrib.rsample()
+        prob = distrib.log_prob(action) # Detach this?
 
-        action = action.numpy()
+        # action = action.detach().numpy()
 
         self.probs.append(prob)
 

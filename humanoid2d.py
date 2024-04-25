@@ -308,7 +308,7 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         observation = np.concatenate((position, velocity)).ravel()
         return observation
 
-    def step(self, action):
+    def step(self, action, render=True):
         x_position_before = self.data.qpos[0]
         ball_x_pos_before = self.data.qpos[self.ball_joints[0]]
         self.do_simulation(action, self.frame_skip)
@@ -335,7 +335,7 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             **reward_info,
         }
 
-        if self.render_mode == "human":
+        if self.render_mode == "human" and render:
             self.render()
         # truncation=False as the time limit is handled by the `TimeLimit` wrapper added during `make`
         return observation, reward, self.terminated, False, info
@@ -350,8 +350,8 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
 
     def _get_rew(self, ball_x_velocity: float, action):
         if self.terminated:
-            reward_acc = self.reward_fn(diff, data.site('ball'),
-                                    data.site('bullseye'))
+            reward_acc = self.reward_fn(self.data.site('ball').xpos,
+                                    self.data.site('bullseye').xpos)
             reward_speed = self._forward_reward_weight * ball_x_velocity
             rewards = reward_acc + reward_speed
         else:
@@ -383,14 +383,17 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
 
         self._reset_simulation()
 
-        ob = self.reset_model(n_steps=n_steps)
+        if options is not None and 'render' in options:
+            ob = self.reset_model(n_steps=n_steps, render=options['render'])
+        else:
+            ob = self.reset_model(n_steps=n_steps)
         info = self._get_reset_info()
 
         if self.render_mode == "human":
             self.render()
         return ob, info
 
-    def reset_model(self, n_steps: int = 0):
+    def reset_model(self, n_steps: int = 0, render=True):
         noise_low = -self._reset_noise_scale
         noise_high = self._reset_noise_scale
 
@@ -406,7 +409,7 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         self.terminated = False
       
         for tk in range(n_steps):
-            self.step(np.zeros(self.action_space.shape))
+            self.step(np.zeros(self.action_space.shape), render)
 
         observation = self._get_obs()
 

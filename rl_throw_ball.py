@@ -109,29 +109,72 @@ rewards_over_seeds = []
 # obs = wrapped_env.reset(seed=seed, n_steps=10)
 
 for seed in [1, 2, 3, 5, 8]:  # Fibonacci seeds
-    # set seed
-    torch.manual_seed(seed)
-    random.seed(seed)
-    np.random.seed(seed)
+    if rerun:
+        # set seed
+        torch.manual_seed(seed)
+        random.seed(seed)
+        np.random.seed(seed)
 
-    # Reinitialize agent every seed
-    agent = REINFORCE(obs_space_dims, action_space_dims)
-    reward_over_episodes = []
+        # Reinitialize agent every seed
+        agent = REINFORCE(obs_space_dims, action_space_dims)
+        reward_over_episodes = []
 
-    # First train agent to match ctrls:
+        # First train agent to match ctrls:
+        ctrlst = torch.tensor(ctrls, dtype=torch.float32)
 
-    for episode in range(total_num_episodes):
-        obs = wrapped_env.reset_model(seed=seed, n_steps=10)
-        # obs = util.reset(model, data, 10, body_pos)
-        # util.reset(model, data, 9, body_pos)
-        # action = data.ctrl.copy()
-        # obs, reward, terminated, truncated, info = wrapped_env.step(action)
-        # Gradient descent to output current ctrl policy
+        # opt = torch.optim.Adam(agent.net.parameters(), lr=.1)
+        opt = torch.optim.SGD(agent.net.parameters(), lr=.01)
+        losses = []
+        for episode in range(10000):
+            opt.zero_grad()
+            options = dict(render=False)
+            obs = wrapped_env.reset(seed=seed, n_steps=10, options=options)
+            # obs = util.reset(model, data, 10, body_pos)
+            # util.reset(model, data, 9, body_pos)
+            # action = data.ctrl.copy()
+            # obs, reward, terminated, truncated, info = wrapped_env.step(action)
+            # Gradient descent to output current ctrl policy
+            loss = 0
+            actions = np.zeros((Tk,action_space_dims))
+            Tk1 = int(Tk / 3)
+            for k in range(Tk):
+                loss_factor = 1
+                if k < Tk1:
+                    loss_factor = 4
+                action = agent.sample_action(obs[0])
+                loss += loss_factor*((action - ctrlst[k])**2).mean()
+                actions[k] = action.detach().numpy()
+                obs = env.step(actions[k], render=False)
+            loss /= Tk
+            loss.backward()
+            opt.step()
+            losses.append(loss.item())
+            print(losses[-1])
+
+        plt.plot(losses); plt.show()
+        wrapped_env.reset(seed=seed, n_steps=10)
+        actions_full = np.concatenate((actions, np.zeros_like(actions)))
+        grab_ball.forward_to_contact(env, actions, True)
+
+    else:
+        agent = REINFORCE(obs_space_dims, action_space_dims)
+        obs = wrapped_env.reset(seed=seed, n_steps=10)
+        save_dict = torch.load(f'net_params_{seed}.pt')
+        agent.net.load_state_dict(save_dict['state_dict'])
+        losses = save_dict['losses']
+
+        actions = np.zeros((Tk,action_space_dims))
+
         for k in range(Tk):
-            action = agent.sample_action(obs)
+            action = agent.sample_action(obs[0])
+            actions[k] = action.detach().numpy()
+            obs = env.step(actions[k], render=False)
 
+        actions_full = np.concatenate((actions, np.zeros_like(actions)))
+        grab_ball.forward_to_contact(env, actions, True)
 
-    
+        breakpoint()
+
 
     for episode in range(total_num_episodes):
         # gymnasium v26 requires users to set seed while resetting the environment
