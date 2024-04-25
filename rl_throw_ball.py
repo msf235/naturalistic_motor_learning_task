@@ -137,7 +137,6 @@ for seed in [1]:  # Fibonacci seeds
             # obs, reward, terminated, truncated, info = wrapped_env.step(action)
             # Gradient descent to output current ctrl policy
             loss = 0
-            actions = np.zeros((Tk,action_space_dims))
             Tk1 = int(Tk / 3)
             for k in range(Tk):
                 loss_factor = 1
@@ -145,20 +144,25 @@ for seed in [1]:  # Fibonacci seeds
                     loss_factor = 5
                 action = agent.sample_action(obs[0])
                 loss += loss_factor*((action - ctrlst[k])**2).mean()
-                actions[k] = action.detach().numpy()
-                obs = env.step(actions[k], render=False)
+                obs = env.step(action.detach().numpy(), render=False)
             loss /= Tk
             loss.backward()
             opt.step()
             losses.append(loss.item())
             print(losses[-1])
+        obs = wrapped_env.reset(seed=seed, n_steps=10, options=options)
+        actions = np.zeros((Tk,action_space_dims))
+        for k in range(Tk):
+            action = agent.sample_action(obs[0]).detach().numpy()
+            actions[k] = action
+            obs = env.step(action, render=False)
 
         save_dict = {'state_dict': agent.net.state_dict(), 'losses': losses,
                      'actions': actions}
         torch.save(save_dict, f'net_params_{seed}.pt')
         plt.plot(losses); plt.show()
         wrapped_env.reset(seed=seed, n_steps=10)
-        actions_full = np.concatenate((actions, np.zeros_like(actions)))
+        # actions_full = np.concatenate((actions, np.zeros_like(actions)))
         grab_ball.forward_to_contact(env, actions, True)
 
     else:
@@ -175,9 +179,12 @@ for seed in [1]:  # Fibonacci seeds
             actions[k] = action.detach().numpy()
             obs = env.step(actions[k], render=False)
 
+        actions2 = save_dict['actions']
+
         actions_full = np.concatenate((actions, np.zeros_like(actions)))
         wrapped_env.reset(seed=seed, n_steps=10)
         grab_ball.forward_to_contact(env, actions, True)
+        breakpoint()
 
 
     for episode in range(total_num_episodes):
