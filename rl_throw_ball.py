@@ -237,16 +237,17 @@ for seed in [1]:  # Fibonacci seeds
         # grab_ball.forward_to_contact(env, actions_full, True)
 
     ctrls_with_end = np.concatenate([ctrls, ctrls_end])
-    noisev = grab_ball.make_noisev(model, seed, ctrls_with_end.shape[0], CTRL_STD,
-                                   CTRL_RATE)
+    Tkf = ctrls_with_end.shape[0]
+    noisev = grab_ball.make_noisev(model, seed, Tkf, CTRL_STD, CTRL_RATE)
     grab_ball.forward_to_contact(env, ctrls_with_end, True)
 
+    options = dict(render=False, n_steps=10)
     for episode in range(total_num_episodes):
         # gymnasium v26 requires users to set seed while resetting the environment
-        obs, info = wrapped_env.reset(seed=seed)
+        obs, info = wrapped_env.reset(seed=seed, options=options)
 
         done = False
-        while not done:
+        for tk in range(Tkf):
             action = agent.sample_action(obs)
 
             # Step return type - `tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]`
@@ -261,6 +262,9 @@ for seed in [1]:  # Fibonacci seeds
             #  - truncated: The episode duration reaches max number of timesteps
             #  - terminated: Any of the state space values is no longer finite.
             done = terminated or truncated
+            breakpoint()
+            if done:
+                break
 
         reward_over_episodes.append(wrapped_env.return_queue[-1])
         agent.update()
