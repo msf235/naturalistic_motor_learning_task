@@ -45,6 +45,23 @@ env = h2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
+def format_time(time_in_seconds):
+    if time_in_seconds < 60:
+        return f"{int(time_in_seconds)} seconds"
+    elif time_in_seconds < 3600:
+        # Convert seconds to minutes, seconds format
+        minutes = int(time_in_seconds // 60)
+        seconds = int(time_in_seconds % 60)
+        return f"{minutes} minutes, {seconds} seconds"
+    else:
+        # Convert seconds to hours, minutes, seconds format
+        hours = int(time_in_seconds // 3600)
+        time_in_seconds = time_in_seconds % 3600
+        minutes = int(time_in_seconds // 60)
+        seconds = int(time_in_seconds % 60)
+        return f"{hours} hours, {minutes} minutes, {seconds} seconds"
+
+
 joints = opt_utils.get_joint_names(model)
 right_arm_j = joints['right_arm']
 body_j = joints['body']
@@ -111,6 +128,7 @@ rewards_over_seeds = []
 # obs = env.reset_model(10)
 # obs = wrapped_env.reset_model(seed=seed, n_steps=10)
 # obs = wrapped_env.reset(seed=seed, n_steps=10)
+n_episode = 10000
 
 for seed in [1]:  # Fibonacci seeds
     torch.manual_seed(seed)
@@ -127,7 +145,12 @@ for seed in [1]:  # Fibonacci seeds
         # opt = torch.optim.Adam(agent.net.parameters(), lr=.1)
         opt = torch.optim.SGD(agent.net.parameters(), lr=.01)
         losses = []
-        for episode in range(10000):
+        tic = time.time()
+        first_time = tic
+        latest_time = tic
+
+        for episode in range(n_episode):
+
             opt.zero_grad()
             options = dict(render=False, n_steps=10)
             obs = wrapped_env.reset(seed=seed, options=options)
@@ -149,7 +172,23 @@ for seed in [1]:  # Fibonacci seeds
             loss.backward()
             opt.step()
             losses.append(loss.item())
-            print(losses[-1])
+            tic = time.time()
+            if tic - latest_time > 2:
+                frac = (episode + 1) / n_episode
+                elapsed = tic - first_time
+                est_time_remaining = elapsed * (1/frac - 1)
+                sys.stdout.write('\r')
+                pstring = "[%-15s] %d%%" % ('='*int(15*frac), 100*frac,)
+                pstring += "  Est. time remaining: " \
+                            + format_time(est_time_remaining) \
+                            + " Curr. loss: " + str(losses[-1])
+                # Pad with whitespace
+                if len(pstring) < 90:
+                    pstring += ' '*(90-len(pstring))
+                sys.stdout.write(pstring)
+                sys.stdout.flush()
+                latest_time = tic
+            # print(losses[-1])
         obs = wrapped_env.reset(seed=seed, options=options)
         actions = np.zeros((Tk,action_space_dims))
         torch.manual_seed(seed)
