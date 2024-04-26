@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 ### Set things up
 seed = 2
 out_f = 'grab_ball_ctrl.npy'
-# rerun = False
-rerun = True
+rerun = False
+# rerun = True
 
 Tk = 120
 
@@ -183,7 +183,7 @@ for seed in [1]:  # Fibonacci seeds
 
         actions_full = np.concatenate((actions, np.zeros_like(actions)))
         wrapped_env.reset(seed=seed, n_steps=10)
-        grab_ball.forward_to_contact(env, actions, True)
+        grab_ball.forward_to_contact(env, actions_full, True)
 
     breakpoint()
 
@@ -199,7 +199,8 @@ for seed in [1]:  # Fibonacci seeds
             # These represent the next observation, the reward from the step,
             # if the episode is terminated, if the episode is truncated and
             # additional info from the step
-            obs, reward, terminated, truncated, info = wrapped_env.step(action)
+            obs, reward, terminated, truncated, info = wrapped_env.step(
+                action.detach().numpy())
             agent.rewards.append(reward)
 
             # End the episode when either truncated or terminated is true
