@@ -1,6 +1,52 @@
 import numpy as np
 import mujoco as mj
 import copy
+import time
+import sys
+
+def format_time(time_in_seconds):
+    if time_in_seconds < 60:
+        return f"{int(time_in_seconds)} seconds"
+    elif time_in_seconds < 3600:
+        # Convert seconds to minutes, seconds format
+        minutes = int(time_in_seconds // 60)
+        seconds = int(time_in_seconds % 60)
+        return f"{minutes} minutes, {seconds} seconds"
+    else:
+        # Convert seconds to hours, minutes, seconds format
+        hours = int(time_in_seconds // 3600)
+        time_in_seconds = time_in_seconds % 3600
+        minutes = int(time_in_seconds // 60)
+        seconds = int(time_in_seconds % 60)
+        return f"{hours} hours, {minutes} minutes, {seconds} seconds"
+
+
+class ProgressBar:
+    def __init__(self, update_every=2, final_it=100):
+        tic = time.time()
+        self.first_time = tic
+        self.latest_time = tic
+        self.update_every = update_every
+        self.it = 0
+        self.final_it = final_it
+
+    def update(self):
+        tic = time.time()
+        if tic - self.latest_time > self.update_every:
+            elapsed = tic - self.first_time
+            frac = (self.it + 1) / self.final_it
+            est_time_remaining = elapsed * (1/frac - 1)
+            sys.stdout.write('\r')
+            pstring = "[%-15s] %d%%" % ('='*int(15*frac), 100*frac,)
+            pstring += "  Est. time remaining: " \
+                        + format_time(est_time_remaining)
+            # Pad with whitespace
+            if len(pstring) < 90:
+                pstring += ' '*(90-len(pstring))
+            sys.stdout.write(pstring)
+            sys.stdout.flush()
+            self.latest_time = tic
+        self.it += 1
 
 ## Reset and burn in:
 def reset(model, data, nsteps, humanoid_x0=None):

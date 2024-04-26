@@ -20,10 +20,11 @@ import matplotlib.pyplot as plt
 ### Set things up
 seed = 2
 out_f = 'grab_ball_ctrl.npy'
-rerun = False
-# rerun = True
+# rerun = False
+rerun = True
 
 Tk = 120
+n_episode = 10
 
 body_pos = -0.3
 
@@ -45,48 +46,6 @@ env = h2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
-def format_time(time_in_seconds):
-    if time_in_seconds < 60:
-        return f"{int(time_in_seconds)} seconds"
-    elif time_in_seconds < 3600:
-        # Convert seconds to minutes, seconds format
-        minutes = int(time_in_seconds // 60)
-        seconds = int(time_in_seconds % 60)
-        return f"{minutes} minutes, {seconds} seconds"
-    else:
-        # Convert seconds to hours, minutes, seconds format
-        hours = int(time_in_seconds // 3600)
-        time_in_seconds = time_in_seconds % 3600
-        minutes = int(time_in_seconds // 60)
-        seconds = int(time_in_seconds % 60)
-        return f"{hours} hours, {minutes} minutes, {seconds} seconds"
-
-class ProgressBar:
-    def __init__(self, update_every=2, final_it=100):
-        tic = time.time()
-        self.first_time = tic
-        self.latest_time = tic
-        self.update_every = update_every
-        self.it = 0
-        self.final_it = final_it
-
-    def update(self):
-        tic = time.time()
-        if tic - self.latest_time > self.update_every:
-            elapsed = tic - self.first_time
-            frac = (self.it + 1) / self.final_it
-            est_time_remaining = elapsed * (1/frac - 1)
-            sys.stdout.write('\r')
-            pstring = "[%-15s] %d%%" % ('='*int(15*frac), 100*frac,)
-            pstring += "  Est. time remaining: " \
-                        + format_time(est_time_remaining)
-            # Pad with whitespace
-            if len(pstring) < 90:
-                pstring += ' '*(90-len(pstring))
-            sys.stdout.write(pstring)
-            sys.stdout.flush()
-            self.latest_time = tic
-        self.it += 1
 
 joints = opt_utils.get_joint_names(model)
 
@@ -142,8 +101,12 @@ ctrls_with_end, __, qs, qvels = opt_utils.get_stabilized_ctrls(
     joints['non_right_arm'], ctrls_with_end[:, right_arm_a]
 )
 
-# util.reset(model, data, 10, body_pos)
-# grab_ball.forward_to_contact(env, ctrls_with_end, True)
+util.reset(model, data, 10, body_pos)
+grab_ball.forward_to_contact(env, ctrls, True)
+time.sleep(2)
+util.reset(model, data, 10, body_pos)
+grab_ball.forward_to_contact(env, ctrls_with_end, True)
+breakpoint()
 # sys.exit()
 
 util.reset(model, data, 10, body_pos)
@@ -159,7 +122,6 @@ rewards_over_seeds = []
 # obs = env.reset_model(10)
 # obs = wrapped_env.reset_model(seed=seed, n_steps=10)
 # obs = wrapped_env.reset(seed=seed, n_steps=10)
-n_episode = 10000
 
 for seed in [1]:  # Fibonacci seeds
     torch.manual_seed(seed)
@@ -180,7 +142,7 @@ for seed in [1]:  # Fibonacci seeds
         first_time = tic
         latest_time = tic
 
-        progress_bar = ProgressBar(update_every=2, final_it=n_episode)
+        progress_bar = util.ProgressBar(update_every=2, final_it=n_episode)
 
         for episode in range(n_episode):
 
@@ -194,7 +156,7 @@ for seed in [1]:  # Fibonacci seeds
             # Gradient descent to output current ctrl policy
             loss = 0
             Tk1 = int(Tk / 3)
-            for k in range(Tk):
+            for k in range(Tk-1):
                 loss_factor = 1
                 if k < Tk1:
                     loss_factor = 4
@@ -230,16 +192,23 @@ for seed in [1]:  # Fibonacci seeds
         save_dict = torch.load(f'net_params_{seed}.pt')
         agent.net.load_state_dict(save_dict['state_dict'])
         losses = save_dict['losses']
-        ctrls = save_dict['actions']
+        actions = save_dict['actions']
 
         # actions_full = np.concatenate((actions, np.zeros_like(actions)))
         # wrapped_env.reset(seed=seed, options=options)
         # grab_ball.forward_to_contact(env, actions_full, True)
+    obs = wrapped_env.reset(seed=seed, options=options)
+    grab_ball.forward_to_contact(env, actions, True)
+    breakpoint()
 
     ctrls_with_end = np.concatenate([ctrls, ctrls_end])
     Tkf = ctrls_with_end.shape[0]
     noisev = grab_ball.make_noisev(model, seed, Tkf, CTRL_STD, CTRL_RATE)
+    options = dict(render=False, n_steps=10)
+    obs = wrapped_env.reset(seed=seed, options=options)
+    breakpoint()
     grab_ball.forward_to_contact(env, ctrls_with_end, True)
+    breakpoint()
 
     options = dict(render=False, n_steps=10)
     for episode in range(total_num_episodes):
@@ -262,10 +231,10 @@ for seed in [1]:  # Fibonacci seeds
             #  - truncated: The episode duration reaches max number of timesteps
             #  - terminated: Any of the state space values is no longer finite.
             done = terminated or truncated
-            breakpoint()
             if done:
                 break
 
+        breakpoint()
         reward_over_episodes.append(wrapped_env.return_queue[-1])
         agent.update()
 

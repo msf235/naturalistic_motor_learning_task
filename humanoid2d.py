@@ -371,8 +371,6 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             "reward_ctrl": -ctrl_cost,
         }
 
-        breakpoint()
-
         return reward, reward_info
 
     def reset(
