@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 ### Set things up
 seed = 2
 out_f = 'grab_ball_ctrl.npy'
-rerun = False
-# rerun = True
+# rerun = False
+rerun = True
 
 Tk = 120
 
@@ -111,12 +111,10 @@ rewards_over_seeds = []
 # obs = wrapped_env.reset(seed=seed, n_steps=10)
 
 for seed in [1]:  # Fibonacci seeds
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
     if rerun:
-        # set seed
-        torch.manual_seed(seed)
-        random.seed(seed)
-        np.random.seed(seed)
-
         # Reinitialize agent every seed
         agent = REINFORCE(obs_space_dims, action_space_dims)
         reward_over_episodes = []
@@ -127,7 +125,7 @@ for seed in [1]:  # Fibonacci seeds
         # opt = torch.optim.Adam(agent.net.parameters(), lr=.1)
         opt = torch.optim.SGD(agent.net.parameters(), lr=.01)
         losses = []
-        for episode in range(100):
+        for episode in range(10000):
             opt.zero_grad()
             options = dict(render=False)
             obs = wrapped_env.reset(seed=seed, n_steps=10, options=options)
@@ -152,6 +150,7 @@ for seed in [1]:  # Fibonacci seeds
             print(losses[-1])
         obs = wrapped_env.reset(seed=seed, n_steps=10, options=options)
         actions = np.zeros((Tk,action_space_dims))
+        torch.manual_seed(seed)
         for k in range(Tk):
             action = agent.sample_action(obs[0]).detach().numpy()
             actions[k] = action
@@ -160,12 +159,12 @@ for seed in [1]:  # Fibonacci seeds
         save_dict = {'state_dict': agent.net.state_dict(), 'losses': losses,
                      'actions': actions}
         torch.save(save_dict, f'net_params_{seed}.pt')
-        plt.plot(losses); plt.show()
+        # plt.plot(losses); plt.show()
         wrapped_env.reset(seed=seed, n_steps=10)
         # actions_full = np.concatenate((actions, np.zeros_like(actions)))
         grab_ball.forward_to_contact(env, actions, True)
-
     else:
+        options = dict(render=False)
         agent = REINFORCE(obs_space_dims, action_space_dims)
         obs = wrapped_env.reset(seed=seed, n_steps=10, options=options)
         save_dict = torch.load(f'net_params_{seed}.pt')
@@ -174,6 +173,7 @@ for seed in [1]:  # Fibonacci seeds
 
         actions = np.zeros((Tk,action_space_dims))
 
+        torch.manual_seed(seed)
         for k in range(Tk):
             action = agent.sample_action(obs[0])
             actions[k] = action.detach().numpy()
@@ -184,8 +184,8 @@ for seed in [1]:  # Fibonacci seeds
         actions_full = np.concatenate((actions, np.zeros_like(actions)))
         wrapped_env.reset(seed=seed, n_steps=10)
         grab_ball.forward_to_contact(env, actions, True)
-        breakpoint()
 
+    breakpoint()
 
     for episode in range(total_num_episodes):
         # gymnasium v26 requires users to set seed while resetting the environment
