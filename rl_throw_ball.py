@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 ### Set things up
 seed = 2
 out_f = 'grab_ball_ctrl.npy'
-# rerun = False
-rerun = True
+rerun = False
+# rerun = True
 
 Tk = 120
 
@@ -61,18 +61,37 @@ def format_time(time_in_seconds):
         seconds = int(time_in_seconds % 60)
         return f"{hours} hours, {minutes} minutes, {seconds} seconds"
 
+class ProgressBar:
+    def __init__(self, update_every=2, final_it=100):
+        tic = time.time()
+        self.first_time = tic
+        self.latest_time = tic
+        self.update_every = update_every
+        self.it = 0
+        self.final_it = final_it
+
+    def update(self):
+        tic = time.time()
+        if tic - self.latest_time > self.update_every:
+            elapsed = tic - self.first_time
+            frac = (self.it + 1) / self.final_it
+            est_time_remaining = elapsed * (1/frac - 1)
+            sys.stdout.write('\r')
+            pstring = "[%-15s] %d%%" % ('='*int(15*frac), 100*frac,)
+            pstring += "  Est. time remaining: " \
+                        + format_time(est_time_remaining)
+            # Pad with whitespace
+            if len(pstring) < 90:
+                pstring += ' '*(90-len(pstring))
+            sys.stdout.write(pstring)
+            sys.stdout.flush()
+            self.latest_time = tic
+        self.it += 1
 
 joints = opt_utils.get_joint_names(model)
-right_arm_j = joints['right_arm']
-body_j = joints['body']
-not_right_arm_j = [i for i in body_j if i not in right_arm_j]
 
 acts = opt_utils.get_act_names(model)
-right_arm_a = acts['right_arm']
-adh = acts['adh_right_hand']
-non_adh = acts['non_adh']
-non_right_arm_a = acts['non_right_arm']
-all_act_ids = list(range(model.nu))
+right_arm_a = acts['right_arm_with_adh']
 
 env.reset(seed=seed) # necessary?
 util.reset(model, data, 10, body_pos)
@@ -105,15 +124,27 @@ if rerun or not os.path.exists(out_f):
         CTRL_RATE, CTRL_STD, Tk,
         lr=lr, max_its=max_its)
     np.save(out_f, ctrls)
+
 else:
     ctrls = np.load(out_f)
 
-# ctrls_full = np.concatenate((ctrls, np.zeros_like(ctrls)))
-# util.reset(model, data, 10, body_pos)
-# grab_ball.forward_to_contact(env, ctrls, True)
-# sys.exit()
+util.reset(model, data, 10, body_pos)
+qpos0 = data.qpos.copy()
+ctrls_end = ctrls[-1]
+end_T = 300
+ctrls_end = np.tile(ctrls_end, (end_T, 1))
+ctrls_end[:, right_arm_a] = 0 # Also zeros out actuation (to release ball)
+ctrls_with_end = np.concatenate([ctrls, ctrls_end])
+noisev = grab_ball.make_noisev(model, seed, ctrls_with_end.shape[0], CTRL_STD,
+                               CTRL_RATE)
+ctrls_with_end, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+    model, data, ctrls_with_end.shape[0], noisev, qpos0, acts['non_right_arm'],
+    joints['non_right_arm'], ctrls_with_end[:, right_arm_a]
+)
 
-# Tfk = ctrls_full.shape[0]
+# util.reset(model, data, 10, body_pos)
+# grab_ball.forward_to_contact(env, ctrls_with_end, True)
+# sys.exit()
 
 util.reset(model, data, 10, body_pos)
 wrapped_env = gym.wrappers.RecordEpisodeStatistics(env, 50)  # Records episode-reward
@@ -149,6 +180,8 @@ for seed in [1]:  # Fibonacci seeds
         first_time = tic
         latest_time = tic
 
+        progress_bar = ProgressBar(update_every=2, final_it=n_episode)
+
         for episode in range(n_episode):
 
             opt.zero_grad()
@@ -172,22 +205,7 @@ for seed in [1]:  # Fibonacci seeds
             loss.backward()
             opt.step()
             losses.append(loss.item())
-            tic = time.time()
-            if tic - latest_time > 2:
-                frac = (episode + 1) / n_episode
-                elapsed = tic - first_time
-                est_time_remaining = elapsed * (1/frac - 1)
-                sys.stdout.write('\r')
-                pstring = "[%-15s] %d%%" % ('='*int(15*frac), 100*frac,)
-                pstring += "  Est. time remaining: " \
-                            + format_time(est_time_remaining) \
-                            + " Curr. loss: " + str(losses[-1])
-                # Pad with whitespace
-                if len(pstring) < 90:
-                    pstring += ' '*(90-len(pstring))
-                sys.stdout.write(pstring)
-                sys.stdout.flush()
-                latest_time = tic
+            progress_bar.update()
             # print(losses[-1])
         obs = wrapped_env.reset(seed=seed, options=options)
         actions = np.zeros((Tk,action_space_dims))
@@ -212,22 +230,16 @@ for seed in [1]:  # Fibonacci seeds
         save_dict = torch.load(f'net_params_{seed}.pt')
         agent.net.load_state_dict(save_dict['state_dict'])
         losses = save_dict['losses']
+        ctrls = save_dict['actions']
 
-        actions = np.zeros((Tk,action_space_dims))
+        # actions_full = np.concatenate((actions, np.zeros_like(actions)))
+        # wrapped_env.reset(seed=seed, options=options)
+        # grab_ball.forward_to_contact(env, actions_full, True)
 
-        torch.manual_seed(seed)
-        for k in range(Tk):
-            action = agent.sample_action(obs[0])
-            actions[k] = action.detach().numpy()
-            obs = env.step(actions[k], render=False)
-
-        actions2 = save_dict['actions']
-
-        actions_full = np.concatenate((actions, np.zeros_like(actions)))
-        wrapped_env.reset(seed=seed, options=options)
-        grab_ball.forward_to_contact(env, actions_full, True)
-
-    breakpoint()
+    ctrls_with_end = np.concatenate([ctrls, ctrls_end])
+    noisev = grab_ball.make_noisev(model, seed, ctrls_with_end.shape[0], CTRL_STD,
+                                   CTRL_RATE)
+    grab_ball.forward_to_contact(env, ctrls_with_end, True)
 
     for episode in range(total_num_episodes):
         # gymnasium v26 requires users to set seed while resetting the environment

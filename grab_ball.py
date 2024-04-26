@@ -157,16 +157,5 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
     # ax.plot(tt, target_traj[:,2], '--', color='red')
     # plt.show()
 
-    util.reset_state(data, data0)
-    ctrls_end = ctrls[-1]
-    end_T = 300
-    ctrls_end = np.tile(ctrls_end, (end_T, 1))
-    ctrls_end[:, right_arm_a] = 0 # Also zeros out actuation (to release ball)
-    ctrls = np.concatenate([ctrls, ctrls_end])
-    noisev = make_noisev(model, seed, ctrls.shape[0], CTRL_STD, CTRL_RATE)
-    ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-        model, data, ctrls.shape[0], noisev, qpos0, not_right_arm_a, not_right_arm_j,
-        ctrls[:, right_arm_a]
-    )
     return ctrls
 
