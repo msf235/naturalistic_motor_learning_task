@@ -12,8 +12,10 @@ from gymnasium import utils
 # from gymnasium.envs.mujoco import MujocoEnv
 from mujoco_env import MujocoEnv
 from gymnasium.spaces import Box
-from gym.utils import seeding # Todo: need to address this 
+# from gym.utils import seeding # Todo: need to address this 
 # from gymasium.utils import seeding
+from gymnasium.utils import seeding
+
 
 # viewer.cam.distance = 10
 # viewer.cam.elevation = -10
@@ -375,18 +377,21 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         self,
         *,
         seed: Optional[int] = None,
-        n_steps: int = 0,
         options: Optional[dict] = None,
     ):
+        if options is not None:
+            n_steps = options['n_steps'] if 'n_steps' in options else 0
+            render = options['render'] if 'render' in options else True
+        else:
+            n_steps = 0
+            render = True
         if seed is not None:
             self._np_random, self._np_random_seed = seeding.np_random(seed)
 
         self._reset_simulation()
 
-        if options is not None and 'render' in options:
-            ob = self.reset_model(n_steps=n_steps, render=options['render'])
-        else:
-            ob = self.reset_model(n_steps=n_steps)
+        ob = self.reset_model(n_steps=n_steps, render=render)
+
         info = self._get_reset_info()
 
         if self.render_mode == "human":

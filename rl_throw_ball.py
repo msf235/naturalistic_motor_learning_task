@@ -12,7 +12,7 @@ import grab_ball
 from matplotlib import pyplot as plt
 
 from rl_utils import *
-import gym
+import gymnasium as gym
 import random
 import torch
 import matplotlib.pyplot as plt
@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 ### Set things up
 seed = 2
 out_f = 'grab_ball_ctrl.npy'
-rerun = False
-# rerun = True
+# rerun = False
+rerun = True
 
 Tk = 120
 
@@ -91,10 +91,12 @@ if rerun or not os.path.exists(out_f):
 else:
     ctrls = np.load(out_f)
 
-# util.reset(model, data, 10, body_pos)
 # ctrls_full = np.concatenate((ctrls, np.zeros_like(ctrls)))
+# util.reset(model, data, 10, body_pos)
 # grab_ball.forward_to_contact(env, ctrls, True)
 # sys.exit()
+
+# Tfk = ctrls_full.shape[0]
 
 util.reset(model, data, 10, body_pos)
 wrapped_env = gym.wrappers.RecordEpisodeStatistics(env, 50)  # Records episode-reward
@@ -127,8 +129,8 @@ for seed in [1]:  # Fibonacci seeds
         losses = []
         for episode in range(10000):
             opt.zero_grad()
-            options = dict(render=False)
-            obs = wrapped_env.reset(seed=seed, n_steps=10, options=options)
+            options = dict(render=False, n_steps=10)
+            obs = wrapped_env.reset(seed=seed, options=options)
             # obs = util.reset(model, data, 10, body_pos)
             # util.reset(model, data, 9, body_pos)
             # action = data.ctrl.copy()
@@ -139,7 +141,7 @@ for seed in [1]:  # Fibonacci seeds
             for k in range(Tk):
                 loss_factor = 1
                 if k < Tk1:
-                    loss_factor = 5
+                    loss_factor = 4
                 action = agent.sample_action(obs[0])
                 loss += loss_factor*((action - ctrlst[k])**2).mean()
                 obs = env.step(action.detach().numpy(), render=False)
@@ -148,7 +150,7 @@ for seed in [1]:  # Fibonacci seeds
             opt.step()
             losses.append(loss.item())
             print(losses[-1])
-        obs = wrapped_env.reset(seed=seed, n_steps=10, options=options)
+        obs = wrapped_env.reset(seed=seed, options=options)
         actions = np.zeros((Tk,action_space_dims))
         torch.manual_seed(seed)
         for k in range(Tk):
@@ -160,13 +162,14 @@ for seed in [1]:  # Fibonacci seeds
                      'actions': actions}
         torch.save(save_dict, f'net_params_{seed}.pt')
         # plt.plot(losses); plt.show()
-        wrapped_env.reset(seed=seed, n_steps=10)
+        optionsn = dict(render=True, n_steps=10)
+        wrapped_env.reset(seed=seed, options=optionsn)
         # actions_full = np.concatenate((actions, np.zeros_like(actions)))
         grab_ball.forward_to_contact(env, actions, True)
     else:
-        options = dict(render=False)
+        options = dict(render=False, n_steps=10)
         agent = REINFORCE(obs_space_dims, action_space_dims)
-        obs = wrapped_env.reset(seed=seed, n_steps=10, options=options)
+        obs = wrapped_env.reset(seed=seed, options=options)
         save_dict = torch.load(f'net_params_{seed}.pt')
         agent.net.load_state_dict(save_dict['state_dict'])
         losses = save_dict['losses']
@@ -182,7 +185,7 @@ for seed in [1]:  # Fibonacci seeds
         actions2 = save_dict['actions']
 
         actions_full = np.concatenate((actions, np.zeros_like(actions)))
-        wrapped_env.reset(seed=seed, n_steps=10)
+        wrapped_env.reset(seed=seed, options=options)
         grab_ball.forward_to_contact(env, actions_full, True)
 
     breakpoint()
