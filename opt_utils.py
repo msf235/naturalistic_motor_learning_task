@@ -118,8 +118,10 @@ def get_act_names(model, data=None):
         acts['adh_right_hand'] = []
     acts['non_adh'] = [i for i in range(model.nu) if i not in
                        acts['adh_right_hand']]
-    acts['non_right_arm'] = [i for i in range(model.nu) if i not in
+    acts['non_right_arm_non_adh'] = [i for i in range(model.nu) if i not in
                                acts['right_arm'] and i not in acts['adh_right_hand']]
+    acts['non_right_arm'] = [i for i in range(model.nu) if i not in
+                               acts['right_arm']]
     return acts
 
 

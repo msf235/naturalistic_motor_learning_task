@@ -25,6 +25,10 @@ rerun = True
 
 Tk = 120
 n_episode = 10
+lr = 1/Tk
+# max_its = 400
+max_its = 200
+# max_its = 120
 
 body_pos = -0.3
 
@@ -46,7 +50,6 @@ env = h2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
-
 joints = opt_utils.get_joint_names(model)
 
 acts = opt_utils.get_act_names(model)
@@ -65,11 +68,7 @@ full_traj = grab_ball.throw_traj(model, data, Tk)
 targ_traj_mask = np.ones((Tk-1,))
 targ_traj_mask_type = 'progressive'
 
-lr = 2/Tk
-max_its = 100
-
 noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
-
 
 if rerun or not os.path.exists(out_f):
     ### Get initial stabilizing controls
@@ -80,10 +79,8 @@ if rerun or not os.path.exists(out_f):
     util.reset(model, data, 10, body_pos)
     ctrls = grab_ball.right_arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
-        CTRL_RATE, CTRL_STD, Tk,
-        lr=lr, max_its=max_its)
+        CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its)
     np.save(out_f, ctrls)
-
 else:
     ctrls = np.load(out_f)
 
@@ -97,16 +94,17 @@ ctrls_with_end = np.concatenate([ctrls, ctrls_end])
 noisev = grab_ball.make_noisev(model, seed, ctrls_with_end.shape[0], CTRL_STD,
                                CTRL_RATE)
 ctrls_with_end, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-    model, data, ctrls_with_end.shape[0], noisev, qpos0, acts['non_right_arm'],
+    model, data, ctrls_with_end.shape[0], noisev, qpos0,
+    acts['non_right_arm_non_adh'],
     joints['non_right_arm'], ctrls_with_end[:, right_arm_a]
 )
 
 util.reset(model, data, 10, body_pos)
 grab_ball.forward_to_contact(env, ctrls, True)
+breakpoint()
 time.sleep(2)
 util.reset(model, data, 10, body_pos)
 grab_ball.forward_to_contact(env, ctrls_with_end, True)
-breakpoint()
 # sys.exit()
 
 util.reset(model, data, 10, body_pos)
