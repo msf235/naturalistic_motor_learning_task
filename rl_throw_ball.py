@@ -1,3 +1,8 @@
+rerun1 = False
+# rerun1 = True
+rerun2 = False
+# rerun2 = True
+
 import humanoid2d as h2d
 import opt_utils as opt_utils
 import numpy as np
@@ -20,15 +25,13 @@ import matplotlib.pyplot as plt
 ### Set things up
 seed = 2
 out_f = 'grab_ball_ctrl.npy'
-rerun = False
-# rerun = True
 
 Tk = 120
-n_episode = 10
 lr = 1/Tk
 # max_its = 400
 max_its = 200
 # max_its = 120
+n_episode = 10000
 
 body_pos = -0.3
 
@@ -70,7 +73,7 @@ targ_traj_mask_type = 'progressive'
 
 noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-if rerun or not os.path.exists(out_f):
+if rerun1 or not os.path.exists(out_f):
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
@@ -85,33 +88,19 @@ else:
     ctrls = np.load(out_f)
 
 # util.reset(model, data, 10, body_pos)
-# qpos0 = data.qpos.copy()
-# ctrls_end = ctrls[-1]
-# end_T = 300
-# ctrls_end = np.tile(ctrls_end, (end_T, 1))
-# ctrls_end[:, right_arm_a] = 0 # Also zeros out actuation (to release ball)
-# ctrls_with_end = np.concatenate([ctrls, ctrls_end])
-# noisev = grab_ball.make_noisev(model, seed, ctrls_with_end.shape[0], CTRL_STD,
-                               # CTRL_RATE)
-# ctrls_with_end, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-    # model, data, ctrls_with_end.shape[0], noisev, qpos0,
-    # acts['non_right_arm_non_adh'],
-    # joints['non_right_arm'], ctrls_with_end[:, right_arm_a]
-# )
-
-# util.reset(model, data, 10, body_pos)
 # grab_ball.forward_to_contact(env, ctrls, True)
-ctrls_end = np.tile(ctrls[-1], (200, 1))
-ctrls_end[:, right_arm_with_adh] = 0
-util.reset(model, data, 10, body_pos)
-grab_ball.forward_to_contact(env, np.concatenate([ctrls, ctrls_end]), True)
-breakpoint()
+
+# ctrls_end = np.tile(ctrls[-1], (200, 1))
+# ctrls_end[:, right_arm_with_adh] = 0
+# util.reset(model, data, 10, body_pos)
+# grab_ball.forward_to_contact(env, np.concatenate([ctrls, ctrls_end]), True)
+
 # sys.exit()
 
 util.reset(model, data, 10, body_pos)
 wrapped_env = gym.wrappers.RecordEpisodeStatistics(env, 50)  # Records episode-reward
 
-total_num_episodes = int(5e3)  # Total number of episodes
+# total_num_episodes = int(5e3)  # Total number of episodes
 # Observation-space of InvertedPendulum-v4 (4)
 obs_space_dims = env.observation_space.shape[0]
 # Action-space of InvertedPendulum-v4 (1)
@@ -126,7 +115,7 @@ for seed in [1]:  # Fibonacci seeds
     torch.manual_seed(seed)
     random.seed(seed)
     np.random.seed(seed)
-    if rerun:
+    if rerun2:
         # Reinitialize agent every seed
         agent = REINFORCE(obs_space_dims, action_space_dims)
         reward_over_episodes = []
@@ -144,7 +133,6 @@ for seed in [1]:  # Fibonacci seeds
         progress_bar = util.ProgressBar(update_every=2, final_it=n_episode)
 
         for episode in range(n_episode):
-
             opt.zero_grad()
             options = dict(render=False, n_steps=10)
             obs = wrapped_env.reset(seed=seed, options=options)
@@ -180,11 +168,13 @@ for seed in [1]:  # Fibonacci seeds
                      'actions': actions}
         torch.save(save_dict, f'net_params_{seed}.pt')
         # plt.plot(losses); plt.show()
+        breakpoint()
         optionsn = dict(render=True, n_steps=10)
         wrapped_env.reset(seed=seed, options=optionsn)
         # actions_full = np.concatenate((actions, np.zeros_like(actions)))
         grab_ball.forward_to_contact(env, actions, True)
     else:
+        breakpoint()
         options = dict(render=False, n_steps=10)
         agent = REINFORCE(obs_space_dims, action_space_dims)
         obs = wrapped_env.reset(seed=seed, options=options)
