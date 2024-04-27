@@ -100,16 +100,16 @@ else:
 util.reset(model, data, 10, body_pos)
 wrapped_env = gym.wrappers.RecordEpisodeStatistics(env, 50)  # Records episode-reward
 
-# total_num_episodes = int(5e3)  # Total number of episodes
-# Observation-space of InvertedPendulum-v4 (4)
+total_num_episodes = int(5e3)  # Total number of episodes
 obs_space_dims = env.observation_space.shape[0]
-# Action-space of InvertedPendulum-v4 (1)
 action_space_dims = env.action_space.shape[0]
 rewards_over_seeds = []
 
 # obs = env.reset_model(10)
 # obs = wrapped_env.reset_model(seed=seed, n_steps=10)
 # obs = wrapped_env.reset(seed=seed, n_steps=10)
+render = dict(render=True, n_steps=10)
+no_render = dict(render=False, n_steps=10)
 
 for seed in [1]:  # Fibonacci seeds
     torch.manual_seed(seed)
@@ -118,7 +118,6 @@ for seed in [1]:  # Fibonacci seeds
     if rerun2:
         # Reinitialize agent every seed
         agent = REINFORCE(obs_space_dims, action_space_dims)
-        reward_over_episodes = []
 
         # First train agent to match ctrls:
         ctrlst = torch.tensor(ctrls, dtype=torch.float32)
@@ -134,8 +133,7 @@ for seed in [1]:  # Fibonacci seeds
 
         for episode in range(n_episode):
             opt.zero_grad()
-            options = dict(render=False, n_steps=10)
-            obs = wrapped_env.reset(seed=seed, options=options)
+            obs = wrapped_env.reset(seed=seed, options=no_render)
             # obs = util.reset(model, data, 10, body_pos)
             # util.reset(model, data, 9, body_pos)
             # action = data.ctrl.copy()
@@ -156,7 +154,7 @@ for seed in [1]:  # Fibonacci seeds
             losses.append(loss.item())
             progress_bar.update()
             # print(losses[-1])
-        obs = wrapped_env.reset(seed=seed, options=options)
+        obs = wrapped_env.reset(seed=seed, options=no_render)
         actions = np.zeros((Tk,action_space_dims))
         torch.manual_seed(seed)
         for k in range(Tk):
@@ -167,42 +165,29 @@ for seed in [1]:  # Fibonacci seeds
         save_dict = {'state_dict': agent.net.state_dict(), 'losses': losses,
                      'actions': actions}
         torch.save(save_dict, f'net_params_{seed}.pt')
-        # plt.plot(losses); plt.show()
-        breakpoint()
-        optionsn = dict(render=True, n_steps=10)
-        wrapped_env.reset(seed=seed, options=optionsn)
-        # actions_full = np.concatenate((actions, np.zeros_like(actions)))
-        grab_ball.forward_to_contact(env, actions, True)
     else:
-        breakpoint()
-        options = dict(render=False, n_steps=10)
         agent = REINFORCE(obs_space_dims, action_space_dims)
-        obs = wrapped_env.reset(seed=seed, options=options)
+        obs = wrapped_env.reset(seed=seed, options=no_render)
         save_dict = torch.load(f'net_params_{seed}.pt')
         agent.net.load_state_dict(save_dict['state_dict'])
         losses = save_dict['losses']
         actions = save_dict['actions']
 
-        # actions_full = np.concatenate((actions, np.zeros_like(actions)))
-        # wrapped_env.reset(seed=seed, options=options)
-        # grab_ball.forward_to_contact(env, actions_full, True)
-    obs = wrapped_env.reset(seed=seed, options=options)
-    grab_ball.forward_to_contact(env, actions, True)
-    breakpoint()
+    # actions_full = np.concatenate((actions, np.zeros_like(actions)))
+    # wrapped_env.reset(seed=seed, options=options)
+    # grab_ball.forward_to_contact(env, actions_full, True)
 
+    ctrls_end = np.tile(ctrls[-1], (199, 1))
+    ctrls_end[:, right_arm_with_adh] = 0
     ctrls_with_end = np.concatenate([ctrls, ctrls_end])
-    Tkf = ctrls_with_end.shape[0]
-    noisev = grab_ball.make_noisev(model, seed, Tkf, CTRL_STD, CTRL_RATE)
-    options = dict(render=False, n_steps=10)
-    obs = wrapped_env.reset(seed=seed, options=options)
-    breakpoint()
-    grab_ball.forward_to_contact(env, ctrls_with_end, True)
-    breakpoint()
+    # obs = wrapped_env.reset(seed=seed, options=no_render)
+    # grab_ball.forward_to_contact(env, ctrls_with_end, True)
+    Tkf = ctrls_end.shape[0] + 1
 
-    options = dict(render=False, n_steps=10)
+    reward_over_episodes = []
     for episode in range(total_num_episodes):
         # gymnasium v26 requires users to set seed while resetting the environment
-        obs, info = wrapped_env.reset(seed=seed, options=options)
+        obs, info = wrapped_env.reset(seed=seed, options=no_render)
 
         done = False
         for tk in range(Tkf):
@@ -223,7 +208,6 @@ for seed in [1]:  # Fibonacci seeds
             if done:
                 break
 
-        breakpoint()
         reward_over_episodes.append(wrapped_env.return_queue[-1])
         agent.update()
 
