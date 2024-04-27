@@ -159,11 +159,12 @@ class REINFORCE:
         #   mean and standard deviation and sample an action
         distrib = Normal(action_means[0] + self.eps, action_stddevs[0] + self.eps)
         action = distrib.rsample()
-        prob = distrib.log_prob(action) # Detach this?
+        prob = distrib.log_prob(action.detach()) 
 
         # action = action.detach().numpy()
 
-        self.probs.append(prob)
+        # Detach to prevent memory leak. Will this cause problems?
+        self.probs.append(prob.detach())
 
         return action
 
@@ -192,3 +193,9 @@ class REINFORCE:
         # Empty / zero out all episode-centric/related variables
         self.probs = []
         self.rewards = []
+
+    def clear_episode(self):
+        # Empty / zero out all episode-centric/related variables
+        self.probs = []
+        self.rewards = []
+

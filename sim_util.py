@@ -36,7 +36,7 @@ class ProgressBar:
             elapsed = tic - self.first_time
             frac = (self.it + 1) / self.final_it
             est_time_remaining = elapsed * (1/frac - 1)
-            sys.stdout.write('\r')
+            sys.stdout.write('\r\r')
             pstring = "[%-15s] %d%%" % ('='*int(15*frac), 100*frac,)
             pstring += "  Est. time remaining: " \
                         + format_time(est_time_remaining)
