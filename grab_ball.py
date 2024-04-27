@@ -154,9 +154,6 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
             not_right_arm_j, ctrls[:, right_arm_a]
         )
         print(loss.item())
-    util.reset_state(data, data0) # This is necessary, but why?
-    k, ball_contact = forward_to_contact(env, ctrls + noisev,
-                                         render=True)
     fig, ax = plt.subplots()
     target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
     ax.plot(tt, hxs[:,1], color='blue')
@@ -164,6 +161,9 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
     ax.plot(tt, hxs[:,2], color='red')
     ax.plot(tt, target_traj[:,2], '--', color='red')
     plt.show()
+    util.reset_state(data, data0) # This is necessary, but why?
+    k, ball_contact = forward_to_contact(env, ctrls + noisev,
+                                         render=True)
     breakpoint()
 
     return ctrls

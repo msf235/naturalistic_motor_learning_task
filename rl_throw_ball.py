@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 ### Set things up
 seed = 2
 out_f = 'grab_ball_ctrl.npy'
-# rerun = False
-rerun = True
+rerun = False
+# rerun = True
 
 Tk = 120
 n_episode = 10
@@ -53,7 +53,7 @@ data = env.data
 joints = opt_utils.get_joint_names(model)
 
 acts = opt_utils.get_act_names(model)
-right_arm_a = acts['right_arm_with_adh']
+right_arm_with_adh = acts['right_arm_with_adh']
 
 env.reset(seed=seed) # necessary?
 util.reset(model, data, 10, body_pos)
@@ -84,27 +84,28 @@ if rerun or not os.path.exists(out_f):
 else:
     ctrls = np.load(out_f)
 
-util.reset(model, data, 10, body_pos)
-qpos0 = data.qpos.copy()
-ctrls_end = ctrls[-1]
-end_T = 300
-ctrls_end = np.tile(ctrls_end, (end_T, 1))
-ctrls_end[:, right_arm_a] = 0 # Also zeros out actuation (to release ball)
-ctrls_with_end = np.concatenate([ctrls, ctrls_end])
-noisev = grab_ball.make_noisev(model, seed, ctrls_with_end.shape[0], CTRL_STD,
-                               CTRL_RATE)
-ctrls_with_end, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-    model, data, ctrls_with_end.shape[0], noisev, qpos0,
-    acts['non_right_arm_non_adh'],
-    joints['non_right_arm'], ctrls_with_end[:, right_arm_a]
-)
+# util.reset(model, data, 10, body_pos)
+# qpos0 = data.qpos.copy()
+# ctrls_end = ctrls[-1]
+# end_T = 300
+# ctrls_end = np.tile(ctrls_end, (end_T, 1))
+# ctrls_end[:, right_arm_a] = 0 # Also zeros out actuation (to release ball)
+# ctrls_with_end = np.concatenate([ctrls, ctrls_end])
+# noisev = grab_ball.make_noisev(model, seed, ctrls_with_end.shape[0], CTRL_STD,
+                               # CTRL_RATE)
+# ctrls_with_end, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+    # model, data, ctrls_with_end.shape[0], noisev, qpos0,
+    # acts['non_right_arm_non_adh'],
+    # joints['non_right_arm'], ctrls_with_end[:, right_arm_a]
+# )
 
+# util.reset(model, data, 10, body_pos)
+# grab_ball.forward_to_contact(env, ctrls, True)
+ctrls_end = np.tile(ctrls[-1], (200, 1))
+ctrls_end[:, right_arm_with_adh] = 0
 util.reset(model, data, 10, body_pos)
-grab_ball.forward_to_contact(env, ctrls, True)
+grab_ball.forward_to_contact(env, np.concatenate([ctrls, ctrls_end]), True)
 breakpoint()
-time.sleep(2)
-util.reset(model, data, 10, body_pos)
-grab_ball.forward_to_contact(env, ctrls_with_end, True)
 # sys.exit()
 
 util.reset(model, data, 10, body_pos)
