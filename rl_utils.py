@@ -160,11 +160,12 @@ class REINFORCE:
         distrib = Normal(action_means[0] + self.eps, action_stddevs[0] + self.eps)
         action = distrib.rsample()
         prob = distrib.log_prob(action.detach()) 
+        # prob = distrib.log_prob(action) 
 
         # action = action.detach().numpy()
 
         # Detach to prevent memory leak. Will this cause problems?
-        self.probs.append(prob.detach())
+        self.probs.append(prob)
 
         return action
 

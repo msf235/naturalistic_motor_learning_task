@@ -1,8 +1,3 @@
-rerun1 = False
-# rerun1 = True
-# rerun2 = False
-rerun2 = True
-
 import humanoid2d as h2d
 import opt_utils as opt_utils
 import numpy as np
@@ -22,19 +17,6 @@ import random
 import torch
 import matplotlib.pyplot as plt
 
-### Set things up
-seed = 2
-out_f = 'grab_ball_ctrl.npy'
-
-Tk = 120
-lr = 1/Tk
-# max_its = 400
-max_its = 200
-# max_its = 120
-n_episode = 20000
-
-body_pos = -0.3
-
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
     "distance": 5,
@@ -42,10 +24,31 @@ DEFAULT_CAMERA_CONFIG = {
     "elevation": -10.0,
     "azimuth": 180,
 }
+
+### Set things up
+seed = 2
+out_f = 'grab_ball_ctrl.npy'
+
+Tk = 120
+lr = 1/Tk
+lr2 = .06
+# max_its = 400
+max_its = 200
+# max_its = 120
+n_episode = 10000
+
+rerun1 = False
+# rerun1 = True
+rerun2 = False
+# rerun2 = True
+# render_mode = 'human'
+render_mode = 'rgb_array'
+
+body_pos = -0.3
+
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
-    render_mode='human',
-    # render_mode='rgb_array',
+    render_mode=render_mode,
     frame_skip=1,
     default_camera_config=DEFAULT_CAMERA_CONFIG,
     reset_noise_scale=0,
@@ -95,10 +98,8 @@ ctrls_end[:, right_arm_with_adh] = 0
 ctrls_with_end = np.concatenate([ctrls, ctrls_end])
 Tkf = ctrls_with_end.shape[0] + 1
 
-util.reset(model, data, 10, body_pos)
-grab_ball.forward_to_contact(env, ctrls_with_end, True)
-
-# sys.exit()
+# util.reset(model, data, 10, body_pos)
+# grab_ball.forward_to_contact(env, ctrls_with_end, True)
 
 util.reset(model, data, 10, body_pos)
 wrapped_env = gym.wrappers.RecordEpisodeStatistics(env, 50)  # Records episode-reward
@@ -124,7 +125,7 @@ for seed in [1]:  # Fibonacci seeds
         ctrlst = torch.tensor(ctrls_with_end, dtype=torch.float32)
 
         # opt = torch.optim.Adam(agent.net.parameters(), lr=.1)
-        opt = torch.optim.SGD(agent.net.parameters(), lr=.01)
+        opt = torch.optim.SGD(agent.net.parameters(), lr=lr2)
         losses = []
         tic = time.time()
         first_time = tic
@@ -136,14 +137,9 @@ for seed in [1]:  # Fibonacci seeds
             opt.zero_grad()
             agent.clear_episode()
             obs = wrapped_env.reset(seed=seed, options=no_render)
-            # obs = util.reset(model, data, 10, body_pos)
-            # util.reset(model, data, 9, body_pos)
-            # action = data.ctrl.copy()
-            # obs, reward, terminated, truncated, info = wrapped_env.step(action)
-            # Gradient descent to output current ctrl policy
             loss = 0
             Tk1 = int(Tk / 3)
-            for k in range(Tk-1):
+            for k in range(Tkf-1):
                 loss_factor = 1
                 if k < Tk1:
                     loss_factor = 4
@@ -153,7 +149,7 @@ for seed in [1]:  # Fibonacci seeds
                 action = agent.sample_action(obs[0])
                 loss += loss_factor*((action - ctrlst[k])**2).mean()
                 obs = env.step(action.detach().numpy(), render=False)
-            loss /= Tk
+            loss /= Tkf
             loss.backward()
             opt.step()
             losses.append(loss.item())
@@ -178,22 +174,22 @@ for seed in [1]:  # Fibonacci seeds
         losses = save_dict['losses']
         actions = save_dict['actions']
 
-    obs = wrapped_env.reset(seed=seed, options=no_render)
-    grab_ball.forward_to_contact(env, actions, True)
-    # grab_ball.forward_to_contact(env, ctrls_with_end, True)
+    # obs = wrapped_env.reset(seed=seed, options=no_render)
+    # grab_ball.forward_to_contact(env, actions, True)
 
-    breakpoint()
-
-    Tkf = ctrls_with_end.shape[0] + 1
+    progress_bar = util.ProgressBar(update_every=2,
+                                    final_it=total_num_episodes)
 
     reward_over_episodes = []
     for episode in range(total_num_episodes):
         # gymnasium v26 requires users to set seed while resetting the environment
         obs, info = wrapped_env.reset(seed=seed, options=no_render)
 
+        actions = np.zeros((Tkf-1, action_space_dims))
         done = False
-        for tk in range(Tkf):
+        for tk in range(Tkf-1):
             action = agent.sample_action(obs)
+            actions[tk] = action.detach().numpy()
 
             # Step return type - `tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]`
             # These represent the next observation, the reward from the step,
@@ -209,12 +205,19 @@ for seed in [1]:  # Fibonacci seeds
             done = terminated or truncated
             if done:
                 break
+        progress_bar.update()
 
         reward_over_episodes.append(wrapped_env.return_queue[-1])
         agent.update()
 
-        if episode % 1000 == 0:
-            avg_reward = int(np.mean(wrapped_env.return_queue))
+        if episode % 100 == 0:
+            avg_reward = np.round(np.mean(wrapped_env.return_queue), 3)
+            print()
             print("Episode:", episode, "Average Reward:", avg_reward)
+            print()
+            # obs, info = wrapped_env.reset(seed=seed, options=no_render)
+            # grab_ball.forward_to_contact(env, actions, True)
 
     rewards_over_seeds.append(reward_over_episodes)
+
+    breakpoint()
