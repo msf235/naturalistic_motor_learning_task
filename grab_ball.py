@@ -10,6 +10,7 @@ import os
 import copy
 import time
 import pickle as pkl
+import sortedcontainers as sc
 from matplotlib import pyplot as plt
 
 def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
@@ -81,10 +82,20 @@ def forward_to_contact(env, ctrls, render=True):
                 ball_contact = True
     return k, ball_contact
 
+class LimLowestDict:
+    def __init__(self, max_len):
+        self.max_len = max_len
+        self.dict = sc.SortedDict()
+
+    def append(self, key, val):
+        self.dict.update({key: val})
+        if len(self.dict) > self.max_len:
+            self.dict.popitem()
+
 def right_arm_target_traj(env, target_traj, targ_traj_mask,
                           targ_traj_mask_type, ctrls,
                           grad_trunc_tk, seed, CTRL_RATE, CTRL_STD, Tk,
-                          max_its=30, lr=10):
+                          max_its=30, lr=10, keep_top=1):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
     computing an LQR stabilizer to keep the rest of the body stable while the
@@ -128,6 +139,8 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
         incr_per = 5 # increment period
         incr_cnt = 0
 
+    lowest_losses = LimLowestDict(keep_top)
+
     Tk1 = int(Tk / 3)
     for k0 in range(max_its):
         if targ_traj_prog and k0 % incr_per == 0:
@@ -153,18 +166,20 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
             model, data, Tk, noisev, qpos0, not_right_arm_a_not_adh,
             not_right_arm_j, ctrls[:, right_arm_a]
         )
+        # if loss.item()
+        lowest_losses.append(loss.item(), (k0, ctrls.copy()))
         print(loss.item())
-    fig, ax = plt.subplots()
-    target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
-    ax.plot(tt, hxs[:,1], color='blue')
-    ax.plot(tt, target_traj[:,1], '--', color='blue')
-    ax.plot(tt, hxs[:,2], color='red')
-    ax.plot(tt, target_traj[:,2], '--', color='red')
-    plt.show()
-    util.reset_state(data, data0) # This is necessary, but why?
-    k, ball_contact = forward_to_contact(env, ctrls + noisev,
-                                         render=True)
-    breakpoint()
+    # fig, ax = plt.subplots()
+    # target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
+    # ax.plot(tt, hxs[:,1], color='blue')
+    # ax.plot(tt, target_traj[:,1], '--', color='blue')
+    # ax.plot(tt, hxs[:,2], color='red')
+    # ax.plot(tt, target_traj[:,2], '--', color='red')
+    # plt.show()
+    # util.reset_state(data, data0) # This is necessary, but why?
+    # k, ball_contact = forward_to_contact(env, ctrls + noisev,
+                                         # render=True)
+    # breakpoint()
 
-    return ctrls
+    return ctrls, lowest_losses.dict
 

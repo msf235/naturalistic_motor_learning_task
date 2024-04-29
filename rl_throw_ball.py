@@ -16,6 +16,7 @@ import gymnasium as gym
 import random
 import torch
 import matplotlib.pyplot as plt
+import pickle as pkl
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -41,8 +42,8 @@ rerun1 = False
 # rerun1 = True
 rerun2 = False
 # rerun2 = True
-# render_mode = 'human'
-render_mode = 'rgb_array'
+render_mode = 'human'
+# render_mode = 'rgb_array'
 
 body_pos = -0.3
 
@@ -83,15 +84,31 @@ if rerun1 or not os.path.exists(out_f):
         model, data, Tk, noisev, data.qpos.copy(), acts['non_adh'],
         joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
     util.reset(model, data, 10, body_pos)
-    ctrls = grab_ball.right_arm_target_traj(
+    ctrls, lowest_losses = grab_ball.right_arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
-        CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its)
-    np.save(out_f, ctrls)
+        CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
+    with open(out_f, 'wb') as f:
+        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
+    # np.save(out_f, ctrls)
 else:
-    ctrls = np.load(out_f)
+    with open(out_f, 'rb') as f:
+        load_data = pkl.load(f)
+    ctrls = load_data['ctrls']
+    lowest_losses = load_data['lowest_losses']
 
-# util.reset(model, data, 10, body_pos)
+ctrls_best = lowest_losses.peekitem(0)[1][1]
+util.reset(model, data, 10, body_pos)
 # grab_ball.forward_to_contact(env, ctrls, True)
+# grab_ball.forward_to_contact(env, ctrls_best, True)
+
+ctrls_end_best = np.tile(ctrls_best[-1], (149, 1))
+ctrls_end_best[:, right_arm_with_adh] = 0
+ctrls_with_end_best = np.concatenate([ctrls_best, ctrls_end_best])
+Tkf = ctrls_with_end_best.shape[0] + 1
+util.reset(model, data, 10, body_pos)
+grab_ball.forward_to_contact(env, ctrls_with_end_best, True)
+
+breakpoint()
 
 ctrls_end = np.tile(ctrls[-1], (149, 1))
 ctrls_end[:, right_arm_with_adh] = 0
