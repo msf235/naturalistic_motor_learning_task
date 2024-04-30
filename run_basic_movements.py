@@ -59,18 +59,59 @@ env = h2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
+
 util.reset(model, data, 10, body_pos)
-# Move right arm while keeping left arm fixed
-rs, thetas = bm.random_arcs_right_arm(model, data, Tk-1,
-                                      data.site('hand_right').xpos)
+
+
+# # Move right arm while keeping left arm fixed
+# rs, thetas = bm.random_arcs_right_arm(model, data, Tk-1,
+                                      # data.site('hand_right').xpos)
+# # rs, thetas = bm.random_arcs_left_arm(model, data, Tk-1,
+                                      # # data.site('hand_left').xpos)
+# traj1_xs = np.zeros((Tk-1, 3))
+# traj1_xs[:,1] = rs * np.cos(thetas)
+# traj1_xs[:,2] = rs * np.sin(thetas)
+# traj1_xs += data.site('shoulder1_right').xpos
+# full_traj = traj1_xs
+# targ_traj_mask = np.ones((Tk-1,))
+# targ_traj_mask_type = 'progressive'
+
+# noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+
+# joints = opt_utils.get_joint_names(model)
+# acts = opt_utils.get_act_names(model)
+
+# if rerun1 or not os.path.exists(out_f):
+    # ### Get initial stabilizing controls
+    # util.reset(model, data, 10, body_pos)
+    # ctrls, K = opt_utils.get_stabilized_ctrls(
+        # model, data, Tk, noisev, data.qpos.copy(), acts['non_adh_right_hand'],
+        # joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
+    # util.reset(model, data, 10, body_pos)
+    # ctrls, lowest_losses = grab_ball.right_arm_target_traj(
+        # env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
+        # CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
+    # with open(out_f, 'wb') as f:
+        # pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
+    # # np.save(out_f, ctrls)
+# else:
+    # with open(out_f, 'rb') as f:
+        # load_data = pkl.load(f)
+    # ctrls = load_data['ctrls']
+    # lowest_losses = load_data['lowest_losses']
+
+# ctrls_best = lowest_losses.peekitem(0)[1][1]
+# util.reset(model, data, 10, body_pos)
+# grab_ball.forward_to_contact(env, ctrls_best, True)
+
+# Move left arm while keeping right arm fixed
+rs, thetas = bm.random_arcs_left_arm(model, data, Tk-1,
+                                      data.site('hand_left').xpos)
 traj1_xs = np.zeros((Tk-1, 3))
 traj1_xs[:,1] = rs * np.cos(thetas)
 traj1_xs[:,2] = rs * np.sin(thetas)
-# traj1_xs[:,1] = rs * np.cos(thetas[0])
-# traj1_xs[:,2] = rs * np.sin(thetas[0])
-traj1_xs += data.site('shoulder1_right').xpos
+traj1_xs += data.site('shoulder1_left').xpos
 full_traj = traj1_xs
-
 targ_traj_mask = np.ones((Tk-1,))
 targ_traj_mask_type = 'progressive'
 
@@ -83,7 +124,52 @@ if rerun1 or not os.path.exists(out_f):
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['non_adh'],
+        model, data, Tk, noisev, data.qpos.copy(), acts['non_adh_left_hand'],
+        joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
+    util.reset(model, data, 10, body_pos)
+    ctrls, lowest_losses = grab_ball.right_arm_target_traj(
+        env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
+        CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
+    with open(out_f, 'wb') as f:
+        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
+    # np.save(out_f, ctrls)
+else:
+    with open(out_f, 'rb') as f:
+        load_data = pkl.load(f)
+    ctrls = load_data['ctrls']
+    lowest_losses = load_data['lowest_losses']
+
+ctrls_best = lowest_losses.peekitem(0)[1][1]
+util.reset(model, data, 10, body_pos)
+grab_ball.forward_to_contact(env, ctrls_best, True)
+
+# Move both arms simultaneously
+
+joints = opt_utils.get_joint_names(model)
+
+acts = opt_utils.get_act_names(model)
+left_arm_with_adh = acts['left_arm_with_adh']
+
+env.reset(seed=seed) # necessary?
+util.reset(model, data, 10, body_pos)
+
+# Get noise
+# CTRL_STD = .05       # actuator units
+CTRL_STD = 0       # actuator units
+CTRL_RATE = 0.8       # seconds
+
+full_traj = grab_ball.throw_traj(model, data, Tk)
+
+targ_traj_mask = np.ones((Tk-1,))
+targ_traj_mask_type = 'progressive'
+
+noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+
+if rerun1 or not os.path.exists(out_f):
+    ### Get initial stabilizing controls
+    util.reset(model, data, 10, body_pos)
+    ctrls, K = opt_utils.get_stabilized_ctrls(
+        model, data, Tk, noisev, data.qpos.copy(), acts['non_adh_left_hand'],
         joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
     util.reset(model, data, 10, body_pos)
     ctrls, lowest_losses = grab_ball.right_arm_target_traj(
@@ -105,62 +191,13 @@ grab_ball.forward_to_contact(env, ctrls_best, True)
 breakpoint()
 
 
-# Move left arm while keeping right arm fixed
-rs, thetas = bm.random_arcs_right_arm(model, data, Tk)
-thetas = thetas - np.pi
-traj2_xs = np.zeros((Tk, 3))
-traj2_xs[:,1] = rs * np.cos(thetas)
-traj2_xs[:,2] = rs * np.sin(thetas)
-traj2_xs += data.site('shoulder1_left').xpos
 
-# Move both arms simultaneously
 
-joints = opt_utils.get_joint_names(model)
 
-acts = opt_utils.get_act_names(model)
-right_arm_with_adh = acts['right_arm_with_adh']
 
-env.reset(seed=seed) # necessary?
-util.reset(model, data, 10, body_pos)
-
-# Get noise
-# CTRL_STD = .05       # actuator units
-CTRL_STD = 0       # actuator units
-CTRL_RATE = 0.8       # seconds
-
-full_traj = grab_ball.throw_traj(model, data, Tk)
-
-targ_traj_mask = np.ones((Tk-1,))
-targ_traj_mask_type = 'progressive'
-
-noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
-
-if rerun1 or not os.path.exists(out_f):
-    ### Get initial stabilizing controls
-    util.reset(model, data, 10, body_pos)
-    ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['non_adh'],
-        joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
-    util.reset(model, data, 10, body_pos)
-    ctrls, lowest_losses = grab_ball.right_arm_target_traj(
-        env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
-        CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
-    with open(out_f, 'wb') as f:
-        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
-    # np.save(out_f, ctrls)
-else:
-    with open(out_f, 'rb') as f:
-        load_data = pkl.load(f)
-    ctrls = load_data['ctrls']
-    lowest_losses = load_data['lowest_losses']
-
-ctrls_best = lowest_losses.peekitem(0)[1][1]
-util.reset(model, data, 10, body_pos)
-# grab_ball.forward_to_contact(env, ctrls, True)
-# grab_ball.forward_to_contact(env, ctrls_best, True)
 
 ctrls_end_best = np.tile(ctrls_best[-1], (149, 1))
-ctrls_end_best[:, right_arm_with_adh] = 0
+ctrls_end_best[:, left_arm_with_adh] = 0
 ctrls_with_end_best = np.concatenate([ctrls_best, ctrls_end_best])
 Tkf = ctrls_with_end_best.shape[0] + 1
 util.reset(model, data, 10, body_pos)
@@ -169,7 +206,7 @@ grab_ball.forward_to_contact(env, ctrls_with_end_best, True)
 breakpoint()
 
 ctrls_end = np.tile(ctrls[-1], (149, 1))
-ctrls_end[:, right_arm_with_adh] = 0
+ctrls_end[:, left_arm_with_adh] = 0
 ctrls_with_end = np.concatenate([ctrls, ctrls_end])
 Tkf = ctrls_with_end.shape[0] + 1
 

@@ -102,28 +102,38 @@ def get_joint_names(model, data=None):
 def get_act_names(model, data=None):
     acts = {}
     acts['act_names'] = [model.actuator(i).name for i in range(model.nu)]
-    acts['right_arm'] = [
-        model.actuator(name).id
-        for name in acts['act_names']
-        if ('shoulder' in name or 'elbow' in name) and 'right' in name
-    ]
-    try:
-        acts['adh_right_hand'] = [
-            model.actuator(name).id
-            for name in acts['act_names']
-            if 'hand' in name and 'right' in name and 'adh' in name
-        ]
-        acts['right_arm_with_adh'] = acts['right_arm'] + acts['adh_right_hand']
-    except KeyError:
-        acts['adh_right_hand'] = []
-    acts['non_adh'] = [i for i in range(model.nu) if i not in
-                       acts['adh_right_hand']]
-    acts['non_right_arm_non_adh'] = [i for i in range(model.nu) if i not in
-                               acts['right_arm'] and i not in acts['adh_right_hand']]
-    acts['non_right_arm'] = [i for i in range(model.nu) if i not in
-                               acts['right_arm']]
+    acts.update(get_act_names_left_or_right(model, data, 'right'))
+    acts.update(get_act_names_left_or_right(model, data, 'left'))
     return acts
 
+def get_act_names_left_or_right(model, data=None, left_or_right='right'):
+    act_names = [model.actuator(i).name for i in range(model.nu)]
+    acts = {}
+    acts[f'{left_or_right}_arm'] = [
+        model.actuator(name).id
+        for name in act_names
+        if ('shoulder' in name or 'elbow' in name) and left_or_right in name
+    ]
+    try:
+        acts[f'adh_{left_or_right}_hand'] = [
+            model.actuator(name).id
+            for name in act_names
+            if 'hand' in name and left_or_right in name and 'adh' in name
+        ]
+        acts[f'{left_or_right}_arm_with_adh'] = \
+            acts[f'{left_or_right}_arm'] + acts[f'adh_{left_or_right}_hand']
+    except KeyError:
+        acts[f'adh_{left_or_right}_hand'] = []
+    acts[f'non_adh_{left_or_right}_hand'] = [
+        i for i in range(model.nu) if i not in
+        acts[f'adh_{left_or_right}_hand']
+    ]
+    acts[f'non_{left_or_right}_arm_non_adh'] = [
+        i for i in range(model.nu) if i not in acts[f'{left_or_right}_arm'] and
+        i not in acts[f'adh_{left_or_right}_hand']]
+    acts[f'non_{left_or_right}_arm'] = [i for i in range(model.nu) if i not in
+                               acts[f'{left_or_right}_arm']]
+    return acts
 
 def get_Q_balance(model, data):
     nq = model.nq

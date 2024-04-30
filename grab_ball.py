@@ -113,7 +113,7 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
     right_arm_a_without_adh = acts['right_arm']
     right_arm_a = acts['right_arm_with_adh']
     adh = acts['adh_right_hand']
-    non_adh = acts['non_adh']
+    non_adh = acts['non_adh_right_hand']
     not_right_arm_a = acts['non_right_arm']
     not_right_arm_a_not_adh = acts['non_right_arm_non_adh']
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
@@ -169,17 +169,17 @@ def right_arm_target_traj(env, target_traj, targ_traj_mask,
         # if loss.item()
         lowest_losses.append(loss.item(), (k0, ctrls.copy()))
         print(loss.item())
-    # fig, ax = plt.subplots()
-    # target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
-    # ax.plot(tt, hxs[:,1], color='blue')
-    # ax.plot(tt, target_traj[:,1], '--', color='blue')
-    # ax.plot(tt, hxs[:,2], color='red')
-    # ax.plot(tt, target_traj[:,2], '--', color='red')
-    # plt.show()
+    fig, ax = plt.subplots()
+    target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
+    ax.plot(tt, hxs[:,1], color='blue', label='x')
+    ax.plot(tt, target_traj[:,1], '--', color='blue')
+    ax.plot(tt, hxs[:,2], color='red', label='y')
+    ax.plot(tt, target_traj[:,2], '--', color='red')
+    ax.legend()
+    plt.show()
     # util.reset_state(data, data0) # This is necessary, but why?
     # k, ball_contact = forward_to_contact(env, ctrls + noisev,
                                          # render=True)
-    # breakpoint()
 
     return ctrls, lowest_losses.dict
 

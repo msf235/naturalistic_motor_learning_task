@@ -81,7 +81,7 @@ if rerun1 or not os.path.exists(out_f):
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['non_adh'],
+        model, data, Tk, noisev, data.qpos.copy(), acts['non_adh_right_hand'],
         joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
     util.reset(model, data, 10, body_pos)
     ctrls, lowest_losses = grab_ball.right_arm_target_traj(
