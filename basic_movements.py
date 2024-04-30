@@ -73,7 +73,6 @@ def throw_traj(model, data, Tk):
     shouldx = data.site('shoulder1_right').xpos
     elbowx = data.site('elbow_right').xpos
     handx = data.site('hand_right').xpos
-    ballx = data.site('ball_base').xpos
     r1 = np.sum((shouldx - elbowx)**2)**.5
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
@@ -141,7 +140,6 @@ def random_arcs_right_arm(model, data, n_steps, initial_xpos):
     shouldx = data.site('shoulder1_right').xpos
     elbowx = data.site('elbow_right').xpos
     handx = data.site('hand_right').xpos
-    ballx = data.site('ball_base').xpos
     theta_max = 1.2*np.pi
     theta_min = np.pi/2.5
 
@@ -150,11 +148,11 @@ def random_arcs_right_arm(model, data, n_steps, initial_xpos):
 
     xs = rs * np.cos(thetas)
     ys = rs * np.sin(thetas)
-    plt.plot(xs+shouldx[1], ys+shouldx[2])
-    plt.scatter(shouldx[1], shouldx[2], color='red')
-    plt.scatter(handx[1], handx[2], color='blue')
-    plt.axis('equal')
-    plt.show()
+    # plt.plot(xs+shouldx[1], ys+shouldx[2])
+    # plt.scatter(shouldx[1], shouldx[2], color='red')
+    # plt.scatter(handx[1], handx[2], color='blue')
+    # plt.axis('equal')
+    # plt.show()
 
     return rs, thetas
 
@@ -162,7 +160,6 @@ def random_arcs_left_arm(model, data, n_steps, initial_xpos):
     shouldx = data.site('shoulder1_left').xpos
     elbowx = data.site('elbow_left').xpos
     handx = data.site('hand_left').xpos
-    ballx = data.site('ball_base').xpos
     theta_min = -np.pi/4
     theta_max = np.pi/2.5 + np.pi/2
     
@@ -171,11 +168,11 @@ def random_arcs_left_arm(model, data, n_steps, initial_xpos):
 
     xs = rs * np.cos(thetas)
     ys = rs * np.sin(thetas)
-    plt.plot(xs+shouldx[1], ys+shouldx[2])
-    plt.scatter(shouldx[1], shouldx[2], color='red')
-    plt.scatter(handx[1], handx[2], color='blue')
-    plt.axis('equal')
-    plt.show()
+    # plt.plot(xs+shouldx[1], ys+shouldx[2])
+    # plt.scatter(shouldx[1], shouldx[2], color='red')
+    # plt.scatter(handx[1], handx[2], color='blue')
+    # plt.axis('equal')
+    # plt.show()
 
     return rs, thetas
 
@@ -186,7 +183,6 @@ def random_arcs_left_arm(model, data, n_steps, initial_xpos):
     # shouldx = data.site('shoulder1_right').xpos
     # elbowx = data.site('elbow_right').xpos
     # handx = data.site('hand_right').xpos
-    # ballx = data.site('ball_base').xpos
     # r1 = np.sum((shouldx - elbowx)**2)**.5
     # r2 = np.sum((elbowx - handx)**2)**.5
     # r = r1 + r2

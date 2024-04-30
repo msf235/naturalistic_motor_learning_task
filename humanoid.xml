@@ -231,6 +231,8 @@
     <motor name="elbow_left"      gear="40"  joint="elbow_left"/>
     <adhesion name="hand_right_adh" body="hand_right" gain="200"
       ctrlrange="0 1"/>
+    <adhesion name="hand_left_adh" body="hand_left" gain="200"
+      ctrlrange="0 1"/>
   </actuator>
 
   <!--<keyframe>-->
