@@ -92,6 +92,100 @@ class LimLowestDict:
         if len(self.dict) > self.max_len:
             self.dict.popitem()
 
+def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
+                    ctrls, grad_trunc_tk, seed, CTRL_RATE, CTRL_STD, Tk,
+                    max_its=30, lr=10, keep_top=1, right_or_left='right'):
+    """Trains the right arm to follow the target trajectory (targ_traj). This
+    involves gradient steps to update the arm controls and alternating with
+    computing an LQR stabilizer to keep the rest of the body stable while the
+    arm is moving."""
+    model = env.model
+    data = env.data
+
+    data0 = copy.deepcopy(data)
+
+    joints = opt_utils.get_joint_names(model)
+    arm_j = joints[f'{right_or_left}_arm']
+    body_j = joints['body']
+    not_arm_j = [i for i in body_j if i not in arm_j]
+    acts = opt_utils.get_act_names(model)
+    arm_a_without_adh = acts[f'{right_or_left}_arm']
+    arm_a = acts[f'{right_or_left}_arm_with_adh']
+    adh = acts[f'adh_{right_or_left}_hand']
+    non_adh = acts[f'non_adh_{right_or_left}_hand']
+    not_arm_a = acts[f'non_{right_or_left}_arm']
+    not_arm_a_not_adh = acts[f'non_{right_or_left}_arm_non_adh']
+    noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+
+
+    qs, qvels = util.forward_sim(model, data, ctrls)
+    util.reset_state(data, data0)
+
+    ### Gradient descent
+    qpos0 = data.qpos.copy()
+
+    rhand = data.site(f'hand_{right_or_left}')
+
+    dt = model.opt.timestep
+    T = Tk*dt
+    tt = np.arange(0, T-dt, dt)
+    ball_contact = False
+    optm = opts.Adam(lr=lr)
+    targ_traj_prog = (isinstance(targ_traj_mask_type, str)
+                      and targ_traj_mask_type == 'progressive')
+    targ_traj_mask_curr = targ_traj_mask
+    if targ_traj_prog:
+        targ_traj_mask_curr = np.zeros((Tk-1,))
+        incr_per = 5 # increment period
+        incr_cnt = 0
+
+    lowest_losses = LimLowestDict(keep_top)
+
+    Tk1 = int(Tk / 3)
+    for k0 in range(max_its):
+        if targ_traj_prog and k0 % incr_per == 0:
+            idx = slice(10*incr_cnt, 10*(incr_cnt+1))
+            targ_traj_mask_curr[idx] = targ_traj_mask[idx]
+            incr_cnt += 1
+
+        util.reset_state(data, data0)
+        k, ball_contact = forward_to_contact(env, ctrls + noisev,
+                                             render=False)
+        util.reset_state(data, data0)
+        grads, hxs, dldss = opt_utils.traj_deriv(
+            model, data, ctrls + noisev, target_traj, targ_traj_mask,
+            grad_trunc_tk, fixed_act_inds=not_arm_a,
+            right_or_left=right_or_left
+        )
+        # grads[:Tk1] = 2*grads[:Tk1]
+        loss = np.mean(dldss**2)
+        ctrls[:, arm_a_without_adh] = optm.update(
+            ctrls[:, arm_a_without_adh], grads[:Tk-1], 'ctrls', loss)
+        # ctrls[:, right_arm_a] = ctrls[:, right_arm_a] - lr*grads[:Tk-1]
+        util.reset_state(data, data0) # This is necessary, but why?
+        ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+            model, data, Tk, noisev, qpos0, not_arm_a_not_adh,
+            not_arm_j, ctrls[:, arm_a]
+        )
+        # if loss.item()
+        lowest_losses.append(loss.item(), (k0, ctrls.copy()))
+        print(loss.item())
+
+    fig, ax = plt.subplots()
+    target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
+    ax.plot(tt, hxs[:,1], color='blue', label='x')
+    ax.plot(tt, target_traj[:,1], '--', color='blue')
+    ax.plot(tt, hxs[:,2], color='red', label='y')
+    ax.plot(tt, target_traj[:,2], '--', color='red')
+    ax.legend()
+    plt.show()
+    breakpoint()
+    # util.reset_state(data, data0) # This is necessary, but why?
+    # k, ball_contact = forward_to_contact(env, ctrls + noisev,
+                                         # render=True)
+
+    return ctrls, lowest_losses.dict
+
 def right_arm_target_traj(env, target_traj, targ_traj_mask,
                           targ_traj_mask_type, ctrls,
                           grad_trunc_tk, seed, CTRL_RATE, CTRL_STD, Tk,

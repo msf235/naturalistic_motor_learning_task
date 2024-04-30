@@ -87,6 +87,10 @@ def get_joint_names(model, data=None):
         model.joint(name).dofadr[0] for name in joints['joint_names']
         if ('shoulder' in name or 'elbow' in name) and 'right' in name
     ]
+    joints['left_arm'] = [
+        model.joint(name).dofadr[0] for name in joints['joint_names']
+        if ('shoulder' in name or 'elbow' in name) and 'left' in name
+    ]
     ball_jnts = [
         model.joint(name).dofadr[0] for name in joints['joint_names']
         if 'ball' in name
@@ -96,6 +100,8 @@ def get_joint_names(model, data=None):
 
     joints['non_right_arm'] = [i for i in range(model.nq) if i not
                                 in joints['right_arm']+ball_jnts]
+    joints['non_left_arm'] = [i for i in range(model.nq) if i not
+                                in joints['left_arm']+ball_jnts]
     joints['body'] = [k for k in range(model.nq) if k not in ball_jnts]
     return joints
 
@@ -276,7 +282,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
 
 ### Gradient descent
 def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
-               grad_trunc_tk, fixed_act_inds=[]):
+               grad_trunc_tk, fixed_act_inds=[], right_or_left='right'):
     """fixed_act_inds specifies the indices of the actuators that will NOT be
     updated (for instance, the actuators not related to the right arm)."""
     # data = copy.deepcopy(data)
@@ -298,10 +304,11 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
         mj.mj_forward(model, data)
         mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
         Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
-        mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
-        dlds = data.site('hand_right').xpos - targ_traj[tk]
+        mj.mj_jacSite(
+            model, data, C, None, site=data.site(f'hand_{right_or_left}').id)
+        dlds = data.site(f'hand_{right_or_left}').xpos - targ_traj[tk]
         dldss[tk] = dlds
-        hxs[tk] = data.site('hand_right').xpos
+        hxs[tk] = data.site(f'hand_{right_or_left}').xpos
         dldq = C.T @ dlds
         dldqs[tk, :model.nv] = dldq
         

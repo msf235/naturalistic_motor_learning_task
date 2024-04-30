@@ -104,6 +104,8 @@ util.reset(model, data, 10, body_pos)
 # util.reset(model, data, 10, body_pos)
 # grab_ball.forward_to_contact(env, ctrls_best, True)
 
+util.reset(model, data, 10, body_pos)
+
 # Move left arm while keeping right arm fixed
 rs, thetas = bm.random_arcs_left_arm(model, data, Tk-1,
                                       data.site('hand_left').xpos)
@@ -127,9 +129,13 @@ if rerun1 or not os.path.exists(out_f):
         model, data, Tk, noisev, data.qpos.copy(), acts['non_adh_left_hand'],
         joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
     util.reset(model, data, 10, body_pos)
-    ctrls, lowest_losses = grab_ball.right_arm_target_traj(
+    # ctrls, lowest_losses = grab_ball.right_arm_target_traj(
+        # env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
+        # CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
+    ctrls, lowest_losses = grab_ball.arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
-        CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
+        CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10,
+        right_or_left='left')
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
     # np.save(out_f, ctrls)
