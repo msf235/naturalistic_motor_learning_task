@@ -110,6 +110,10 @@ def get_act_names(model, data=None):
     acts['act_names'] = [model.actuator(i).name for i in range(model.nu)]
     acts.update(get_act_names_left_or_right(model, data, 'right'))
     acts.update(get_act_names_left_or_right(model, data, 'left'))
+    acts[f'non_adh'] = [
+        i for i in range(model.nu) if i not in
+        acts[f'adh_left_hand'] + acts[f'adh_right_hand']
+    ]
     return acts
 
 def get_act_names_left_or_right(model, data=None, left_or_right='right'):
