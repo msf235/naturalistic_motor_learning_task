@@ -42,7 +42,8 @@ def reflective_random_walk(n_steps=1000, initial_position=0.5, step_std=0.02,
         positions[i] = new_position
     
     # Smooth the positions using Gaussian filter
-    smoothed_positions = gaussian_filter1d(positions, sigma=smoothing_sigma)
+    smoothed_positions = gaussian_filter1d(positions, sigma=smoothing_sigma,
+                                           mode='nearest')
     
     return positions, smoothed_positions
 
@@ -116,12 +117,9 @@ def random_arcs_right_arm(model, data, n_steps, initial_xpos):
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
 
-    x = r * cos (theta)
-    r = x^2 + y^2
-    r0 = ((initial_xpos**2).sum())**0.5
-    th0 = np.arctan2(initial_xpos[1], initial_xpos[0])
-
-    # Number of steps in the random walk
+    init_pos_rel = initial_xpos-shouldx
+    r0 = (init_pos_rel**2).sum()**0.5
+    th0 = np.arctan2(init_pos_rel[2], init_pos_rel[1]) + 2*np.pi
 
     # Random walk for radius
     positions, smoothed_positions = reflective_random_walk(
@@ -129,21 +127,22 @@ def random_arcs_right_arm(model, data, n_steps, initial_xpos):
         smoothing_sigma=20, lower_lim=0, upper_lim=r
     )
 
-    rs = smoothed_positions * r
+    rs = smoothed_positions - smoothed_positions[0] + r0
 
     # Random walk for angles
-    positions, smoothed_positions = reflective_random_walk(
-        n_steps=n_steps, initial_position=0.5, step_std=0.02,
-        smoothing_sigma=20
-    )
     theta_max = np.pi
     theta_min = np.pi/2.5
-
-    thetas = smoothed_positions * (theta_max-theta_min) + theta_min
+    positions, smoothed_positions = reflective_random_walk(
+        n_steps=n_steps, initial_position=th0, step_std=0.02,
+        smoothing_sigma=20, lower_lim=theta_min, upper_lim=theta_max
+    )
+    thetas = smoothed_positions - smoothed_positions[0] + th0
 
     # xs = rs * np.cos(thetas)
     # ys = rs * np.sin(thetas)
-    # plt.plot(xs, ys)
+    # plt.plot(xs+shouldx[1], ys+shouldx[2])
+    # plt.scatter(shouldx[1], shouldx[2], color='red')
+    # plt.scatter(handx[1], handx[2], color='blue')
     # plt.axis('equal')
     # plt.show()
 

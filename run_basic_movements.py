@@ -59,10 +59,10 @@ env = h2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
-
 util.reset(model, data, 10, body_pos)
 # Move right arm while keeping left arm fixed
-rs, thetas = bm.random_arcs_right_arm(model, data, Tk-1)
+rs, thetas = bm.random_arcs_right_arm(model, data, Tk-1,
+                                      data.site('hand_right').xpos)
 traj1_xs = np.zeros((Tk-1, 3))
 traj1_xs[:,1] = rs * np.cos(thetas)
 traj1_xs[:,2] = rs * np.sin(thetas)
