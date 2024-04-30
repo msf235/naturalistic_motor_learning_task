@@ -192,14 +192,14 @@ def two_arm_target_traj(env,
         lowest_losses.append(loss, (k0, ctrls.copy()))
         print(loss)
 
-    fig, ax = plt.subplots()
-    target_traj = target_traj1 * targ_traj_mask1.reshape(-1, 1)
-    ax.plot(tt, hxs1[:,1], color='blue', label='x')
-    ax.plot(tt, target_traj[:,1], '--', color='blue')
-    ax.plot(tt, hxs1[:,2], color='red', label='y')
-    ax.plot(tt, target_traj[:,2], '--', color='red')
-    ax.legend()
-    plt.show()
+    # fig, ax = plt.subplots()
+    # target_traj = target_traj1 * targ_traj_mask1.reshape(-1, 1)
+    # ax.plot(tt, hxs1[:,1], color='blue', label='x')
+    # ax.plot(tt, target_traj[:,1], '--', color='blue')
+    # ax.plot(tt, hxs1[:,2], color='red', label='y')
+    # ax.plot(tt, target_traj[:,2], '--', color='red')
+    # ax.legend()
+    # plt.show()
     # util.reset_state(data, data0) # This is necessary, but why?
     # k, ball_contact = forward_to_contact(env, ctrls + noisev,
                                          # render=True)

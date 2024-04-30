@@ -39,8 +39,8 @@ max_its = 200
 CTRL_STD = 0
 CTRL_RATE = 1
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -73,6 +73,9 @@ targ_traj_mask = np.ones((Tk-1,))
 targ_traj_mask_type = 'progressive'
 
 noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+
+np.random.seed(seed)
+torch.manual_seed(seed)
 
 joints = opt_utils.get_joint_names(model)
 acts = opt_utils.get_act_names(model)
