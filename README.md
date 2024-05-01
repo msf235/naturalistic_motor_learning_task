@@ -1,7 +1,9 @@
 Python documentation: https://mujoco.readthedocs.io/en/stable/python.html
 XML documentation: https://mujoco.readthedocs.io/en/stable/python.html
 
-File to run: rl_throw_ball.py
+Files to run:
+    run_rl_throw_ball.py
+    run_basic_movements.py
 
 Gymnasium environment: humanoid2d.py
 
