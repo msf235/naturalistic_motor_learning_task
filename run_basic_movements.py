@@ -4,7 +4,7 @@ import numpy as np
 import sim_util as util
 import mujoco as mj
 import sys
-import os
+from pathlib import Path
 import pickle as pkl
 import arm_targ_traj as arm_t
 import basic_movements as bm
@@ -20,9 +20,12 @@ DEFAULT_CAMERA_CONFIG = {
     "azimuth": 180,
 }
 
+outdir = Path('output')
+outdir.mkdir(parents=True, exist_ok=True)
+
 ### Set things up
 seed = 2
-out_f_base = 'move_right_arm_ctrl'
+out_f_base = outdir/'move_right_arm_ctrl'
 
 Tk = 120
 # Tk = 320
@@ -34,8 +37,8 @@ max_its = 200
 CTRL_STD = 0
 CTRL_RATE = 1
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -75,9 +78,9 @@ torch.manual_seed(seed)
 joints = opt_utils.get_joint_names(model)
 acts = opt_utils.get_act_names(model)
 
-out_f = out_f_base + '_right.pkl'
+out_f = Path(str(out_f_base) + '_right.pkl')
 
-if rerun1 or not os.path.exists(out_f):
+if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
@@ -119,9 +122,9 @@ noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 joints = opt_utils.get_joint_names(model)
 acts = opt_utils.get_act_names(model)
 
-out_f = out_f_base + '_left.pkl'
+out_f = Path(str(out_f_base) + '_left.pkl')
 
-if rerun1 or not os.path.exists(out_f):
+if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
@@ -175,9 +178,9 @@ acts = opt_utils.get_act_names(model)
 
 lr = .1/Tk
 
-out_f = out_f_base + '_both.pkl'
+out_f = Path(str(out_f_base) + '_both.pkl')
 
-if rerun1 or not os.path.exists(out_f):
+if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(

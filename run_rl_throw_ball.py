@@ -4,7 +4,7 @@ import numpy as np
 import sim_util as util
 import mujoco as mj
 import sys
-import os
+from pathlib import Path
 import time
 import pickle as pkl
 import arm_targ_traj as arm_t
@@ -25,9 +25,12 @@ DEFAULT_CAMERA_CONFIG = {
     "azimuth": 180,
 }
 
+outdir = Path('output')
+outdir.mkdir(parents=True, exist_ok=True)
+
 ### Set things up
 seed = 2
-out_f = 'grab_ball_ctrl.npy'
+out_f = outdir / 'grab_ball_ctrl.npy'
 
 Tk = 120
 lr = 1/Tk
@@ -76,7 +79,7 @@ targ_traj_mask_type = 'progressive'
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-if rerun1 or not os.path.exists(out_f):
+if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
