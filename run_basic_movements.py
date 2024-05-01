@@ -1,21 +1,16 @@
-import humanoid2d as h2d
-import opt_utils as opt_utils
+import humanoid2d
+import opt_utils
 import numpy as np
 import sim_util as util
 import mujoco as mj
 import sys
 import os
-import copy
-import time
 import pickle as pkl
-import grab_ball
+import arm_targ_traj as arm_t
 import basic_movements as bm
 from matplotlib import pyplot as plt
-from rl_utils import *
 import gymnasium as gym
-import random
 import torch
-import pickle as pkl
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -39,8 +34,8 @@ max_its = 200
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -49,7 +44,7 @@ render_mode = 'human'
 body_pos = 0
 
 # Create a Humanoid2dEnv object
-env = h2d.Humanoid2dEnv(
+env = humanoid2d.Humanoid2dEnv(
     render_mode=render_mode,
     frame_skip=1,
     default_camera_config=DEFAULT_CAMERA_CONFIG,
@@ -72,7 +67,7 @@ full_traj = traj1_xs
 targ_traj_mask = np.ones((Tk-1,))
 targ_traj_mask_type = 'progressive'
 
-noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -89,7 +84,7 @@ if rerun1 or not os.path.exists(out_f):
         model, data, Tk, noisev, data.qpos.copy(), acts['non_adh'],
         joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
     util.reset(model, data, 10, body_pos)
-    ctrls, lowest_losses = grab_ball.arm_target_traj(
+    ctrls, lowest_losses = arm_t.arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
         CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10,
         right_or_left='right')
@@ -104,7 +99,7 @@ else:
 
 ctrls_best = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, 10, body_pos)
-grab_ball.forward_to_contact(env, ctrls_best, True)
+arm_t.forward_to_contact(env, ctrls_best, True)
 
 util.reset(model, data, 10, body_pos)
 
@@ -119,7 +114,7 @@ full_traj = traj1_xs
 targ_traj_mask = np.ones((Tk-1,))
 targ_traj_mask_type = 'progressive'
 
-noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 joints = opt_utils.get_joint_names(model)
 acts = opt_utils.get_act_names(model)
@@ -133,7 +128,7 @@ if rerun1 or not os.path.exists(out_f):
         model, data, Tk, noisev, data.qpos.copy(), acts['non_adh'],
         joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
     util.reset(model, data, 10, body_pos)
-    ctrls, lowest_losses = grab_ball.arm_target_traj(
+    ctrls, lowest_losses = arm_t.arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
         CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10,
         right_or_left='left')
@@ -148,7 +143,7 @@ else:
 
 ctrls_best = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, 10, body_pos)
-grab_ball.forward_to_contact(env, ctrls_best, True)
+arm_t.forward_to_contact(env, ctrls_best, True)
 
 util.reset(model, data, 10, body_pos)
 
@@ -173,7 +168,7 @@ full_traj2 = traj2_xs
 targ_traj_mask2 = np.ones((Tk-1,))
 targ_traj_mask_type2 = 'progressive'
 
-noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 joints = opt_utils.get_joint_names(model)
 acts = opt_utils.get_act_names(model)
@@ -189,7 +184,7 @@ if rerun1 or not os.path.exists(out_f):
         model, data, Tk, noisev, data.qpos.copy(), acts['non_adh'],
         joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
     util.reset(model, data, 10, body_pos)
-    ctrls, lowest_losses = grab_ball.two_arm_target_traj(
+    ctrls, lowest_losses = arm_t.two_arm_target_traj(
         env,
         full_traj1, targ_traj_mask1, targ_traj_mask_type1,
         full_traj2, targ_traj_mask2, targ_traj_mask_type2,
@@ -205,5 +200,5 @@ else:
 
 ctrls_best = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, 10, body_pos)
-grab_ball.forward_to_contact(env, ctrls_best, True)
+arm_t.forward_to_contact(env, ctrls_best, True)
 

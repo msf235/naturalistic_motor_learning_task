@@ -1,15 +1,10 @@
 import humanoid2d as h2d
-# import baseball_lqr as lqr
 import opt_utils as opt_utils
 import optimizers as opts
 import numpy as np
 import sim_util as util
 import mujoco as mj
-import sys
-import os
 import copy
-import time
-import pickle as pkl
 import sortedcontainers as sc
 from matplotlib import pyplot as plt
 

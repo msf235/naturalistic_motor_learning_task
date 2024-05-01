@@ -1,15 +1,12 @@
 import humanoid2d as h2d
-# import baseball_lqr as lqr
 import opt_utils as opt_utils
 import numpy as np
 import sim_util as util
 import mujoco as mj
 import sys
 import os
-import copy
-import time
 import pickle as pkl
-import grab_ball
+import arm_targ_traj as arm_t
 from matplotlib import pyplot as plt
 
 ### Set things up
@@ -90,7 +87,7 @@ Tk2 = int(2*Tk/4)
 Tk3 = int((Tk+Tk2)/2)
 # Tk2 = int(3*Tk / 4)
 # Get angle between ball and shoulder
-arc_traj = grab_ball.arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+arc_traj = arm_t.arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
                               np.pi/2.5, Tk-Tk2-1, density_fn='')
 # from matplotlib import pyplot as plt
 # plt.plot(arc_traj[:,1], arc_traj[:,2], '-x')
@@ -150,9 +147,9 @@ max_its = 100
 # plt.plot(full_traj[:,1], full_traj[:,2])
 # plt.axis('square')
 # plt.show()
-# target_traj = grab_ball.arc_traj(model.joint('shoulder1_right'), 
+# target_traj = arm_t.arc_traj(model.joint('shoulder1_right'), 
 
-noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 
 if rerun or not os.path.exists(out_f):
@@ -163,10 +160,10 @@ if rerun or not os.path.exists(out_f):
         model, data, Tk, noisev, data.qpos.copy(), non_adh, body_j,
         free_ctrls=adhs)[:2]
     util.reset(model, data, 10, body_pos)
-    # k, ball_contact = grab_ball.forward_to_contact(env, ctrls + noisev,
+    # k, ball_contact = arm_t.forward_to_contact(env, ctrls + noisev,
                                          # False, render=True)
     # ctrls[adh] = 1
-    ctrls, k = grab_ball.right_arm_target_traj(
+    ctrls, k = arm_t.right_arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
         CTRL_RATE, CTRL_STD, Tk,
         stop_on_contact=True,
@@ -181,15 +178,15 @@ else:
         k = out['k']
 
 
-noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 util.reset(model, data, 10, body_pos)
 ctrls_n = (ctrls+noisev)[:k+1]
-grab_ball.show_forward_sim(env, ctrls_n)
+arm_t.show_forward_sim(env, ctrls_n)
 
 breakpoint()
 
-ctrls, k = grab_ball.right_arm_target(env, throw_target, ctrls_n,
+ctrls, k = arm_t.right_arm_target(env, throw_target, ctrls_n,
                                       seed, CTRL_RATE, CTRL_STD, 10*Tk,
                                       lr=1, stop_on_contact=False)
 
@@ -215,8 +212,8 @@ ctrls2 = opt_utils.get_stabilized_ctrls(
 )[0]
 ctrls2[:,adh]=1
 util.reset(model, data, 10, body_pos)
-grab_ball.show_forward_sim(env, ctrls_n)
-grab_ball.show_forward_sim(env, ctrls2)
+arm_t.show_forward_sim(env, ctrls_n)
+arm_t.show_forward_sim(env, ctrls2)
 
 breakpoint()
 

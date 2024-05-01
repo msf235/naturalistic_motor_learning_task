@@ -5,10 +5,9 @@ import sim_util as util
 import mujoco as mj
 import sys
 import os
-import copy
 import time
 import pickle as pkl
-import grab_ball
+import arm_targ_traj as arm_t
 from matplotlib import pyplot as plt
 
 from rl_utils import *
@@ -70,12 +69,12 @@ util.reset(model, data, 10, body_pos)
 CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 
-full_traj = grab_ball.throw_traj(model, data, Tk)
+full_traj = arm_t.throw_traj(model, data, Tk)
 
 targ_traj_mask = np.ones((Tk-1,))
 targ_traj_mask_type = 'progressive'
 
-noisev = grab_ball.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 if rerun1 or not os.path.exists(out_f):
     ### Get initial stabilizing controls
@@ -84,7 +83,7 @@ if rerun1 or not os.path.exists(out_f):
         model, data, Tk, noisev, data.qpos.copy(), acts['non_adh_right_hand'],
         joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
     util.reset(model, data, 10, body_pos)
-    ctrls, lowest_losses = grab_ball.right_arm_target_traj(
+    ctrls, lowest_losses = arm_t.arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
         CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
     with open(out_f, 'wb') as f:
@@ -98,15 +97,15 @@ else:
 
 ctrls_best = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, 10, body_pos)
-# grab_ball.forward_to_contact(env, ctrls, True)
-# grab_ball.forward_to_contact(env, ctrls_best, True)
+# arm_t.forward_to_contact(env, ctrls, True)
+# arm_t.forward_to_contact(env, ctrls_best, True)
 
 ctrls_end_best = np.tile(ctrls_best[-1], (149, 1))
 ctrls_end_best[:, right_arm_with_adh] = 0
 ctrls_with_end_best = np.concatenate([ctrls_best, ctrls_end_best])
 Tkf = ctrls_with_end_best.shape[0] + 1
 util.reset(model, data, 10, body_pos)
-grab_ball.forward_to_contact(env, ctrls_with_end_best, True)
+arm_t.forward_to_contact(env, ctrls_with_end_best, True)
 
 breakpoint()
 
@@ -116,7 +115,7 @@ ctrls_with_end = np.concatenate([ctrls, ctrls_end])
 Tkf = ctrls_with_end.shape[0] + 1
 
 # util.reset(model, data, 10, body_pos)
-# grab_ball.forward_to_contact(env, ctrls_with_end, True)
+# arm_t.forward_to_contact(env, ctrls_with_end, True)
 
 util.reset(model, data, 10, body_pos)
 wrapped_env = gym.wrappers.RecordEpisodeStatistics(env, 50)  # Records episode-reward
@@ -192,7 +191,7 @@ for seed in [1]:  # Fibonacci seeds
         actions = save_dict['actions']
 
     # obs = wrapped_env.reset(seed=seed, options=no_render)
-    # grab_ball.forward_to_contact(env, actions, True)
+    # arm_t.forward_to_contact(env, actions, True)
 
     progress_bar = util.ProgressBar(update_every=2,
                                     final_it=total_num_episodes)
@@ -233,7 +232,7 @@ for seed in [1]:  # Fibonacci seeds
             print("Episode:", episode, "Average Reward:", avg_reward)
             print()
             # obs, info = wrapped_env.reset(seed=seed, options=no_render)
-            # grab_ball.forward_to_contact(env, actions, True)
+            # arm_t.forward_to_contact(env, actions, True)
 
     rewards_over_seeds.append(reward_over_episodes)
 
