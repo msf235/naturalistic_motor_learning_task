@@ -93,7 +93,6 @@ if rerun1 or not out_f.exists():
         right_or_left='right')
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
-    # np.save(out_f, ctrls)
 else:
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)
@@ -105,7 +104,6 @@ util.reset(model, data, 10, body_pos)
 arm_t.forward_to_contact(env, ctrls_best, True)
 
 util.reset(model, data, 10, body_pos)
-
 
 # Move both arms simultaneously
 rs, thetas = bm.random_arcs_right_arm(model, data, Tk-1,
