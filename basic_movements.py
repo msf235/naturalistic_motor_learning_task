@@ -47,18 +47,6 @@ def reflective_random_walk(n_steps=1000, initial_position=0.5, step_std=0.02,
     
     return positions, smoothed_positions
 
-# # Plot the results
-# plt.figure(figsize=(12, 6))
-# plt.plot(positions, label='Original Random Walk', alpha=0.5)
-# plt.plot(smoothed_positions, label='Gaussian Smoothed Random Walk', linewidth=2)
-# plt.title('Reflective Gaussian Smoothed Random Walk')
-# plt.xlabel('Time Step')
-# plt.ylabel('Position')
-# plt.legend()
-# plt.grid(True)
-# plt.show()
-
-
 def arc_traj(x0, r, theta0, theta1, n, density_fn='uniform'):
     if density_fn != 'uniform':
         unif = np.linspace(0, 1, n)
@@ -177,12 +165,3 @@ def random_arcs_left_arm(model, data, n_steps, initial_xpos):
     return rs, thetas
 
 
-# def random_arcs_right_arm(model, data, Tk):
-
-# def random_arcs(model, data, Tk):
-    # shouldx = data.site('shoulder1_right').xpos
-    # elbowx = data.site('elbow_right').xpos
-    # handx = data.site('hand_right').xpos
-    # r1 = np.sum((shouldx - elbowx)**2)**.5
-    # r2 = np.sum((elbowx - handx)**2)**.5
-    # r = r1 + r2
