@@ -33,15 +33,15 @@ seed = 2
 out_f = outdir / 'grab_ball_ctrl.npy'
 
 Tk = 120
-lr = 1/Tk
+lr = 2/Tk
 lr2 = .06
 # max_its = 400
 max_its = 200
 # max_its = 120
 n_episode = 10000
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 rerun2 = False
 # rerun2 = True
 render_mode = 'human'
