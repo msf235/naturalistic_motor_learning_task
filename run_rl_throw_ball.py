@@ -59,10 +59,11 @@ env = h2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
-joints = opt_utils.get_joint_names(model)
+joints = opt_utils.get_joint_ids(model)
+acts = opt_utils.get_act_ids(model)
 
-acts = opt_utils.get_act_names(model)
-right_arm_with_adh = acts['right_arm_with_adh']
+right_arm_with_adh = acts['right_arm']
+n_adh = len(acts['adh'])
 
 env.reset(seed=seed) # necessary?
 util.reset(model, data, 10, body_pos)
@@ -83,10 +84,10 @@ if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['non_adh_right_hand'],
-        joints['body'], free_ctrls=np.ones((Tk,1)), K_update_interv=1)[:2]
+        model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
+        joints['body']['body_dofs'], free_ctrls=np.ones((Tk,n_adh)))[:2]
     util.reset(model, data, 10, body_pos)
-    arm_t.forward_to_contact(env, ctrls + noisev, True)
+    arm_t.forward_to_contact(env, ctrls+noisev, True)
     util.reset(model, data, 10, body_pos)
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
@@ -100,15 +101,17 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-ctrls_best = lowest_losses.peekitem(0)[1][1]
-util.reset(model, data, 10, body_pos)
-# arm_t.forward_to_contact(env, ctrls, True)
-# arm_t.forward_to_contact(env, ctrls_best, True)
 
-ctrls_end_best = np.tile(ctrls_best[-1], (149, 1))
-ctrls_end_best[:, right_arm_with_adh] = 0
-ctrls_with_end_best = np.concatenate([ctrls_best, ctrls_end_best])
-Tkf = ctrls_with_end_best.shape[0] + 1
+# util.reset(model, data, 10, body_pos)
+# arm_t.forward_to_contact(env, ctrls, True)
+# breakpoint()
+
+ctrls_best = lowest_losses.peekitem(0)[1][1]
+
+Te = 250
+util.reset(model, data, 10, body_pos)
+ctrls_end = np.zeros((Te, model.nu))
+ctrls_with_end_best = np.concatenate([ctrls_best, ctrls_end])
 util.reset(model, data, 10, body_pos)
 arm_t.forward_to_contact(env, ctrls_with_end_best, True)
 

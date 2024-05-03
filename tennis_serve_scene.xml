@@ -72,19 +72,20 @@
       <joint name="ball_hinge_root" type="hinge" axis="1 0 0" range="-1000 1000"/>
     </body>
 
-    <geom name="racketstand" size=".1 .1 .5" pos="0 -.8 .5" type="box"
+    <geom name="racketstand" size=".1 .1 .5" pos="0 -1.2 .5" type="box"
       material="obj" condim="3"/>
-    <body name="racket" pos="0 -.7 1.01">
+    <body name="racket" pos="0 -1.1 1.01">
       <geom name="handle" type="cylinder" size=".01 .15" pos="0 .06 0" 
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 1"
         zaxis="0 1 0"/>
+      <site name="racket_handle" pos="0 .15 0" size=".02" rgba=".7 .7 .2 1"/>
       <geom name="racket_net" type="box" size=".05 .14 .005" pos="0 -.21 0" 
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 1"/>
-      <site name="racket_handle" pos="0 0 0" size=".01"/>
       <site name="racket" pos="0 0 0"/>
       <joint name="racket_z_root" type="slide" axis="0 0 1" range="-100 100"/>
       <joint name="racket_x_root" type="slide" axis="0 1 0" range="-100 100"/>
-      <joint name="racket_hinge_root" type="hinge" axis="1 0 0" range="-1000 1000"/>
+      <joint name="racket_hinge_root" type="hinge" axis="1 0 0"
+        range="-1000 1000"/>
     </body>
 
     <body name="target" pos="0 2 .5">

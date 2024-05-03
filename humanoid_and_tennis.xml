@@ -15,8 +15,8 @@
 
 <mujoco model="Humanoid">
   <option timestep="0.005"/>
-  <include file="baseball_pitch_scene.xml"/>
   <include file="humanoid.xml"/>
+  <include file="tennis_serve_scene.xml"/>
   <visual>
     <map force="0.1" zfar="30"/>
     <rgba haze="0.15 0.25 0.35 1"/>
@@ -28,7 +28,6 @@
     <headlight ambient=".8 .8 .8" specular=".8 .8 .8"/>
   </visual>
   <keyframe>
-    <key name="baseball_pos"
-      qpos="0 0 0 0 0 0 0 -.3 0 0 0 0 0 0 0"/>
+    <key name="tennis_pos" qpos="0 0 0 0 0 0 0 -.4 0 0 0 0 0 0 0 0 0 0"/>
   </keyframe>
 </mujoco>
