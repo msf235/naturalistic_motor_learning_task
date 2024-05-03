@@ -69,8 +69,8 @@ env.reset(seed=seed) # necessary?
 util.reset(model, data, 10, body_pos)
 
 # Get noise
-CTRL_STD = .02       # actuator units
-# CTRL_STD = 0       # actuator units
+# CTRL_STD = .05       # actuator units
+CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 
 full_traj = arm_t.throw_traj(model, data, Tk)
@@ -85,7 +85,7 @@ if rerun1 or not out_f.exists():
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        joints['body']['body_dofs'], free_ctrls=np.ones((Tk,n_adh)))[:2]
+        joints['body']['all'], free_ctrls=np.ones((Tk,n_adh)))[:2]
     util.reset(model, data, 10, body_pos)
     arm_t.forward_to_contact(env, ctrls+noisev, True)
     util.reset(model, data, 10, body_pos)
