@@ -270,9 +270,9 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             "qvel": self.data.qvel.size,
         }
 
-        joints = opt_utils.get_joint_names(self.model)
-        self.ball_joints = joints['ball_jnts']
-        jid = self.model.joint('x_root').jntid
+        # joints = opt_utils.get_joint_names(self.model)
+        # self.ball_joints = joints['ball_jnts']
+        jid = self.model.joint('human_x_root').jntid
         # mj.mj_resetData(model, data)
         # mj.mj_forward(model, data)
         if self.body_pos is not None:

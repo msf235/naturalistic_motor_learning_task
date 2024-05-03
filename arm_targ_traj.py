@@ -9,7 +9,7 @@ import sortedcontainers as sc
 from matplotlib import pyplot as plt
 
 def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
-    acts = opt_utils.get_act_names(model)
+    acts = opt_utils.get_act_ids(model)
     adh = acts['adh_right_hand']
     rng = np.random.default_rng(seed)
     width = int(CTRL_RATE/model.opt.timestep)
@@ -56,6 +56,40 @@ def throw_traj(model, data, Tk):
     
     return full_traj
 
+def tennis_traj(model, data, Tk):
+    shouldx = data.site('shoulder1_right').xpos
+    elbowx = data.site('elbow_right').xpos
+    handx = data.site('hand_right').xpos
+    r1 = np.sum((shouldx - elbowx)**2)**.5
+    r2 = np.sum((elbowx - handx)**2)**.5
+    r = r1 + r2
+    Tk1 = int(Tk / 3)
+    Tk2 = int(2*Tk/4)
+    Tk3 = int((Tk+Tk2)/2)
+
+    grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.01])
+    s = np.tanh(5*np.linspace(0, 1, Tk1))
+    s = np.tile(s, (3, 1)).T
+    grab_traj = handx + s*(grab_targ - handx)
+
+    arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+                                  np.pi/2.5, Tk-Tk2-1, density_fn='')
+
+    setup_traj = np.zeros((Tk2, 3))
+    s = np.linspace(0, 1, Tk2-Tk1)
+    s = np.stack((s, s, s)).T
+    setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
+
+    # grab_traj[-1] = grab_targ
+
+    full_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
+
+    # plt.plot(full_traj[:, 1], full_traj[:, 2])
+    # plt.scatter(shouldx[1], shouldx[2])
+    # plt.show()
+
+    return full_traj
+
 def show_forward_sim(env, ctrls):
     for k in range(ctrls.shape[0]-1):
         util.step(env.model, env.data, ctrls[k])
@@ -100,21 +134,18 @@ def two_arm_target_traj(env,
 
     data0 = copy.deepcopy(data)
 
-    joints = opt_utils.get_joint_names(model)
-    acts = opt_utils.get_act_names(model)
+    joints = opt_utils.get_joint_ids(model)
+    acts = opt_utils.get_act_ids(model)
 
-    def ints(l1, l2):
-        ret_val = list(set(l1).intersection(set(l2)))
-        ret_val.sort()
-        return ret_val
-
-    body_j = joints['body']
+    body_j = joints['body']['body_dofs']
+    joints = joints['body']
     arm_j = joints['right_arm'] + joints['left_arm']
     arm_j.sort()
-    arm_with_adh = acts['right_arm_with_adh'] + acts['left_arm_with_adh']
-    arm_with_adh.sort()
-    not_arm_a_not_adh = ints(acts['non_right_arm_non_adh'],
-                             acts['non_left_arm_non_adh'])
+    arm_a = acts['right_arm'] + acts['left_arm']
+    arm_a.sort()
+    not_arm_a = [k for k in acts['all'] if k not in arm_a]
+    not_right_arm_a = [k for k in acts['all'] if k not in acts['right_arm']]
+    not_left_arm_a = [k for k in acts['all'] if k not in acts['left_arm']]
     not_arm_j = [i for i in body_j if i not in arm_j]
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -163,12 +194,12 @@ def two_arm_target_traj(env,
         util.reset_state(data, data0)
         grads1, hxs1, dldss1 = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj1, targ_traj_mask1,
-            grad_trunc_tk, fixed_act_inds=acts['non_right_arm'],
+            grad_trunc_tk, fixed_act_inds=not_right_arm_a,
             right_or_left='right'
         )
         grads2, hxs2, dldss2 = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj2, targ_traj_mask2,
-            grad_trunc_tk, fixed_act_inds=acts['non_left_arm'],
+            grad_trunc_tk, fixed_act_inds=not_left_arm_a,
             right_or_left='left'
         )
         loss1 = np.mean(dldss1**2)
@@ -180,8 +211,8 @@ def two_arm_target_traj(env,
 
         util.reset_state(data, data0)
         ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-            model, data, Tk, noisev, qpos0, not_arm_a_not_adh,
-            not_arm_j, ctrls[:, arm_with_adh],
+            model, data, Tk, noisev, qpos0, not_arm_a,
+            not_arm_j, ctrls[:, arm_a],
         )
         loss = (loss1.item() + loss2.item()) / 2
         lowest_losses.append(loss, (k0, ctrls.copy()))
@@ -213,21 +244,24 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
 
     data0 = copy.deepcopy(data)
 
-    joints = opt_utils.get_joint_names(model)
-    acts = opt_utils.get_act_names(model)
+    joints = opt_utils.get_joint_ids(model)
+    acts = opt_utils.get_act_ids(model)
 
     def ints(l1, l2):
         return list(set(l1).intersection(set(l2)))
 
     body_j = joints['body']
-    if right_or_left == 'both':
-        arm_j = joints['right_arm'] + joints['left_arm']
-        not_arm_a_not_adh = ints(acts['non_right_arm_non_adh'],
-                                 acts['non_left_arm_non_adh'])
-    else:
-        arm_j = joints[f'{right_or_left}_arm']
-        not_arm_a_not_adh = acts[f'non_{right_or_left}_arm_non_adh']
-    not_arm_j = [i for i in body_j if i not in arm_j]
+    arm_j = body_j[f'{right_or_left}_arm']
+    not_arm_j = [i for i in body_j['body_dofs'] if i not in arm_j]
+    arm_a = acts[f'{right_or_left}_arm']
+    arm_a_without_adh = [k for k in arm_a if k not in acts['adh']]
+    # Include all adhesion (including other hand)
+    arm_with_all_adh = [k for k in acts['all'] if k in arm_a or k in acts['adh']]
+    arm_with_all_adh.sort()
+    not_arm_a = [k for k in acts['all'] if k not in arm_a]
+    # Remove any remaining adhesion actuators
+    not_arm_a = [k for k in not_arm_a if k not in acts['adh']]
+
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
     qs, qvels = util.forward_sim(model, data, ctrls)
@@ -265,18 +299,18 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
         util.reset_state(data, data0)
         grads, hxs, dldss = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj, targ_traj_mask,
-            grad_trunc_tk, fixed_act_inds=acts[f'non_{right_or_left}_arm'],
+            grad_trunc_tk, deriv_ids=arm_a_without_adh,
             right_or_left=right_or_left
         )
-        # grads[:Tk1] = 2*grads[:Tk1]
         loss = np.mean(dldss**2)
-        ctrls[:, acts[f'{right_or_left}_arm']] = optm.update(
-            ctrls[:, acts[f'{right_or_left}_arm']], grads[:Tk-1], 'ctrls',
-            loss)
+        ctrls[:, arm_a_without_adh] = optm.update(
+            ctrls[:, arm_a_without_adh], grads, 'ctrls', loss)
         util.reset_state(data, data0)
         ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-            model, data, Tk, noisev, qpos0, not_arm_a_not_adh,
-            not_arm_j, ctrls[:, acts[f'{right_or_left}_arm_with_adh']],
+            model, data, Tk, noisev, qpos0,
+            # not_arm_a_not_adh,
+            not_arm_a,
+            not_arm_j, ctrls[:, arm_with_all_adh],
         )
         # if loss.item()
         lowest_losses.append(loss.item(), (k0, ctrls.copy()))

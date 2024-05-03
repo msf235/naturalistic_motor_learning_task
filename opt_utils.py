@@ -60,89 +60,94 @@ def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     # ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
     return ctrl0
 
-def get_joint_names(model, data=None):
-    """Get joint names for body."""
-    joints = {}
-    joints['joint_names'] = [model.joint(i).name for i in range(model.njnt)]
+body_keys = ['human', 'shoulder', 'hand', 'torso', 'hip', 'knee', 'ankle',
+             'abdomen', 'elbow', 'arm'] 
 
+def key_match(key, key_list):
+    for k in key_list:
+        if k in key:
+            return True
+    return False
+
+def get_body_joints(model, data=None):
+    """Get joint names for body."""
+    body_keys = ['human', 'shoulder', 'torso', 'hip', 'knee', 'ankle',
+                 'abdomen', 'elbow', 'arm'] 
+    jntn = lambda k: model.joint(k).name
+
+    joints = {}
+    joints['all'] = [k for k in range(model.nq) if
+                      key_match(jntn(k), body_keys)]
+    jba = joints['all']
     # Get indices into relevant sets of joints.
-    joints['root_dofs'] = range(3)
-    joints['body_dofs'] = range(3, model.nq)
+    joints['root_dofs'] = [k for k in jba if 'root' in jntn(k)]
+    joints['body_dofs'] = [k for k in jba if k not in joints['root_dofs']]
+    jb = joints['body_dofs']
+
     joints['abdomen_dofs'] = [
-        model.joint(name).dofadr[0]
-        for name in joints['joint_names']
-        if 'abdomen' in name
-        and not 'z' in name
+        k for k in jb if 'abdomen' in jntn(k) and not 'z' in jntn(k)
     ]
     joints['leg_dofs'] = [
-        model.joint(name).dofadr[0]
-        for name in joints['joint_names']
-        if ('hip' in name or 'knee' in name or 'ankle' in name)
-        and not 'z' in name
+        k for k in jb if key_match(jntn(k), ['hip', 'knee', 'ankle'])
     ]
     joints['balance_dofs'] = joints['abdomen_dofs'] + joints['leg_dofs']
-    joints['other_dofs'] = np.setdiff1d(joints['body_dofs'],
-                                        joints['balance_dofs'])
+    joints['balance_dofs'].sort()
+    joints['other_dofs'] = [k for k in jb if k not in joints['balance_dofs']]
     joints['right_arm'] = [
-        model.joint(name).dofadr[0] for name in joints['joint_names']
-        if ('shoulder' in name or 'elbow' in name) and 'right' in name
+        k for k in jb if key_match(jntn(k), ['shoulder', 'elbow'])
+        and 'right' in jntn(k)
     ]
     joints['left_arm'] = [
-        model.joint(name).dofadr[0] for name in joints['joint_names']
-        if ('shoulder' in name or 'elbow' in name) and 'left' in name
-    ]
-    ball_jnts = [
-        model.joint(name).dofadr[0] for name in joints['joint_names']
-        if 'ball' in name
+        k for k in jb if key_match(jntn(k), ['shoulder', 'elbow'])
+        and 'left' in jntn(k)
     ]
 
-    joints['ball_jnts'] = ball_jnts
+    joints['not_right_arm'] = [i for i in jb if i not in joints['right_arm']]
+    joints['not_left_arm'] = [i for i in jb if i not in joints['left_arm']]
 
-    joints['non_right_arm'] = [i for i in range(model.nq) if i not
-                                in joints['right_arm']+ball_jnts]
-    joints['non_left_arm'] = [i for i in range(model.nq) if i not
-                                in joints['left_arm']+ball_jnts]
-    joints['body'] = [k for k in range(model.nq) if k not in ball_jnts]
     return joints
 
-def get_act_names(model, data=None):
+def get_joint_ids(model, data=None):
+    jntn = lambda k: model.joint(k).name
+    joints = {}
+    joints['joint_names'] = [jntn(k) for k in range(model.njnt)]
+    joints['body'] = get_body_joints(model, data)
+    joints['ball'] = [
+        k for k in range(model.nq) if 'ball' in jntn(k)
+    ]
+    joints['tennis'] = [
+        k for k in range(model.nq) if 'tennis' in jntn(k)
+    ]
+    return joints
+
+def get_act_ids(model, data=None):
     acts = {}
     acts['act_names'] = [model.actuator(i).name for i in range(model.nu)]
+    acts['all'] = [i for i in range(model.nu)]
     acts.update(get_act_names_left_or_right(model, data, 'right'))
     acts.update(get_act_names_left_or_right(model, data, 'left'))
-    acts[f'non_adh'] = [
-        i for i in range(model.nu) if i not in
-        acts[f'adh_left_hand'] + acts[f'adh_right_hand']
-    ]
+    acts['adh'] = acts[f'adh_left_hand'] + acts[f'adh_right_hand']
+    acts['adh'].sort()
+    acts[f'not_adh'] = [k for k in acts['all'] if k not in acts['adh']]
     return acts
 
 def get_act_names_left_or_right(model, data=None, left_or_right='right'):
-    act_names = [model.actuator(i).name for i in range(model.nu)]
+    actn = lambda k: model.actuator(k).name
+    act_names = [actn(k) for k in range(model.nu)]
     acts = {}
     acts[f'{left_or_right}_arm'] = [
         model.actuator(name).id
         for name in act_names
-        if ('shoulder' in name or 'elbow' in name) and left_or_right in name
+        if ('shoulder' in name or 'elbow' in name or 'hand' in name)
+        and left_or_right in name
     ]
-    try:
-        acts[f'adh_{left_or_right}_hand'] = [
-            model.actuator(name).id
-            for name in act_names
-            if 'hand' in name and left_or_right in name and 'adh' in name
-        ]
-        acts[f'{left_or_right}_arm_with_adh'] = \
-            acts[f'{left_or_right}_arm'] + acts[f'adh_{left_or_right}_hand']
-    except KeyError:
-        acts[f'adh_{left_or_right}_hand'] = []
-    acts[f'non_adh_{left_or_right}_hand'] = [
-        i for i in range(model.nu) if i not in
+    acts[f'adh_{left_or_right}_hand'] = [
+        k for k in acts[f'{left_or_right}_arm'] if 'adh' in actn(k)
+    ]
+    acts[f'{left_or_right}_arm_without_adh'] = [
+        k for k in acts[f'{left_or_right}_arm'] if k not in
         acts[f'adh_{left_or_right}_hand']
     ]
-    acts[f'non_{left_or_right}_arm_non_adh'] = [
-        i for i in range(model.nu) if i not in acts[f'{left_or_right}_arm'] and
-        i not in acts[f'adh_{left_or_right}_hand']]
-    acts[f'non_{left_or_right}_arm'] = [i for i in range(model.nu) if i not in
-                               acts[f'{left_or_right}_arm']]
     return acts
 
 def get_Q_balance(model, data):
@@ -164,7 +169,7 @@ def get_Q_balance(model, data):
 def get_Q_joint(model, data=None, excluded_acts=[]):
     balance_joint_cost  = 3     # Joints required for balancing.
     other_joint_cost    = .3    # Other joints.
-    joints = get_joint_names(model)
+    joints = get_joint_ids(model)['body']
     # Construct the Qjoint matrix.
     Qjoint = np.eye(model.nq)
     Qjoint[joints['root_dofs'], joints['root_dofs']] *= 0  # Don't penalize free joint directly.
@@ -223,6 +228,7 @@ def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
     Q = get_Q_matrix(model, data)
     K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
                                          active_ctrl_ids)
+    breakpoint()
     return K
 
 def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
@@ -286,28 +292,27 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
 
 ### Gradient descent
 def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
-               grad_trunc_tk, fixed_act_inds=[], right_or_left='right'):
-    """fixed_act_inds specifies the indices of the actuators that will NOT be
-    updated (for instance, the actuators not related to the right arm)."""
+               grad_trunc_tk, deriv_ids=[], right_or_left='right'):
+    """deriv_inds specifies the indices of the actuators that will be
+    updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
-    nufree = model.nu - len(fixed_act_inds)
+    nuderiv = len(deriv_ids)
     Tk = ctrls.shape[0]
-    As = np.zeros((Tk+1, 2*model.nv, 2*model.nv))
-    Bs = np.zeros((Tk+1, 2*model.nv, nufree))
+    As = np.zeros((Tk, 2*model.nv, 2*model.nv))
+    Bs = np.zeros((Tk, 2*model.nv, nuderiv))
     B = np.zeros((2*model.nv, model.nu))
     C = np.zeros((3, model.nv))
     dldqs = np.zeros((Tk, 2*model.nv))
     dldss = np.zeros((Tk, 3))
     lams = np.zeros((Tk, 2*model.nv))
-    not_fixed_act_inds = [i for i in range(model.nu) if i not in
-                          fixed_act_inds]
+    fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     epsilon = 1e-6
     hxs = np.zeros((Tk, 3))
 
     for tk in range(Tk):
         mj.mj_forward(model, data)
         mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
-        Bs[tk] = np.delete(B, fixed_act_inds, axis=1)
+        Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
         mj.mj_jacSite(
             model, data, C, None, site=data.site(f'hand_{right_or_left}').id)
         dlds = data.site(f'hand_{right_or_left}').xpos - targ_traj[tk]
@@ -322,11 +327,12 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
     ttm = targ_traj_mask.reshape(-1, 1)
     dldqs = dldqs * ttm
     lams[-1] = dldqs[-1]
-    grads = np.zeros((Tk, nufree))
+    grads = np.zeros((Tk, nuderiv))
     # tau_loss_factor = 1e-9
     tau_loss_factor = 0
-    loss_u = np.delete(ctrls, fixed_act_inds, axis=1)
+    loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
 
+    # Todo: fix indexing
     for tk in range(2, Tk): # Go backwards in time
         lams[Tk-tk] = dldqs[Tk-tk] + As[Tk-tk].T @ lams[Tk-tk+1]
         # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
