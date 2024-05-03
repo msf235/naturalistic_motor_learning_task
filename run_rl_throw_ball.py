@@ -40,8 +40,8 @@ max_its = 200
 # max_its = 120
 n_episode = 10000
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 rerun2 = False
 # rerun2 = True
 render_mode = 'human'
@@ -69,8 +69,8 @@ env.reset(seed=seed) # necessary?
 util.reset(model, data, 10, body_pos)
 
 # Get noise
-CTRL_STD = .05       # actuator units
-# CTRL_STD = 0       # actuator units
+# CTRL_STD = .05       # actuator units
+CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 
 full_traj = arm_t.throw_traj(model, data, Tk)
@@ -87,9 +87,8 @@ if rerun1 or not out_f.exists():
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
         joints['body']['all'], free_ctrls=np.ones((Tk,n_adh)))[:2]
     util.reset(model, data, 10, body_pos)
-    arm_t.forward_to_contact(env, ctrls, True)
+    arm_t.forward_to_contact(env, ctrls+noisev, True)
     util.reset(model, data, 10, body_pos)
-    breakpoint()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
         CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
@@ -102,19 +101,39 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
+
 # util.reset(model, data, 10, body_pos)
 # arm_t.forward_to_contact(env, ctrls, True)
 # breakpoint()
 
 ctrls_best = lowest_losses.peekitem(0)[1][1]
-# util.reset(model, data, 10, body_pos)
-# arm_t.forward_to_contact(env, ctrls, True)
-# arm_t.forward_to_contact(env, ctrls_best, True)
 
-ctrls_end_best = np.tile(ctrls_best[-1], (149, 1))
-ctrls_end_best[:, right_arm_with_adh] = 0
-ctrls_with_end_best = np.concatenate([ctrls_best, ctrls_end_best])
-Tkf = ctrls_with_end_best.shape[0] + 1
+arm_a = acts['right_arm']
+not_arm_a = [k for k in acts['all'] if k not in arm_a and k not in acts['adh']]
+# Remove any remaining adhesion actuators
+not_arm_j = [i for i in joints['body']['body_dofs'] if i not in
+             joints['body']['right_arm'] and i not in joints['body']['right_arm']]
+arm_a_without_adh = [k for k in arm_a if k not in acts['adh']]
+# Include all adhesion (including other hand)
+arm_with_all_adh = [k for k in acts['all'] if k in arm_a or k in acts['adh']]
+
+util.reset(model, data, 10, body_pos)
+arm_t.forward_to_contact(env, ctrls_best, False)
+# ctrls_end_best = np.tile(ctrls_best[-1], (149, 1))
+# ctrls_end_best[:, right_arm_with_adh] = 0
+# ctrls_with_end_best = np.concatenate([ctrls_best, ctrls_end_best])
+Te = 250
+# util.reset(model, data, 10, body_pos)
+# ctrls_end = np.zeros((Te, model.nu))
+noisev = arm_t.make_noisev(model, seed, Te, CTRL_STD, CTRL_RATE)
+ctrls_end, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+    model, data, Te, noisev, data.qpos.copy(),
+    acts['not_adh'], not_arm_j, np.zeros((Te, n_adh)),
+)
+ctrls_with_end_best = np.concatenate([ctrls_best, ctrls_end])
+# ctrls, K = opt_utils.get_stabilized_ctrls(
+    # model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
+    # joints['body']['all'], free_ctrls=np.ones((Tk,n_adh)))[:2]
 util.reset(model, data, 10, body_pos)
 arm_t.forward_to_contact(env, ctrls_with_end_best, True)
 

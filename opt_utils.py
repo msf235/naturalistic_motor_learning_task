@@ -45,8 +45,8 @@ class AdamOptim():
 
 ### LQR
 def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
-    data = copy.deepcopy(data)
-    data.qpos[:] = qpos0.copy()
+    # data = copy.deepcopy(data)
+    # data.qpos[:] = qpos0.copy()
     mj.mj_forward(model, data)
     data.qacc[:] = 0
     data.qvel[:] = 0
@@ -197,7 +197,7 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
                                      active_ctrl_ids):
     # Assumes that data.ctrl has been set to ctrl0 and data.qpos has been set
     # to qpos0.
-    data = copy.deepcopy(data)
+    # data = copy.deepcopy(data)
     qvel = data.qvel.copy()
     nq = model.nq
     A = np.zeros((2*nq, 2*nq))
@@ -220,7 +220,7 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
 def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
                              active_ctrl_ids):
     # What about data.qpos, data.qvel, data.qacc?
-    data = copy.deepcopy(data)
+    # data = copy.deepcopy(data)
     data.ctrl[active_ctrl_ids] = ctrl0
     nq = model.nq
     nu = model.nu
@@ -228,7 +228,6 @@ def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
     Q = get_Q_matrix(model, data)
     K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
                                          active_ctrl_ids)
-    breakpoint()
     return K
 
 def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
@@ -274,11 +273,14 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
     ctrls = np.zeros((Tk-1, model.nu))
     for k in range(Tk-1):
         if k % K_update_interv == 0:
+            datak0 = copy.deepcopy(data)
             qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
             ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_ids,
                               ctrl_act_ids)
+            util.reset_state(data, datak0)
             K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
                                          ctrl_act_ids)
+            util.reset_state(data, datak0)
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
                                    stable_jnt_ids)
         ctrls[k][ctrl_act_ids] = ctrl

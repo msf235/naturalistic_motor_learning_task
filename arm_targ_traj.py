@@ -258,9 +258,8 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
     # Include all adhesion (including other hand)
     arm_with_all_adh = [k for k in acts['all'] if k in arm_a or k in acts['adh']]
     arm_with_all_adh.sort()
-    not_arm_a = [k for k in acts['all'] if k not in arm_a]
-    # Remove any remaining adhesion actuators
-    not_arm_a = [k for k in not_arm_a if k not in acts['adh']]
+    not_arm_a = [k for k in acts['all'] if k not in arm_a and k not in
+                 acts['adh']]
 
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -308,7 +307,6 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
         util.reset_state(data, data0)
         ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
             model, data, Tk, noisev, qpos0,
-            # not_arm_a_not_adh,
             not_arm_a,
             not_arm_j, ctrls[:, arm_with_all_adh],
         )
