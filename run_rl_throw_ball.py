@@ -40,8 +40,8 @@ max_its = 200
 # max_its = 120
 n_episode = 10000
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 rerun2 = False
 # rerun2 = True
 render_mode = 'human'
@@ -68,8 +68,8 @@ env.reset(seed=seed) # necessary?
 util.reset(model, data, 10, body_pos)
 
 # Get noise
-# CTRL_STD = .05       # actuator units
-CTRL_STD = 0       # actuator units
+CTRL_STD = .02       # actuator units
+# CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 
 full_traj = arm_t.throw_traj(model, data, Tk)
@@ -84,7 +84,9 @@ if rerun1 or not out_f.exists():
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['non_adh_right_hand'],
-        joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
+        joints['body'], free_ctrls=np.ones((Tk,1)), K_update_interv=1)[:2]
+    util.reset(model, data, 10, body_pos)
+    arm_t.forward_to_contact(env, ctrls + noisev, True)
     util.reset(model, data, 10, body_pos)
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,

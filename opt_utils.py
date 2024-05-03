@@ -45,8 +45,8 @@ class AdamOptim():
 
 ### LQR
 def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
-    data = copy.deepcopy(data)
-    data.qpos[:] = qpos0.copy()
+    # data = copy.deepcopy(data)
+    # data.qpos[:] = qpos0.copy()
     mj.mj_forward(model, data)
     data.qacc[:] = 0
     data.qvel[:] = 0
@@ -58,6 +58,7 @@ def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     # ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(M)
     ctrl0 = np.linalg.lstsq(M.T, qfrc0, rcond=None)[0]
     # ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
+    # breakpoint()
     return ctrl0
 
 def get_joint_names(model, data=None):
@@ -192,7 +193,7 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
                                      active_ctrl_ids):
     # Assumes that data.ctrl has been set to ctrl0 and data.qpos has been set
     # to qpos0.
-    data = copy.deepcopy(data)
+    # data = copy.deepcopy(data)
     qvel = data.qvel.copy()
     nq = model.nq
     A = np.zeros((2*nq, 2*nq))
@@ -215,7 +216,7 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
 def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
                              active_ctrl_ids):
     # What about data.qpos, data.qvel, data.qacc?
-    data = copy.deepcopy(data)
+    # data = copy.deepcopy(data)
     data.ctrl[active_ctrl_ids] = ctrl0
     nq = model.nq
     nu = model.nu
@@ -254,6 +255,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         K_update_interv: Update interval for K.
         """
 
+    data0 = copy.deepcopy(data)
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
     free_jnt_ids = [k for k in range(model.njnt) if k not in stable_jnt_ids]
     if free_ctrls is None:
@@ -268,11 +270,14 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
     ctrls = np.zeros((Tk-1, model.nu))
     for k in range(Tk-1):
         if k % K_update_interv == 0:
+            datak0 = copy.deepcopy(data)
             qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
             ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_ids,
                               ctrl_act_ids)
+            util.reset_state(data, datak0)
             K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
                                          ctrl_act_ids)
+            util.reset_state(data, datak0)
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
                                    stable_jnt_ids)
         ctrls[k][ctrl_act_ids] = ctrl
