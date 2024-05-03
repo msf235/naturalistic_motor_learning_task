@@ -134,19 +134,22 @@ def two_arm_target_traj(env,
 
     data0 = copy.deepcopy(data)
 
-    joints = opt_utils.get_joint_ids(model)
+    joints = opt_utils.get_joint_ids(model)['body']
     acts = opt_utils.get_act_ids(model)
 
-    body_j = joints['body']['body_dofs']
-    joints = joints['body']
-    arm_j = joints['right_arm'] + joints['left_arm']
-    arm_j.sort()
-    arm_a = acts['right_arm'] + acts['left_arm']
-    arm_a.sort()
-    not_arm_a = [k for k in acts['all'] if k not in arm_a]
-    not_right_arm_a = [k for k in acts['all'] if k not in acts['right_arm']]
-    not_left_arm_a = [k for k in acts['all'] if k not in acts['left_arm']]
+    body_j = joints['body_dofs']
+    arm_j = [k for k in body_j if k in joints['right_arm'] or k in
+             joints['left_arm']]
     not_arm_j = [i for i in body_j if i not in arm_j]
+    arm_a = [k for k in acts['all'] if k in acts['right_arm'] or k in
+             acts['left_arm']]
+    not_arm_a = [k for k in acts['all'] if k not in arm_a and k not in
+                 acts['adh']]
+    right_arm_without_adh = [k for k in acts['right_arm'] if k not in
+                             acts['adh']]
+    left_arm_without_adh = [k for k in acts['left_arm'] if k not in
+                             acts['adh']]
+
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
     qs, qvels = util.forward_sim(model, data, ctrls)
@@ -194,20 +197,20 @@ def two_arm_target_traj(env,
         util.reset_state(data, data0)
         grads1, hxs1, dldss1 = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj1, targ_traj_mask1,
-            grad_trunc_tk, fixed_act_inds=not_right_arm_a,
+            grad_trunc_tk, deriv_ids=right_arm_without_adh,
             right_or_left='right'
         )
         grads2, hxs2, dldss2 = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj2, targ_traj_mask2,
-            grad_trunc_tk, fixed_act_inds=not_left_arm_a,
+            grad_trunc_tk, deriv_ids=left_arm_without_adh,
             right_or_left='left'
         )
         loss1 = np.mean(dldss1**2)
-        ctrls[:, acts['right_arm']] = optm.update(
-            ctrls[:, acts['right_arm']], grads1[:Tk-1], 'ctrls', loss1)
+        ctrls[:, right_arm_without_adh] = optm.update(
+            ctrls[:, right_arm_without_adh], grads1[:Tk-1], 'ctrls', loss1)
         loss2 = np.mean(dldss2**2)
-        ctrls[:, acts['left_arm']] = optm2.update(
-            ctrls[:, acts['left_arm']], grads2[:Tk-1], 'ctrls', loss2)
+        ctrls[:, left_arm_without_adh] = optm2.update(
+            ctrls[:, left_arm_without_adh], grads2[:Tk-1], 'ctrls', loss2)
 
         util.reset_state(data, data0)
         ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
@@ -218,14 +221,14 @@ def two_arm_target_traj(env,
         lowest_losses.append(loss, (k0, ctrls.copy()))
         print(loss)
 
-    # fig, ax = plt.subplots()
-    # target_traj = target_traj1 * targ_traj_mask1.reshape(-1, 1)
-    # ax.plot(tt, hxs1[:,1], color='blue', label='x')
-    # ax.plot(tt, target_traj[:,1], '--', color='blue')
-    # ax.plot(tt, hxs1[:,2], color='red', label='y')
-    # ax.plot(tt, target_traj[:,2], '--', color='red')
-    # ax.legend()
-    # plt.show()
+    fig, ax = plt.subplots()
+    target_traj = target_traj1 * targ_traj_mask1.reshape(-1, 1)
+    ax.plot(tt, hxs1[:,1], color='blue', label='x')
+    ax.plot(tt, target_traj[:,1], '--', color='blue')
+    ax.plot(tt, hxs1[:,2], color='red', label='y')
+    ax.plot(tt, target_traj[:,2], '--', color='red')
+    ax.legend()
+    plt.show()
     # util.reset_state(data, data0) # This is necessary, but why?
     # k, ball_contact = forward_to_contact(env, ctrls + noisev,
                                          # render=True)
@@ -250,9 +253,8 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
     def ints(l1, l2):
         return list(set(l1).intersection(set(l2)))
 
-    body_j = joints['body']
-    arm_j = body_j[f'{right_or_left}_arm']
-    not_arm_j = [i for i in body_j['body_dofs'] if i not in arm_j]
+    arm_j = joints['body'][f'{right_or_left}_arm']
+    not_arm_j = [i for i in joints['body']['body_dofs'] if i not in arm_j]
     arm_a = acts[f'{right_or_left}_arm']
     arm_a_without_adh = [k for k in arm_a if k not in acts['adh']]
     # Include all adhesion (including other hand)
@@ -314,14 +316,14 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
         lowest_losses.append(loss.item(), (k0, ctrls.copy()))
         print(loss.item())
 
-    # fig, ax = plt.subplots()
-    # target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
-    # ax.plot(tt, hxs[:,1], color='blue', label='x')
-    # ax.plot(tt, target_traj[:,1], '--', color='blue')
-    # ax.plot(tt, hxs[:,2], color='red', label='y')
-    # ax.plot(tt, target_traj[:,2], '--', color='red')
-    # ax.legend()
-    # plt.show()
+    fig, ax = plt.subplots()
+    target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
+    ax.plot(tt, hxs[:,1], color='blue', label='x')
+    ax.plot(tt, target_traj[:,1], '--', color='blue')
+    ax.plot(tt, hxs[:,2], color='red', label='y')
+    ax.plot(tt, target_traj[:,2], '--', color='red')
+    ax.legend()
+    plt.show()
     # util.reset_state(data, data0) # This is necessary, but why?
     # k, ball_contact = forward_to_contact(env, ctrls + noisev,
                                          # render=True)

@@ -37,8 +37,8 @@ max_its = 200
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -75,8 +75,8 @@ noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 np.random.seed(seed)
 torch.manual_seed(seed)
 
-joints = opt_utils.get_joint_names(model)
-acts = opt_utils.get_act_names(model)
+joints = opt_utils.get_joint_ids(model)
+acts = opt_utils.get_act_ids(model)
 
 out_f = Path(str(out_f_base) + '_right.pkl')
 
@@ -84,8 +84,9 @@ if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['non_adh'],
-        joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
+        model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
+        joints['body']['body_dofs'], free_ctrls=np.ones((Tk,len(acts['adh'])))
+    )[:2]
     util.reset(model, data, 10, body_pos)
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
@@ -119,17 +120,14 @@ targ_traj_mask_type = 'progressive'
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-joints = opt_utils.get_joint_names(model)
-acts = opt_utils.get_act_names(model)
-
 out_f = Path(str(out_f_base) + '_left.pkl')
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['non_adh'],
-        joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
+        model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
+        joints['body']['body_dofs'], free_ctrls=np.ones((Tk,1)))[:2]
     util.reset(model, data, 10, body_pos)
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
@@ -173,9 +171,6 @@ targ_traj_mask_type2 = 'progressive'
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-joints = opt_utils.get_joint_names(model)
-acts = opt_utils.get_act_names(model)
-
 lr = .1/Tk
 
 out_f = Path(str(out_f_base) + '_both.pkl')
@@ -184,8 +179,8 @@ if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['non_adh'],
-        joints['body'], free_ctrls=np.ones((Tk,1)))[:2]
+        model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
+        joints['body']['body_dofs'], free_ctrls=np.ones((Tk,1)))[:2]
     util.reset(model, data, 10, body_pos)
     ctrls, lowest_losses = arm_t.two_arm_target_traj(
         env,

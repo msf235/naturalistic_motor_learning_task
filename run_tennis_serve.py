@@ -28,8 +28,8 @@ out_f_base = outdir/'move_right_arm_ctrl'
 Tk = 120
 # Tk = 320
 lr = 1/Tk
-# max_its = 400
-max_its = 200
+max_its = 400
+# max_its = 200
 # max_its = 120
 
 CTRL_STD = 0
@@ -72,7 +72,7 @@ noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
-lr = .1/Tk
+lr = .2/Tk
 
 out_f = Path(str(out_f_base) + '_both.pkl')
 
@@ -83,7 +83,8 @@ if rerun1 or not out_f.exists():
     util.reset(model, data, 10, body_pos)
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        bodyj, free_ctrls=np.ones((Tk,1)))[:2]
+        bodyj, free_ctrls=np.ones((Tk, len(acts['adh'])))
+    )[:2]
     util.reset(model, data, 10, body_pos)
     arm_t.forward_to_contact(env, ctrls, True)
     util.reset(model, data, 10, body_pos)
@@ -103,4 +104,5 @@ else:
 ctrls_best = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, 10, body_pos)
 arm_t.forward_to_contact(env, ctrls_best, True)
+
 

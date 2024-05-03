@@ -27,6 +27,7 @@
       />
     <headlight ambient=".8 .8 .8" specular=".8 .8 .8"/>
   </visual>
-  <key name="tennis_pos"
-    qpos="0 0 0 0 0 0 0 -.4 0 0 0 0 0 0 0 0 0 0"/>
+  <keyframe>
+    <key name="tennis_pos" qpos="0 0 0 0 0 0 0 -.4 0 0 0 0 0 0 0 0 0 0"/>
+  </keyframe>
 </mujoco>
