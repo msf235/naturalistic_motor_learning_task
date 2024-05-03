@@ -33,7 +33,7 @@ seed = 2
 out_f = outdir / 'grab_ball_ctrl.npy'
 
 Tk = 120
-lr = 1/Tk
+lr = 2/Tk
 lr2 = .06
 # max_its = 400
 max_its = 200
