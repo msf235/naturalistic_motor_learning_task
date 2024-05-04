@@ -67,7 +67,7 @@ def tennis_traj(model, data, Tk):
     Tk2 = int(2*Tk/4)
     Tk3 = int((Tk+Tk2)/2)
 
-    grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.01])
+    grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.03])
     s = np.tanh(5*np.linspace(0, 1, Tk1))
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s*(grab_targ - handx)
@@ -221,13 +221,24 @@ def two_arm_target_traj(env,
         lowest_losses.append(loss, (k0, ctrls.copy()))
         print(loss)
 
-    fig, ax = plt.subplots()
+    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
     target_traj = target_traj1 * targ_traj_mask1.reshape(-1, 1)
+    ax = axs[0]
     ax.plot(tt, hxs1[:,1], color='blue', label='x')
     ax.plot(tt, target_traj[:,1], '--', color='blue')
     ax.plot(tt, hxs1[:,2], color='red', label='y')
     ax.plot(tt, target_traj[:,2], '--', color='red')
+    ax.set_title('Right hand')
     ax.legend()
+    ax = axs[1]
+    target_traj = target_traj2 * targ_traj_mask2.reshape(-1, 1)
+    ax.plot(tt, hxs2[:,1], color='blue', label='x')
+    ax.plot(tt, target_traj[:,1], '--', color='blue')
+    ax.plot(tt, hxs2[:,2], color='red', label='y')
+    ax.plot(tt, target_traj[:,2], '--', color='red')
+    ax.set_title('Left hand')
+    ax.legend()
+    fig.tight_layout()
     plt.show()
     # util.reset_state(data, data0) # This is necessary, but why?
     # k, ball_contact = forward_to_contact(env, ctrls + noisev,
