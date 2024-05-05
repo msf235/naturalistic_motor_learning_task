@@ -316,12 +316,21 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
         k, ball_contact = forward_to_contact(env, ctrls + noisev,
                                              render=False)
         util.reset_state(data, data0)
-        grads, hxs, dldss = opt_utils.traj_deriv(
+        grads1, hxs1, dldss1 = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj, targ_traj_mask,
             grad_trunc_tk, deriv_ids=arm_a_without_adh,
-            deriv_site=deriv_site
+            deriv_site='hand_right'
         )
-        loss = np.mean(dldss**2)
+        loss1 = np.mean(dldss1**2)
+        # grads2, hxs2, dldss2 = opt_utils.traj_deriv(
+            # model, data, ctrls + noisev, target_traj, targ_traj_mask,
+            # grad_trunc_tk, deriv_ids=arm_a_without_adh,
+            # deriv_site='ball_base'
+        # )
+        # loss2 = np.mean(dldss2**2)
+        loss = loss1
+        grads = grads1
+        hxs = hxs1
         ctrls[:, arm_a_without_adh] = optm.update(
             ctrls[:, arm_a_without_adh], grads, 'ctrls', loss)
         util.reset_state(data, data0)
