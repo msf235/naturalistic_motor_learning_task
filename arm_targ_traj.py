@@ -67,7 +67,7 @@ def tennis_traj(model, data, Tk):
     Tk2 = int(2*Tk/4)
     Tk3 = int((Tk+Tk2)/2)
 
-    grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.03])
+    grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.25])
     s = np.tanh(5*np.linspace(0, 1, Tk1))
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s*(grab_targ - handx)
@@ -124,7 +124,8 @@ def two_arm_target_traj(env,
                         target_traj1, targ_traj_mask1, targ_traj_mask_type1,
                         target_traj2, targ_traj_mask2, targ_traj_mask_type2,
                         ctrls, grad_trunc_tk, seed, CTRL_RATE, CTRL_STD, Tk,
-                        max_its=30, lr=10, keep_top=1):
+                        max_its=30, lr=10, keep_top=1, incr_per1=5,
+                        incr_per2=5):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
     computing an LQR stabilizer to keep the rest of the body stable while the
@@ -152,7 +153,7 @@ def two_arm_target_traj(env,
 
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-    qs, qvels = util.forward_sim(model, data, ctrls)
+    qs, qvels = util.forward_sim(model, data, ctrls + noisev)
     util.reset_state(data, data0)
 
     ### Gradient descent
@@ -169,26 +170,27 @@ def two_arm_target_traj(env,
     targ_traj_mask_curr1 = targ_traj_mask1
     if targ_traj_prog1:
         targ_traj_mask_curr1 = np.zeros((Tk-1,))
-        incr_per1 = 5 # increment period
         incr_cnt1 = 0
+        amnt_to_incr1 = int(Tk / incr_per1) + 1
     targ_traj_prog2 = (isinstance(targ_traj_mask_type2, str)
                       and targ_traj_mask_type2 == 'progressive')
     targ_traj_mask_curr2 = targ_traj_mask2
     if targ_traj_prog2:
         targ_traj_mask_curr2 = np.zeros((Tk-1,))
-        incr_per2 = 5 # increment period
         incr_cnt2 = 0
+        amnt_to_incr2 = int(Tk / incr_per2) + 1
+
 
     lowest_losses = LimLowestDict(keep_top)
 
     Tk1 = int(Tk / 3)
     for k0 in range(max_its):
         if targ_traj_prog1 and k0 % incr_per1 == 0:
-            idx = slice(10*incr_cnt1, 10*(incr_cnt1+1))
+            idx = slice(amnt_to_incr1*incr_cnt1, amnt_to_incr1*(incr_cnt1+1))
             targ_traj_mask_curr1[idx] = targ_traj_mask1[idx]
             incr_cnt1 += 1
         if targ_traj_prog2 and k0 % incr_per2 == 0:
-            idx = slice(10*incr_cnt2, 10*(incr_cnt2+1))
+            idx = slice(amnt_to_incr2*incr_cnt2, amnt_to_incr2*(incr_cnt2+1))
             targ_traj_mask_curr2[idx] = targ_traj_mask2[idx]
             incr_cnt2 += 1
 
@@ -200,11 +202,14 @@ def two_arm_target_traj(env,
             grad_trunc_tk, deriv_ids=right_arm_without_adh,
             right_or_left='right'
         )
+        grads1[:Tk1] *= 20
+        util.reset_state(data, data0)
         grads2, hxs2, dldss2 = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj2, targ_traj_mask2,
             grad_trunc_tk, deriv_ids=left_arm_without_adh,
             right_or_left='left'
         )
+        grads2[:Tk1] *= 20
         loss1 = np.mean(dldss1**2)
         ctrls[:, right_arm_without_adh] = optm.update(
             ctrls[:, right_arm_without_adh], grads1[:Tk-1], 'ctrls', loss1)
