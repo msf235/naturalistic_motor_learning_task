@@ -279,6 +279,8 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
     not_arm_a = [k for k in acts['all'] if k not in arm_a and k not in
                  acts['adh']]
 
+    deriv_site = f'hand_{right_or_left}'
+
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
     qs, qvels = util.forward_sim(model, data, ctrls)
@@ -317,7 +319,7 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
         grads, hxs, dldss = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj, targ_traj_mask,
             grad_trunc_tk, deriv_ids=arm_a_without_adh,
-            right_or_left=right_or_left
+            deriv_site=deriv_site
         )
         loss = np.mean(dldss**2)
         ctrls[:, arm_a_without_adh] = optm.update(

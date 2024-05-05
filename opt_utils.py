@@ -296,7 +296,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
 
 ### Gradient descent
 def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
-               grad_trunc_tk, deriv_ids=[], right_or_left='right'):
+               grad_trunc_tk, deriv_ids=[], deriv_site='hand_right'):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
@@ -318,10 +318,10 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
         mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
         Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
         mj.mj_jacSite(
-            model, data, C, None, site=data.site(f'hand_{right_or_left}').id)
-        dlds = data.site(f'hand_{right_or_left}').xpos - targ_traj[tk]
+            model, data, C, None, site=data.site(f'{deriv_site}').id)
+        dlds = data.site(f'{deriv_site}').xpos - targ_traj[tk]
         dldss[tk] = dlds
-        hxs[tk] = data.site(f'hand_{right_or_left}').xpos
+        hxs[tk] = data.site(f'{deriv_site}').xpos
         dldq = C.T @ dlds
         dldqs[tk, :model.nv] = dldq
         
