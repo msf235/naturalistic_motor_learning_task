@@ -95,6 +95,17 @@ def show_forward_sim(env, ctrls):
         util.step(env.model, env.data, ctrls[k])
         env.render()
 
+def forward_with_site(env, ctrls, site_name, render=False):
+    site_xvs = np.zeros((ctrls.shape[0], 3))
+    site_xvs[0] = env.data.site(site_name).xpos
+    for k in range(ctrls.shape[0]-1):
+        util.step(env.model, env.data, ctrls[k])
+        site_xvs[k+1] = env.data.site(site_name).xpos
+        if render:
+            env.render()
+    return site_xvs
+
+
 def forward_to_contact(env, ctrls, render=True):
     model = env.model
     data = env.data
@@ -322,38 +333,59 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
             deriv_site='hand_right'
         )
         loss1 = np.mean(dldss1**2)
-        # grads2, hxs2, dldss2 = opt_utils.traj_deriv(
-            # model, data, ctrls + noisev, target_traj, targ_traj_mask,
-            # grad_trunc_tk, deriv_ids=arm_a_without_adh,
-            # deriv_site='ball_base'
-        # )
-        # loss2 = np.mean(dldss2**2)
-        loss = loss1
-        grads = grads1
-        hxs = hxs1
+        util.reset_state(data, data0)
+        grads2, hxs2, dldss2 = opt_utils.traj_deriv(
+            model, data, ctrls + noisev, target_traj, targ_traj_mask,
+            grad_trunc_tk, deriv_ids=arm_a_without_adh,
+            deriv_site='ball_base'
+        )
+        # if k0 == max_its-1:
+            # util.reset_state(data, data0)
+            # hxs22 = forward_with_site(env, ctrls + noisev, 'ball_base',
+                                      # render=True)
+        loss2 = .1*np.mean(dldss2**2)
+        loss = loss1 + loss2
+        grads = grads1 + .1*grads2
         ctrls[:, arm_a_without_adh] = optm.update(
             ctrls[:, arm_a_without_adh], grads, 'ctrls', loss)
+        # if k0 == max_its-1:
+            # util.reset_state(data, data0)
+            # hxs23 = forward_with_site(env, ctrls + noisev, 'ball_base',
+                                      # render=True)
+            # breakpoint()
         util.reset_state(data, data0)
         ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
             model, data, Tk, noisev, qpos0,
             not_arm_a,
             not_arm_j, ctrls[:, arm_with_all_adh],
         )
-        # if loss.item()
         lowest_losses.append(loss.item(), (k0, ctrls.copy()))
         print(loss.item())
+        # util.reset_state(data, data0)
+        # hxs1 = forward_with_site(env, ctrls, 'hand_right', False)
+        # loss1 = np.mean((hxs1 - target_traj)**2)
+        # util.reset_state(data, data0)
+        # hxs2 = forward_with_site(env, ctrls, 'ball_base', False)
+        # loss2 = .1*np.mean((hxs2 - target_traj)**2)
+        # loss = loss1 + loss2
+        # lowest_losses.append(loss, (k0, ctrls.copy()))
+        # print(list(lowest_losses.dict.keys()))
 
     fig, ax = plt.subplots()
     target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
-    ax.plot(tt, hxs[:,1], color='blue', label='x')
+    ax.plot(tt, hxs1[:,1], color='blue', label='x')
+    ax.plot(tt, hxs2[:,1], '-.', color='blue', label='x_ball')
     ax.plot(tt, target_traj[:,1], '--', color='blue')
-    ax.plot(tt, hxs[:,2], color='red', label='y')
+    ax.plot(tt, hxs1[:,2], color='red', label='y')
+    ax.plot(tt, hxs2[:,2], '-.', color='red', label='y_ball')
+    ax.plot(tt, target_traj[:,1], '--', color='blue')
     ax.plot(tt, target_traj[:,2], '--', color='red')
     ax.legend()
     plt.show()
-    # util.reset_state(data, data0) # This is necessary, but why?
-    # k, ball_contact = forward_to_contact(env, ctrls + noisev,
-                                         # render=True)
+    util.reset_state(data, data0) # This is necessary, but why?
+    k, ball_contact = forward_to_contact(env, ctrls + noisev,
+                                         render=True)
+    print(hxs2[-5:,:5])
 
     return ctrls, lowest_losses.dict
 

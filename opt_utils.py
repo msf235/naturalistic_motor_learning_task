@@ -319,9 +319,10 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
         Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
         mj.mj_jacSite(
             model, data, C, None, site=data.site(f'{deriv_site}').id)
-        dlds = data.site(f'{deriv_site}').xpos - targ_traj[tk]
+        site_xpos = data.site(f'{deriv_site}').xpos
+        dlds = site_xpos - targ_traj[tk]
         dldss[tk] = dlds
-        hxs[tk] = data.site(f'{deriv_site}').xpos
+        hxs[tk] = site_xpos
         dldq = C.T @ dlds
         dldqs[tk, :model.nv] = dldq
         

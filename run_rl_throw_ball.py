@@ -86,8 +86,8 @@ if rerun1 or not out_f.exists():
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
         joints['body']['all'], free_ctrls=np.ones((Tk,n_adh)))[:2]
-    util.reset(model, data, 10, body_pos)
-    arm_t.forward_to_contact(env, ctrls+noisev, True)
+    # util.reset(model, data, 10, body_pos)
+    # arm_t.forward_to_contact(env, ctrls+noisev, True)
     util.reset(model, data, 10, body_pos)
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
@@ -101,14 +101,39 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
+# ctrls = lowest_losses.peekitem(0)[1][1]
+util.reset(model, data, 10, body_pos)
+hxs1 = arm_t.forward_with_site(env, ctrls+noisev, 'hand_right', True)
+loss1 = np.mean((hxs1 - full_traj)**2)
+util.reset(model, data, 10, body_pos)
+hxs2 = arm_t.forward_with_site(env, ctrls+noisev, 'ball_base', False)
+loss2 = np.mean((hxs2 - full_traj)**2)
+print(hxs2[-5:,:5])
+print(loss1, loss2)
+dt = model.opt.timestep
+T = Tk*dt
+tt = np.arange(0, T-dt, dt)
+fig, ax = plt.subplots()
+ax.plot(tt, hxs1[:,1], color='blue', label='x')
+ax.plot(tt, hxs2[:,1], '-.', color='blue', label='x_ball')
+ax.plot(tt, full_traj[:,1], '--', color='blue')
+ax.plot(tt, hxs1[:,2], color='red', label='y')
+ax.plot(tt, hxs2[:,2], '-.', color='red', label='y_ball')
+ax.plot(tt, full_traj[:,1], '--', color='blue')
+ax.plot(tt, full_traj[:,2], '--', color='red')
+ax.legend()
+plt.show()
+breakpoint()
 
-# util.reset(model, data, 10, body_pos)
-# arm_t.forward_to_contact(env, ctrls, True)
-# breakpoint()
+Te = 250
+util.reset(model, data, 10, body_pos)
+ctrls_end = np.zeros((Te, model.nu))
+ctrls_best = lowest_losses.peekitem(0)[1][1]
+arm_t.forward_to_contact(env, np.concatenate([ctrls_best, ctrls_end]), True)
+breakpoint()
 
 ctrls_best = lowest_losses.peekitem(0)[1][1]
 
-Te = 250
 util.reset(model, data, 10, body_pos)
 ctrls_end = np.zeros((Te, model.nu))
 ctrls_with_end_best = np.concatenate([ctrls_best, ctrls_end])
