@@ -40,8 +40,8 @@ max_its = 200
 # max_its = 120
 n_episode = 10000
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 rerun2 = False
 # rerun2 = True
 render_mode = 'human'
@@ -101,7 +101,7 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-# ctrls = lowest_losses.peekitem(0)[1][1]
+ctrls = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, 10, body_pos)
 hxs1 = arm_t.forward_with_site(env, ctrls+noisev, 'hand_right', True)
 loss1 = np.mean((hxs1 - full_traj)**2)
