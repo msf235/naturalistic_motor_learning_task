@@ -167,7 +167,7 @@
           <body name="hand_right" pos="0 -.18 .18">
             <site name="hand_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
             <geom name="hand_right" zaxis="1 1 1" class="hand" margin=".01"
-              gap=".01" friction="1 0.005 0.03"/>
+              gap=".01" friction="4 0.08 0.32" priority="1"/>
           </body>
         </body>
       </body>
@@ -229,9 +229,9 @@
     <motor name="shoulder1_left"  gear="20"  joint="shoulder1_left"/>
     <!--<motor name="shoulder2_left"  gear="20"  joint="shoulder2_left"/>-->
     <motor name="elbow_left"      gear="40"  joint="elbow_left"/>
-    <adhesion name="hand_right_adh" body="hand_right" gain="200"
+    <adhesion name="hand_right_adh" body="hand_right" gain="300"
       ctrlrange="0 1"/>
-    <adhesion name="hand_left_adh" body="hand_left" gain="200"
+    <adhesion name="hand_left_adh" body="hand_left" gain="300"
       ctrlrange="0 1"/>
   </actuator>
 

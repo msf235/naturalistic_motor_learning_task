@@ -29,15 +29,15 @@ Tk = 120
 # Tk = 320
 # lr = 1/Tk
 lr = 10/Tk
-# max_its = 400
-max_its = 200
+max_its = 600
+# max_its = 200
 # max_its = 120
 
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -90,7 +90,7 @@ if rerun1 or not out_f.exists():
     # util.reset(model, data, 10, body_pos)
     # arm_t.forward_to_contact(env, ctrls, True)
     util.reset(model, data, 10, body_pos)
-    ctrls, lowest_losses = arm_t.two_arm_target_traj(env,
+    ctrls, lowest_losses = arm_t.two_arm_target_traj_tennis(env,
         full_traj1, targ_traj_mask1, targ_traj_mask_type1,
         full_traj2, targ_traj_mask2, targ_traj_mask_type2,
         ctrls, 30, seed,
