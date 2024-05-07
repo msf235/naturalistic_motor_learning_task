@@ -371,21 +371,21 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
         # lowest_losses.append(loss, (k0, ctrls.copy()))
         # print(list(lowest_losses.dict.keys()))
 
-    fig, ax = plt.subplots()
-    target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
-    ax.plot(tt, hxs1[:,1], color='blue', label='x')
-    ax.plot(tt, hxs2[:,1], '-.', color='blue', label='x_ball')
-    ax.plot(tt, target_traj[:,1], '--', color='blue')
-    ax.plot(tt, hxs1[:,2], color='red', label='y')
-    ax.plot(tt, hxs2[:,2], '-.', color='red', label='y_ball')
-    ax.plot(tt, target_traj[:,1], '--', color='blue')
-    ax.plot(tt, target_traj[:,2], '--', color='red')
-    ax.legend()
-    plt.show()
-    util.reset_state(data, data0) # This is necessary, but why?
-    k, ball_contact = forward_to_contact(env, ctrls + noisev,
-                                         render=True)
-    print(hxs2[-5:,:5])
+    # fig, ax = plt.subplots()
+    # target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
+    # ax.plot(tt, hxs1[:,1], color='blue', label='x')
+    # ax.plot(tt, hxs2[:,1], '-.', color='blue', label='x_ball')
+    # ax.plot(tt, target_traj[:,1], '--', color='blue')
+    # ax.plot(tt, hxs1[:,2], color='red', label='y')
+    # ax.plot(tt, hxs2[:,2], '-.', color='red', label='y_ball')
+    # ax.plot(tt, target_traj[:,1], '--', color='blue')
+    # ax.plot(tt, target_traj[:,2], '--', color='red')
+    # ax.legend()
+    # plt.show()
+    # util.reset_state(data, data0) # This is necessary, but why?
+    # k, ball_contact = forward_to_contact(env, ctrls + noisev,
+                                         # render=True)
+    # print(hxs2[-5:,:5])
 
     return ctrls, lowest_losses.dict
 
