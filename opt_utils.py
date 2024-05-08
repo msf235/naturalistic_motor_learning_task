@@ -62,7 +62,7 @@ def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     return ctrl0
 
 body_keys = ['human', 'shoulder', 'hand', 'torso', 'hip', 'knee', 'ankle',
-             'abdomen', 'elbow', 'arm'] 
+             'abdomen', 'elbow', 'arm', 'wrist'] 
 
 def key_match(key, key_list):
     for k in key_list:
@@ -73,7 +73,7 @@ def key_match(key, key_list):
 def get_body_joints(model, data=None):
     """Get joint names for body."""
     body_keys = ['human', 'shoulder', 'torso', 'hip', 'knee', 'ankle',
-                 'abdomen', 'elbow', 'arm'] 
+                 'abdomen', 'elbow', 'arm', 'wrist'] 
     jntn = lambda k: model.joint(k).name
 
     joints = {}
@@ -95,11 +95,11 @@ def get_body_joints(model, data=None):
     joints['balance_dofs'].sort()
     joints['other_dofs'] = [k for k in jb if k not in joints['balance_dofs']]
     joints['right_arm'] = [
-        k for k in jb if key_match(jntn(k), ['shoulder', 'elbow'])
+        k for k in jb if key_match(jntn(k), ['shoulder', 'elbow', 'wrist'])
         and 'right' in jntn(k)
     ]
     joints['left_arm'] = [
-        k for k in jb if key_match(jntn(k), ['shoulder', 'elbow'])
+        k for k in jb if key_match(jntn(k), ['shoulder', 'elbow', 'wrist'])
         and 'left' in jntn(k)
     ]
 
@@ -139,7 +139,8 @@ def get_act_names_left_or_right(model, data=None, left_or_right='right'):
     acts[f'{left_or_right}_arm'] = [
         model.actuator(name).id
         for name in act_names
-        if ('shoulder' in name or 'elbow' in name or 'hand' in name)
+        if ('shoulder' in name or 'elbow' in name or 'hand' in name or 'wrist'
+            in name)
         and left_or_right in name
     ]
     acts[f'adh_{left_or_right}_hand'] = [

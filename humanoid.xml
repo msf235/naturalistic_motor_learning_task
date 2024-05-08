@@ -14,7 +14,6 @@
 -->
 
 <mujoco model="Humanoid">
-  <option timestep="0.005"/>
   <statistic center="0 0 0.7"/>
 
   <asset>
@@ -53,7 +52,9 @@
         <geom size=".031"/>
       </default>
       <default class="hand">
-        <geom type="sphere" size=".04"/>
+        <!--<geom type="sphere" size=".04"/>-->
+        <!--<geom type="capsule" size=".03 .05" margin=".01" gap=".01"/>-->
+        <site size=".01" pos="0 0 0" rgba="1 1 .5 .7"/>
       </default>
 
       <!-- joints -->
@@ -92,6 +93,9 @@
       </default>
       <default class="elbow">
         <joint range="-100 85" stiffness="0"/>
+      </default>
+      <default class="wrist">
+        <joint range="-100 85" stiffness="30" pos="0 0 0"/>
       </default>
     </default>
   </default>
@@ -165,9 +169,14 @@
           <site name="elbow_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
           <geom name="lower_arm_right" fromto="0 .01 .01 0 -.17 .17" class="arm_lower"/>
           <body name="hand_right" pos="0 -.18 .18">
-            <site name="hand_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
-            <geom name="hand_right" zaxis="1 1 1" class="hand" margin=".01"
-              gap=".01" friction="4 0.08 0.32" priority="1"/>
+            <site name="hand_right" class="hand"/>
+            <!--<geom name="hand_right" zaxis="0 -1 1.5" class="hand" />-->
+            <geom type="capsule" size=".03 .025" margin=".01" gap=".01"
+              pos="0 0 -.025"/>
+            <geom type="capsule" size=".03 .025" margin=".01" gap=".01"
+              pos="0 0 .025" rgba="1 1 .5 1"/>
+            <joint name="wrist_right" axis="1 0 0" class="wrist"/>
+              <!--friction="1 0.005 0.03"-->
           </body>
         </body>
       </body>
@@ -181,8 +190,13 @@
           <site name="elbow_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
           <geom name="lower_arm_left" fromto="0 -.01 .01 0 .17 .17" class="arm_lower"/>
           <body name="hand_left" pos="0 .18 .18">
-            <site name="hand_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
-            <geom name="hand_left" zaxis="1 -1 1" class="hand"/>
+            <site name="hand_left" class="hand" />
+            <!--<geom name="hand_left" zaxis="0 1 2" class="hand"/>-->
+            <geom type="capsule" size=".03 .025" margin=".01" gap=".01"
+              pos="0 0 -.025"/>
+            <geom type="capsule" size=".03 .025" margin=".01" gap=".01"
+              pos="0 0 .025" rgba="1 1 .5 1"/>
+            <joint name="wrist_left" axis="-1 0 0" class="wrist"/>
           </body>
         </body>
       </body>
@@ -223,15 +237,15 @@
     <!--<motor name="knee_left"       gear="80"  joint="knee_left"/>-->
     <!--<motor name="ankle_y_left"    gear="20"  joint="ankle_y_left"/>-->
     <!--<motor name="ankle_x_left"    gear="20"  joint="ankle_x_left"/>-->
-    <motor name="shoulder1_right" gear="20"  joint="shoulder1_right"/>
+    <motor name="shoulder1_right" gear="40"  joint="shoulder1_right"/>
     <!--<motor name="shoulder2_right" gear="20"  joint="shoulder2_right"/>-->
     <motor name="elbow_right"     gear="40"  joint="elbow_right"/>
     <motor name="shoulder1_left"  gear="20"  joint="shoulder1_left"/>
     <!--<motor name="shoulder2_left"  gear="20"  joint="shoulder2_left"/>-->
     <motor name="elbow_left"      gear="40"  joint="elbow_left"/>
-    <adhesion name="hand_right_adh" body="hand_right" gain="300"
+    <adhesion name="hand_right_adh" body="hand_right" gain="1000"
       ctrlrange="0 1"/>
-    <adhesion name="hand_left_adh" body="hand_left" gain="300"
+    <adhesion name="hand_left_adh" body="hand_left" gain="1000"
       ctrlrange="0 1"/>
   </actuator>
 

@@ -64,19 +64,21 @@ def tennis_traj(model, data, Tk):
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
     Tk1 = int(Tk / 3)
-    Tk2 = int(2*Tk/4)
-    Tk3 = int((Tk+Tk2)/2)
+    Tk2 = int(1.2*Tk / 3)
+    Tk3 = int(2*Tk/4)
+    # Tk4 = int((Tk+Tk2)/2)
 
-    grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.15])
+    grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
     s = np.tanh(5*np.linspace(0, 1, Tk1))
     s = np.tile(s, (3, 1)).T
+    s = np.concatenate((s, np.ones((Tk2-Tk1, 3))), axis=0)
     grab_traj = handx + s*(grab_targ - handx)
 
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                                  np.pi/2.5, Tk-Tk2-1, density_fn='')
+                                  np.pi/2.5, Tk-Tk3-1, density_fn='')
 
-    setup_traj = np.zeros((Tk2, 3))
-    s = np.linspace(0, 1, Tk2-Tk1)
+    setup_traj = np.zeros((Tk3, 3))
+    s = np.linspace(0, 1, Tk3-Tk2)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
 
@@ -482,33 +484,6 @@ def two_arm_target_traj_tennis(env,
         lowest_losses.append(loss, (k0, ctrls.copy()))
         print(loss)
 
-    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
-    target_traj = target_traj1 * targ_traj_mask1.reshape(-1, 1)
-    ax = axs[0]
-    ax.plot(tt, hxs1[:,1], color='blue', label='x')
-    ax.plot(tt, target_traj[:,1], '--', color='blue')
-    ax.plot(tt, hxs1[:,2], color='red', label='y')
-    ax.plot(tt, target_traj[:,2], '--', color='red')
-    ax.set_title('Right hand')
-    ax.legend()
-    ax = axs[1]
-    target_traj = target_traj2 * targ_traj_mask2.reshape(-1, 1)
-    ax.plot(tt, hxs2[:,1], color='blue', label='x')
-    ax.plot(tt, target_traj[:,1], '--', color='blue')
-    ax.plot(tt, hxs2[:,2], color='red', label='y')
-    ax.plot(tt, target_traj[:,2], '--', color='red')
-    ax.set_title('Left hand')
-    ax.legend()
-    ax = axs[2]
-    target_traj = target_traj1 * targ_traj_mask1.reshape(-1, 1)
-    ax.plot(tt, hxs3[:,1], color='blue', label='x')
-    ax.plot(tt, target_traj[:,1], '--', color='blue')
-    ax.plot(tt, hxs3[:,2], color='red', label='y')
-    ax.plot(tt, target_traj[:,2], '--', color='red')
-    ax.set_title('Tennis handle')
-    ax.legend()
-    fig.tight_layout()
-    plt.show()
     # util.reset_state(data, data0) # This is necessary, but why?
     # k, ball_contact = forward_to_contact(env, ctrls + noisev,
                                          # render=True)

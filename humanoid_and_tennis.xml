@@ -14,7 +14,7 @@
 -->
 
 <mujoco model="Humanoid">
-  <option timestep="0.005"/>
+  <option timestep="0.0025"/>
   <include file="humanoid.xml"/>
   <include file="tennis_serve_scene.xml"/>
   <visual>
@@ -28,6 +28,6 @@
     <headlight ambient=".8 .8 .8" specular=".8 .8 .8"/>
   </visual>
   <keyframe>
-    <key name="tennis_pos" qpos="0 0 0 0 0 0 0 -.4 0 0 0 0 0 0 0 0 0 0"/>
+    <key name="tennis_pos" qpos="0 -.4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"/>
   </keyframe>
 </mujoco>

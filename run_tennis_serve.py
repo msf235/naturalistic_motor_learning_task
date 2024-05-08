@@ -25,10 +25,11 @@ outdir.mkdir(parents=True, exist_ok=True)
 seed = 2
 out_f_base = outdir/'move_right_arm_ctrl'
 
-Tk = 120
+Tk = 120*2
 # Tk = 320
 # lr = 1/Tk
-lr = 10/Tk
+# lr = 10/Tk
+lr = 2/Tk
 max_its = 600
 # max_its = 200
 # max_its = 120
@@ -104,8 +105,52 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-ctrls_best = lowest_losses.peekitem(0)[1][1]
+ctrls = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, 10, body_pos)
-arm_t.forward_to_contact(env, ctrls_best, True)
+hxs1 = arm_t.forward_with_site(env, ctrls+noisev, 'hand_right', False)
+loss1 = np.mean((hxs1 - full_traj1)**2)
+util.reset(model, data, 10, body_pos)
+hxs2 = arm_t.forward_with_site(env, ctrls+noisev, 'racket_handle', False)
+loss2 = np.mean((hxs2 - full_traj1)**2)
+print(hxs2[-5:,:5])
+print(loss1, loss2)
+dt = model.opt.timestep
+T = Tk*dt
+tt = np.arange(0, T-dt, dt)
+
+# fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+target_traj = full_traj1 * targ_traj_mask1.reshape(-1, 1)
+ax = axs[0]
+ax.plot(tt, hxs1[:,1], color='blue', label='x')
+ax.plot(tt, full_traj1[:,1], '--', color='blue')
+ax.plot(tt, hxs1[:,2], color='red', label='y')
+ax.plot(tt, target_traj[:,2], '--', color='red')
+ax.set_title('Right hand')
+ax.legend()
+# ax = axs[1]
+# target_traj = target_traj2 * targ_traj_mask2.reshape(-1, 1)
+# ax.plot(tt, hxs2[:,1], color='blue', label='x')
+# ax.plot(tt, target_traj[:,1], '--', color='blue')
+# ax.plot(tt, hxs2[:,2], color='red', label='y')
+# ax.plot(tt, target_traj[:,2], '--', color='red')
+# ax.set_title('Left hand')
+# ax.legend()
+# ax = axs[2]
+ax = axs[1]
+target_traj = full_traj1 * targ_traj_mask1.reshape(-1, 1)
+ax.plot(tt, hxs2[:,1], color='blue', label='x')
+ax.plot(tt, target_traj[:,1], '--', color='blue')
+ax.plot(tt, hxs2[:,2], color='red', label='y')
+ax.plot(tt, target_traj[:,2], '--', color='red')
+ax.set_title('Tennis handle')
+ax.legend()
+fig.tight_layout()
+plt.show()
+
+util.reset(model, data, 10, body_pos)
+arm_t.forward_to_contact(env, ctrls, True)
+
+breakpoint()
 
 
