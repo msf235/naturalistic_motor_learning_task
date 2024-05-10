@@ -42,7 +42,7 @@ def throw_traj(model, data, Tk):
     Tk3 = int((Tk+Tk2)/2)
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
                                   np.pi/2.5, Tk-Tk2-1, density_fn='')
-    grab_targ = data.site('ball_base').xpos + np.array([0, 0, -0.01])
+    grab_targ = data.site('ball_base').xpos + np.array([0, 0, 0])
     s = np.tanh(5*np.linspace(0, 1, Tk1))
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s*(grab_targ - handx)
@@ -617,15 +617,20 @@ def baseball_idxs(model):
     def ints(l1, l2):
         return list(set(l1).intersection(set(l2)))
 
-    arm_j = joints['body'][f'{right_or_left}_arm']
+    baseball_idx = {}
+
+    arm_j = joints['body'][f'right_arm']
     not_arm_j = [i for i in joints['body']['body_dofs'] if i not in arm_j]
-    arm_a = acts[f'{right_or_left}_arm']
+    arm_a = acts[f'right_arm']
     arm_a_without_adh = [k for k in arm_a if k not in acts['adh']]
     # Include all adhesion (including other hand)
     arm_with_all_adh = [k for k in acts['all'] if k in arm_a or k in acts['adh']]
-    arm_with_all_adh.sort()
     not_arm_a = [k for k in acts['all'] if k not in arm_a and k not in
                  acts['adh']]
+    baseball_idx['arm_a_without_adh'] = arm_a_without_adh
+    baseball_idx['not_arm_j'] = not_arm_j
+    baseball_idx['not_arm_a'] = not_arm_a
+    return baseball_idx
 
 
 def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,

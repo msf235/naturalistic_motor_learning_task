@@ -32,11 +32,11 @@ outdir.mkdir(parents=True, exist_ok=True)
 seed = 2
 out_f = outdir / 'grab_ball_ctrl.npy'
 
-Tk = 120
+Tk = 2*120
 lr = 2/Tk
 lr2 = .06
-# max_its = 400
-max_its = 200
+max_its = 400
+# max_its = 200
 # max_its = 120
 n_episode = 10000
 
@@ -79,6 +79,61 @@ targ_traj_mask = np.ones((Tk-1,))
 targ_traj_mask_type = 'progressive'
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+
+baseball_idx = arm_t.baseball_idxs(model)
+
+sites = ['hand_right', 'ball_base']
+grad_idxs = 2*[baseball_idx['arm_a_without_adh']]
+target_trajs = 2*[full_traj]
+masks = 2*[targ_traj_mask]
+mask_types = 2*[targ_traj_mask_type]
+
+if rerun1 or not out_f.exists():
+    ### Get initial stabilizing controls
+    util.reset(model, data, 10, body_pos)
+    ctrls, K = opt_utils.get_stabilized_ctrls(
+        model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
+        joints['body']['all'], free_ctrls=np.ones((Tk,n_adh)))[:2]
+    # util.reset(model, data, 10, body_pos)
+    # arm_t.forward_to_contact(env, ctrls+noisev, True)
+    util.reset(model, data, 10, body_pos)
+    ctrls, lowest_losses = arm_t.arm_target_traj(
+        env, sites, grad_idxs, baseball_idx['not_arm_j'],
+        baseball_idx['not_arm_a'], target_trajs, masks, mask_types, ctrls, 30,
+        seed, CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
+    with open(out_f, 'wb') as f:
+        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
+    # np.save(out_f, ctrls)
+else:
+    with open(out_f, 'rb') as f:
+        load_data = pkl.load(f)
+    ctrls = load_data['ctrls']
+    lowest_losses = load_data['lowest_losses']
+
+ctrls = lowest_losses.peekitem(0)[1][1]
+util.reset(model, data, 10, body_pos)
+
+dt = model.opt.timestep
+T = Tk*dt
+tt = np.arange(0, T-dt, dt)
+n = len(sites)
+fig, axs = plt.subplots(1, n, figsize=(5*n, 5))
+for k in range(n):
+    hx = arm_t.forward_with_site(env, ctrls+noisev, sites[k], False)
+    loss = np.mean((hx - target_trajs[k])**2)
+    util.reset(model, data, 10, body_pos)
+    ax = axs[k]
+    ax.plot(tt, hx[:,1], color='blue', label='x')
+    ax.plot(tt, target_trajs[k][:,1], '--', color='blue')
+    ax.plot(tt, hx[:,2], color='red', label='y')
+    ax.plot(tt, target_trajs[k][:,2], '--', color='red')
+    ax.legend()
+plt.show()
+util.reset(model, data, 10, body_pos)
+arm_t.forward_to_contact(env, ctrls+noisev, True)
+
+breakpoint()
+
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls

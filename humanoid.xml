@@ -168,7 +168,7 @@
           <joint name="elbow_right" axis="1 0 0" class="elbow"/>
           <site name="elbow_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
           <geom name="lower_arm_right" fromto="0 .01 .01 0 -.17 .17" class="arm_lower"/>
-          <body name="hand_right" pos="0 -.18 .18">
+          <body name="hand_right" pos="0 -.18 .18" zaxis="0 -1 1.5">
             <site name="hand_right" class="hand"/>
             <!--<geom name="hand_right" zaxis="0 -1 1.5" class="hand" />-->
             <geom type="capsule" size=".03 .025" margin=".01" gap=".01"
@@ -189,7 +189,7 @@
           <joint name="elbow_left" axis="-1 0 0" class="elbow"/>
           <site name="elbow_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
           <geom name="lower_arm_left" fromto="0 -.01 .01 0 .17 .17" class="arm_lower"/>
-          <body name="hand_left" pos="0 .18 .18">
+          <body name="hand_left" pos="0 .18 .18" zaxis="0 1 1.5">
             <site name="hand_left" class="hand" />
             <!--<geom name="hand_left" zaxis="0 1 2" class="hand"/>-->
             <geom type="capsule" size=".03 .025" margin=".01" gap=".01"

@@ -26,13 +26,13 @@ seed = 2
 out_f_base = outdir/'move_right_arm_ctrl'
 
 
+# Tk = 120
 Tk = 120*2
-# Tk = 120*2
 # Tk = 320
 # lr = 1/Tk
 # lr = 10/Tk
 lr = 2/Tk
-max_its = 600
+max_its = 1200
 # max_its = 200
 # max_its = 120
 
