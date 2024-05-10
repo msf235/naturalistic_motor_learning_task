@@ -610,7 +610,7 @@ def tennis_idxs(model):
                                           in acts['adh']]
     return tennis_idx
 
-def baseball_idxs(model):
+def one_arm_idxs(model, right_or_left='right'):
     joints = opt_utils.get_joint_ids(model)
     acts = opt_utils.get_act_ids(model)
 
@@ -619,9 +619,9 @@ def baseball_idxs(model):
 
     baseball_idx = {}
 
-    arm_j = joints['body'][f'right_arm']
+    arm_j = joints['body'][f'{right_or_left}_arm']
     not_arm_j = [i for i in joints['body']['body_dofs'] if i not in arm_j]
-    arm_a = acts[f'right_arm']
+    arm_a = acts[f'{right_or_left}_arm']
     arm_a_without_adh = [k for k in arm_a if k not in acts['adh']]
     # Include all adhesion (including other hand)
     arm_with_all_adh = [k for k in acts['all'] if k in arm_a or k in acts['adh']]
