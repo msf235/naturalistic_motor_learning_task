@@ -108,9 +108,9 @@ def tennis_traj(model, data, Tk):
     grab_traj = handxl + s*(grab_targ - handxl)
 
     arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
-                            0, .8*np.pi/2, Tk4-Tk3-1, density_fn='')
+                            0, .8*np.pi/2, Tk4-Tk3, density_fn='')
     arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
-                            .8*np.pi/2, .7*np.pi/2, Tk-Tk4, density_fn='')
+                            .8*np.pi/2, .7*np.pi/2, Tk-Tk4-1, density_fn='')
 
     setup_traj = np.zeros((Tk3, 3))
     s = np.linspace(0, 1, Tk3-Tk2)
@@ -317,11 +317,33 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     stabilize_act_idx, target_trajs, targ_traj_masks,
                     targ_traj_mask_types, ctrls, grad_trunc_tk, seed,
                     CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, keep_top=1,
-                    incr_per1=5, incr_per2=5):
+                    n_incr=10, incr_every=5, amnt_to_incr=5):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
     computing an LQR stabilizer to keep the rest of the body stable while the
-    arm is moving."""
+    arm is moving.
+
+    Args:
+        site_names: list of site names
+        site_grad_idxs: list of site gradient indices
+        stabilize_jnt_idx: list of joint indices
+        stabilize_act_idx: list of actuator indices
+        target_trajs: list of target trajectories
+        targ_traj_masks: list of target trajectory masks
+        targ_traj_mask_types: list of target trajectory mask types
+        ctrls: initial arm controls
+        grad_trunc_tk: gradient truncation time
+        seed: random seed
+        CTRL_RATE: control rate
+        CTRL_STD: control standard deviation
+        Tk: number of time steps
+        max_its: maximum number of gradient steps
+        lr: learning rate
+        keep_top: number of lowest losses to keep
+        n_incr: number of times to increment the mask
+        incr_every: number of gradient steps between increments
+        amnt_to_incr: amount to increment the mask by each time
+    """
     model = env.model
     data = env.data
 
@@ -351,7 +373,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     targ_traj_progs = []
     targ_traj_mask_currs = []
     incr_cnts = []
-    incr_pers = []
+    incr_everys = []
     amnt_to_incrs = []
     for k in range(n_sites):
         optms.append(opts.Adam(lr=lr))
@@ -361,15 +383,12 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         if targ_traj_progs[k]:
             targ_traj_mask_currs[k] = np.zeros((Tk-1,))
             incr_cnts.append(0)
-            incr_pers.append(5)
-            amnt_to_incrs.append(int(Tk / incr_pers[k]) + 1)
-
     lowest_losses = LimLowestDict(keep_top)
 
     Tk1 = int(Tk / 3)
     for k0 in range(max_its):
         for k in range(n_sites):
-            if targ_traj_progs[k] and k0 % incr_pers[k] == 0:
+            if targ_traj_progs[k] and k0 % incr_every == 0:
                 idx = slice(amnt_to_incrs[k]*incr_cnts[k],
                             amnt_to_incrs[k]*(incr_cnts[k]+1))
                 targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
@@ -385,7 +404,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         for k in range(n_sites):
             grads[k], hxs[k], dldss[k] = opt_utils.traj_deriv(
                 model, data, ctrls + noisev, target_trajs[k],
-                targ_traj_masks[k], grad_trunc_tk,
+                targ_traj_mask_currs[k], grad_trunc_tk,
                 deriv_ids=site_grad_idxs[k], deriv_site=site_names[k]
             )
             losses[k] = np.mean(dldss[k]**2)
@@ -409,5 +428,10 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         loss = sum([loss.item() for loss in losses]) / n_sites
         lowest_losses.append(loss, (k0, ctrls.copy()))
         print(loss)
+
+        util.reset_state(data, data0)
+        qs, qvels = forward_to_contact(env, ctrls + noisev, True)
+        if k0 % 10 == 0:
+            breakpoint()
 
     return ctrls, lowest_losses.dict
