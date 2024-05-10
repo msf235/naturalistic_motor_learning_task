@@ -195,7 +195,7 @@ full_trajs = [full_traj1, full_traj2]
 masks = [targ_traj_mask1, targ_traj_mask2]
 mask_types = [targ_traj_mask_type1, targ_traj_mask_type2]
 
-tennis_idxs = arm_t.tennis_idxs(model)
+tennis_idxs = arm_t.two_arm_idxs(model)
 site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                   tennis_idxs['left_arm_without_adh']]
 stabilize_jnt_idx = tennis_idxs['not_arm_j']
