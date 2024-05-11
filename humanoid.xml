@@ -53,7 +53,7 @@
       </default>
       <default class="hand">
         <!--<geom type="sphere" size=".04"/>-->
-        <!--<geom type="capsule" size=".03 .05" margin=".01" gap=".01"/>-->
+        <geom type="capsule" margin=".001" gap=".001"  size=".03 .025"/>
         <site size=".01" pos="0 0 0" rgba="1 1 .5 .7"/>
       </default>
 
@@ -171,10 +171,8 @@
           <body name="hand_right" pos="0 -.18 .18" zaxis="0 -1 1.5">
             <site name="hand_right" class="hand"/>
             <!--<geom name="hand_right" zaxis="0 -1 1.5" class="hand" />-->
-            <geom type="capsule" size=".03 .025" margin=".01" gap=".01"
-              pos="0 0 -.025"/>
-            <geom type="capsule" size=".03 .025" margin=".01" gap=".01"
-              pos="0 0 .025" rgba="1 1 .5 1"/>
+            <geom type="capsule" pos="0 0 -.025" class="hand"/>
+            <geom type="capsule" pos="0 0 .025" rgba="1 1 .5 1" class="hand"/>
             <joint name="wrist_right" axis="1 0 0" class="wrist"/>
               <!--friction="1 0.005 0.03"-->
           </body>
@@ -192,9 +190,8 @@
           <body name="hand_left" pos="0 .18 .18" zaxis="0 1 1.5">
             <site name="hand_left" class="hand" />
             <!--<geom name="hand_left" zaxis="0 1 2" class="hand"/>-->
-            <geom type="capsule" size=".03 .025" margin=".01" gap=".01"
-              pos="0 0 -.025"/>
-            <geom type="capsule" size=".03 .025" margin=".01" gap=".01"
+            <geom type="capsule" class="hand" pos="0 0 -.025"/>
+            <geom type="capsule" class="hand"
               pos="0 0 .025" rgba="1 1 .5 1"/>
             <joint name="wrist_left" axis="-1 0 0" class="wrist"/>
           </body>

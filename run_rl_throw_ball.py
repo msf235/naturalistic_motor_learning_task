@@ -80,7 +80,7 @@ targ_traj_mask_type = 'progressive'
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-baseball_idx = arm_t.baseball_idxs(model)
+baseball_idx = arm_t.one_arm_idxs(model)
 
 sites = ['hand_right', 'ball_base']
 grad_idxs = 2*[baseball_idx['arm_a_without_adh']]
