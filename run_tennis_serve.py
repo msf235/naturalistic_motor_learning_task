@@ -27,7 +27,7 @@ out_f = outdir/'tennis_ctrl.pkl'
 
 
 # Tk = 120
-Tk = 120*2
+Tk = 120*8
 # Tk = 320
 # lr = 1/Tk
 # lr = 10/Tk
@@ -60,14 +60,11 @@ data = env.data
 
 util.reset(model, data, 10, body_pos)
 
-full_traj1 = arm_t.tennis_traj(model, data, Tk)
-
 targ_traj_mask1 = np.ones((Tk-1,))
 targ_traj_mask_type1 = 'progressive'
 
 full_traj1, full_traj2 = arm_t.tennis_traj(model, data, Tk)
-# full_traj2 = np.zeros(full_traj1.shape)
-# full_traj2[:] = data.site('hand_left').xpos.copy()
+print(data.site('hand_left').xpos)
 targ_traj_mask2 = np.ones((Tk-1,))
 targ_traj_mask_type2 = 'progressive'
 
@@ -92,6 +89,14 @@ site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
 stabilize_jnt_idx = tennis_idxs['not_arm_j']
 stabilize_act_idx = tennis_idxs['not_arm_a']
 
+n = len(sites)
+nr = range(n)
+
+dt = model.opt.timestep
+T = Tk*dt
+tt = np.arange(0, T-dt, dt)
+
+
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     util.reset(model, data, 10, body_pos)
@@ -102,11 +107,12 @@ if rerun1 or not out_f.exists():
     # util.reset(model, data, 10, body_pos)
     # arm_t.forward_to_contact(env, ctrls, True)
     util.reset(model, data, 10, body_pos)
+    print(data.site('hand_left').xpos)
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
         full_trajs, masks, mask_types, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
-        Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=40,
-        amnt_to_incr=20)
+        Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=20,
+        amnt_to_incr=80)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
 else:
@@ -115,16 +121,9 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-n = len(sites)
-nr = range(n)
 # ctrls = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, 10, body_pos)
-util.reset(model, data, 10, body_pos)
-dt = model.opt.timestep
-T = Tk*dt
-tt = np.arange(0, T-dt, dt)
 
-# fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 fig, axs = plt.subplots(1, n, figsize=(5*n, 5))
 for k in nr:
     hx = arm_t.forward_with_site(env, ctrls, sites[k], False)

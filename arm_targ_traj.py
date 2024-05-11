@@ -43,7 +43,7 @@ def throw_traj(model, data, Tk):
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
                                   np.pi/2.5, Tk-Tk2-1, density_fn='')
     grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
-    s = np.tanh(5*np.linspace(0, 1, Tk1))
+    s = sigmoid(5*np.linspace(0, 1, Tk1))
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s*(grab_targ - handx)
     # grab_traj[-1] = grab_targ
@@ -55,6 +55,10 @@ def throw_traj(model, data, Tk):
     full_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
     
     return full_traj
+
+def sigmoid(x, a):
+    # return .5 * (np.tanh(x-.5) + 1)
+    return .5*np.tanh(a*(x-.5)) + .5
 
 def tennis_traj(model, data, Tk):
     shouldxr = data.site('shoulder1_right').xpos
@@ -73,7 +77,12 @@ def tennis_traj(model, data, Tk):
     # Right arm
 
     grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
-    s = np.tanh(5*np.linspace(0, 1, Tk1))
+    sx = np.linspace(0, 1, Tk1)
+    # s = sigmoid(5*sx)
+    s = sigmoid(sx, 5)
+    # plt.plot(sx, s)
+    # plt.show()
+    # breakpoint()
     s = np.tile(s, (3, 1)).T
     s = np.concatenate((s, np.ones((Tk2-Tk1, 3))), axis=0)
     grab_traj = handxr + s*(grab_targ - handxr)
@@ -102,7 +111,7 @@ def tennis_traj(model, data, Tk):
 
     # Left arm
     grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
-    s = np.tanh(5*np.linspace(0, 1, Tk1))
+    s = sigmoid(np.linspace(0, 1, Tk1), 5)
     s = np.tile(s, (3, 1)).T
     s = np.concatenate((s, np.ones((Tk2-Tk1, 3))), axis=0)
     grab_traj = handxl + s*(grab_targ - handxl)
@@ -209,110 +218,6 @@ class LimLowestDict:
         if len(self.dict) > self.max_len:
             self.dict.popitem()
 
-def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
-                    ctrls, grad_trunc_tk, seed, CTRL_RATE, CTRL_STD, Tk,
-                    max_its=30, lr=10, keep_top=1, right_or_left='right'):
-    """Trains the right arm to follow the target trajectory (targ_traj). This
-    involves gradient steps to update the arm controls and alternating with
-    computing an LQR stabilizer to keep the rest of the body stable while the
-    arm is moving."""
-    model = env.model
-    data = env.data
-
-    data0 = copy.deepcopy(data)
-
-    joints = opt_utils.get_joint_ids(model)
-    acts = opt_utils.get_act_ids(model)
-
-    def ints(l1, l2):
-        return list(set(l1).intersection(set(l2)))
-
-    arm_j = joints['body'][f'{right_or_left}_arm']
-    not_arm_j = [i for i in joints['body']['body_dofs'] if i not in arm_j]
-    arm_a = acts[f'{right_or_left}_arm']
-    arm_a_without_adh = [k for k in arm_a if k not in acts['adh']]
-    # Include all adhesion (including other hand)
-    arm_with_all_adh = [k for k in acts['all'] if k in arm_a or k in acts['adh']]
-    arm_with_all_adh.sort()
-    not_arm_a = [k for k in acts['all'] if k not in arm_a and k not in
-                 acts['adh']]
-
-    deriv_site = f'hand_{right_or_left}'
-
-    noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
-
-    qs, qvels = util.forward_sim(model, data, ctrls)
-    util.reset_state(data, data0)
-
-    ### Gradient descent
-    qpos0 = data.qpos.copy()
-
-    dt = model.opt.timestep
-    T = Tk*dt
-    tt = np.arange(0, T-dt, dt)
-    ball_contact = False
-    optm = opts.Adam(lr=lr)
-    optm2 = opts.Adam(lr=lr)
-    targ_traj_prog = (isinstance(targ_traj_mask_type, str)
-                      and targ_traj_mask_type == 'progressive')
-    targ_traj_mask_curr = targ_traj_mask
-    if targ_traj_prog:
-        targ_traj_mask_curr = np.zeros((Tk-1,))
-        incr_per = 5 # increment period
-        incr_cnt = 0
-
-    lowest_losses = LimLowestDict(keep_top)
-
-    Tk1 = int(Tk / 3)
-    for k0 in range(max_its):
-        if targ_traj_prog and k0 % incr_per == 0:
-            idx = slice(10*incr_cnt, 10*(incr_cnt+1))
-            targ_traj_mask_curr[idx] = targ_traj_mask[idx]
-            incr_cnt += 1
-
-        util.reset_state(data, data0)
-        k, ball_contact = forward_to_contact(env, ctrls + noisev,
-                                             render=False)
-        util.reset_state(data, data0)
-        grads1, hxs1, dldss1 = opt_utils.traj_deriv(
-            model, data, ctrls + noisev, target_traj, targ_traj_mask,
-            grad_trunc_tk, deriv_ids=arm_a_without_adh,
-            deriv_site='hand_right'
-        )
-        loss1 = np.mean(dldss1**2)
-        util.reset_state(data, data0)
-        grads2, hxs2, dldss2 = opt_utils.traj_deriv(
-            model, data, ctrls + noisev, target_traj, targ_traj_mask,
-            grad_trunc_tk, deriv_ids=arm_a_without_adh,
-            deriv_site='ball'
-        )
-        loss2 = .1*np.mean(dldss2**2)
-        loss = loss1 + loss2
-        grads = grads1 + .1*grads2
-        ctrls[:, arm_a_without_adh] = optm.update(
-            ctrls[:, arm_a_without_adh], grads, 'ctrls', loss)
-        util.reset_state(data, data0)
-        ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-            model, data, Tk, noisev, qpos0,
-            not_arm_a,
-            not_arm_j, ctrls[:, arm_with_all_adh],
-        )
-        lowest_losses.append(loss.item(), (k0, ctrls.copy()))
-        print(loss.item())
-        # util.reset_state(data, data0)
-        # hxs1 = forward_with_site(env, ctrls, 'hand_right', False)
-        # loss1 = np.mean((hxs1 - target_traj)**2)
-        # util.reset_state(data, data0)
-        # hxs2 = forward_with_site(env, ctrls, 'ball_base', False)
-        # loss2 = .1*np.mean((hxs2 - target_traj)**2)
-        # loss = loss1 + loss2
-        # lowest_losses.append(loss, (k0, ctrls.copy()))
-        # print(list(lowest_losses.dict.keys()))
-
-    return ctrls, lowest_losses.dict
-
-
-
 def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     stabilize_act_idx, target_trajs, targ_traj_masks,
                     targ_traj_mask_types, ctrls, grad_trunc_tk, seed,
@@ -346,6 +251,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     model = env.model
     data = env.data
 
+
     not_stabilize_act_idx = [k for k in range(model.nu) if k not in
                              stabilize_act_idx]
 
@@ -359,7 +265,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
     qs, qvels = util.forward_sim(model, data, ctrls + noisev)
-    util.reset_state(data, data0)
+    util.reset_state(model, data, data0)
 
     ### Gradient descent
     qpos0 = data.qpos.copy()
@@ -393,21 +299,21 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
                 incr_cnts[k] += 1
 
-        util.reset_state(data, data0)
+        util.reset_state(model, data, data0)
         k, ball_contact = forward_to_contact(env, ctrls + noisev, render=False)
-        util.reset_state(data, data0)
+        util.reset_state(model, data, data0)
         grads = [0] * n_sites
         hxs = [0] * n_sites
         dldss = [0] * n_sites
         losses = [0] * n_sites
         for k in range(n_sites):
-            grads[k], hxs[k], dldss[k] = opt_utils.traj_deriv(
+            grads[k], hxs[k], dldss[k] = opt_utils.traj_deriv_new(
                 model, data, ctrls + noisev, target_trajs[k],
                 targ_traj_mask_currs[k], grad_trunc_tk,
                 deriv_ids=site_grad_idxs[k], deriv_site=site_names[k]
             )
             losses[k] = np.mean(dldss[k]**2)
-            util.reset_state(data, data0)
+            util.reset_state(model, data, data0)
         grads[0][:, :Tk1] *= 4
         for k in range(n_sites):
             # ctrls[:, right_arm_without_adh] = optm.update(
@@ -427,10 +333,29 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         loss = sum([loss.item() for loss in losses]) / n_sites
         lowest_losses.append(loss, (k0, ctrls.copy()))
         print(loss)
+        nr = range(n_sites)
 
-        util.reset_state(data, data0)
-        qs, qvels = forward_to_contact(env, ctrls + noisev, True)
-        if k0 % 10 == 0:
-            breakpoint()
+        if k0 % incr_every == 0:
+            fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
+            for k in nr:
+                util.reset_state(model, data, data0)
+                mj.mj_forward(model, data)
+                hx = forward_with_site(env, ctrls, site_names[k], False)
+                tm = np.tile(targ_traj_mask_currs[k], (3, 1)).T
+                tm[tm == 0] = np.nan
+                ft = target_trajs[k]*tm
+                loss = np.mean((hx - target_trajs[k])**2)
+                ax = axs[k]
+                ax.plot(tt, hx[:,1], color='blue', label='x')
+                ax.plot(tt, ft[:,1], '--', color='blue')
+                ax.plot(tt, hx[:,2], color='red', label='y')
+                ax.plot(tt, ft[:,2], '--', color='red')
+                ax.set_title(site_names[k] + ' loss: ' + str(loss))
+                ax.legend()
+            fig.tight_layout()
+            plt.show()
+
+            util.reset_state(model, data, data0)
+            qs, qvels = forward_to_contact(env, ctrls + noisev, True)
 
     return ctrls, lowest_losses.dict

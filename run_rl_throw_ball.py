@@ -82,7 +82,7 @@ noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 baseball_idx = arm_t.one_arm_idxs(model)
 
-sites = ['hand_right', 'ball_base']
+sites = ['hand_right', 'base']
 grad_idxs = 2*[baseball_idx['arm_a_without_adh']]
 target_trajs = 2*[full_traj]
 masks = 2*[targ_traj_mask]
@@ -161,7 +161,7 @@ util.reset(model, data, 10, body_pos)
 hxs1 = arm_t.forward_with_site(env, ctrls+noisev, 'hand_right', True)
 loss1 = np.mean((hxs1 - full_traj)**2)
 util.reset(model, data, 10, body_pos)
-hxs2 = arm_t.forward_with_site(env, ctrls+noisev, 'ball_base', False)
+hxs2 = arm_t.forward_with_site(env, ctrls+noisev, 'base', False)
 loss2 = np.mean((hxs2 - full_traj)**2)
 print(hxs2[-5:,:5])
 print(loss1, loss2)

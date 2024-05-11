@@ -280,10 +280,10 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
             qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
             ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_ids,
                               ctrl_act_ids)
-            util.reset_state(data, datak0)
+            util.reset_state(model, data, datak0)
             K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
                                          ctrl_act_ids)
-            util.reset_state(data, datak0)
+            util.reset_state(model, data, datak0)
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
                                    stable_jnt_ids)
         ctrls[k][ctrl_act_ids] = ctrl
@@ -294,6 +294,78 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         qs[k+1] = data.qpos.copy()
         qvels[k+1] = data.qvel.copy()
     return ctrls, K, qs, qvels
+
+### Gradient descent
+def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
+               grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
+                  update_every=2, update_phase=1):
+    """deriv_inds specifies the indices of the actuators that will be
+    updated (for instance, the actuators related to the right arm)."""
+    # data = copy.deepcopy(data)
+    assert update_phase < update_every
+    Tk = ctrls.shape[0]
+    grad_range = range(update_phase, Tk, update_every)
+    nuderiv = len(deriv_ids)
+    As = np.zeros((Tk, 2*model.nv, 2*model.nv))
+    Bs = np.zeros((Tk, 2*model.nv, nuderiv))
+    B = np.zeros((2*model.nv, model.nu))
+    C = np.zeros((3, model.nv))
+    dldqs = np.zeros((Tk, 2*model.nv))
+    dldss = np.zeros((Tk, 3))
+    lams = np.zeros((Tk, 2*model.nv))
+    fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
+    epsilon = 1e-6
+    hxs = np.zeros((Tk, 3))
+
+    # for tk in itrange:
+    for tk in range(Tk):
+        if tk in grad_range:
+            mj.mj_forward(model, data)
+            mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
+            Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
+            mj.mj_jacSite(
+                model, data, C, None, site=data.site(f'{deriv_site}').id)
+            site_xpos = data.site(f'{deriv_site}').xpos
+            dlds = site_xpos - targ_traj[tk]
+            dldss[tk] = dlds
+            hxs[tk] = site_xpos
+            dldq = C.T @ dlds
+            dldqs[tk, :model.nv] = dldq
+        
+        if tk < Tk:
+            sim_util.step(model, data, ctrls[tk])
+
+    ttm = targ_traj_mask.reshape(-1, 1)
+    dldqs = dldqs * ttm
+    # lams[-1] = dldqs[-1]
+    lams[tk] = dldqs[tk]
+    grads = np.zeros((Tk, nuderiv))
+    # tau_loss_factor = 1e-9
+    tau_loss_factor = 0
+    loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
+
+    for tk in reversed(grad_range[1:]):
+        tks = tk - update_every # Shifted by one update
+        lams[tks] = dldqs[tks] + As[tks].T @ lams[tk]
+        grads[tks] = tau_loss_factor*loss_u[tks] + Bs[tks].T @ lams[tk]
+
+    v = np.ones(Tk)
+    A = np.zeros((Tk, Tk))
+    if update_every > 1:
+        decay = np.arange(1, 0, -1/(update_every-1))
+        for k in range(1, update_every):
+            A += decay[k-1]*np.diag(v[k:], k+update_phase)
+        A = A / (2*np.sum(decay))
+        A += A.T
+        # A += A.T / 2*sum(decay)
+    breakpoint()
+    # # Todo: fix indexing
+    # for tk in range(2, Tk): # Go backwards in time
+        # lams[Tk-tk] = dldqs[Tk-tk] + As[Tk-tk].T @ lams[Tk-tk+1]
+        # # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
+        # grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
+                # + Bs[Tk-tk].T @ lams[Tk-tk+1]
+    return grads, hxs, dldss
 
 ### Gradient descent
 def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
