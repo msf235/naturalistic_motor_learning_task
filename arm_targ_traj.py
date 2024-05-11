@@ -42,7 +42,7 @@ def throw_traj(model, data, Tk):
     Tk3 = int((Tk+Tk2)/2)
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
                                   np.pi/2.5, Tk-Tk2-1, density_fn='')
-    grab_targ = data.site('ball_base').xpos + np.array([0, 0, 0])
+    grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
     s = np.tanh(5*np.linspace(0, 1, Tk1))
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s*(grab_targ - handx)
@@ -101,7 +101,7 @@ def tennis_traj(model, data, Tk):
     # Tk4 = int((Tk+Tk2)/2)
 
     # Left arm
-    grab_targ = data.site('ball_base').xpos + np.array([0, 0, 0])
+    grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
     s = np.tanh(5*np.linspace(0, 1, Tk1))
     s = np.tile(s, (3, 1)).T
     s = np.concatenate((s, np.ones((Tk2-Tk1, 3))), axis=0)
@@ -284,7 +284,7 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
         grads2, hxs2, dldss2 = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj, targ_traj_mask,
             grad_trunc_tk, deriv_ids=arm_a_without_adh,
-            deriv_site='ball_base'
+            deriv_site='ball'
         )
         loss2 = .1*np.mean(dldss2**2)
         loss = loss1 + loss2
@@ -317,7 +317,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     stabilize_act_idx, target_trajs, targ_traj_masks,
                     targ_traj_mask_types, ctrls, grad_trunc_tk, seed,
                     CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, keep_top=1,
-                    n_incr=10, incr_every=5, amnt_to_incr=5):
+                    incr_every=5, amnt_to_incr=5):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
     computing an LQR stabilizer to keep the rest of the body stable while the
@@ -340,9 +340,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         max_its: maximum number of gradient steps
         lr: learning rate
         keep_top: number of lowest losses to keep
-        n_incr: number of times to increment the mask
         incr_every: number of gradient steps between increments
-        amnt_to_incr: amount to increment the mask by each time
+        amnt_to_incr: number of timesteps to increment the mask by each time
     """
     model = env.model
     data = env.data
@@ -389,8 +388,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     for k0 in range(max_its):
         for k in range(n_sites):
             if targ_traj_progs[k] and k0 % incr_every == 0:
-                idx = slice(amnt_to_incrs[k]*incr_cnts[k],
-                            amnt_to_incrs[k]*(incr_cnts[k]+1))
+                idx = slice(amnt_to_incr*incr_cnts[k],
+                            amnt_to_incr*(incr_cnts[k]+1))
                 targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
                 incr_cnts[k] += 1
 

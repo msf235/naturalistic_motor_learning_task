@@ -105,7 +105,8 @@ if rerun1 or not out_f.exists():
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
         full_trajs, masks, mask_types, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
-        Tk, lr=lr, max_its=max_its, keep_top=10, amnt_to_incr=5)
+        Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=40,
+        amnt_to_incr=20)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
 else:
