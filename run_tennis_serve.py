@@ -23,7 +23,7 @@ outdir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
 seed = 2
-out_f_base = outdir/'move_right_arm_ctrl'
+out_f = outdir/'tennis_ctrl.pkl'
 
 
 # Tk = 120
@@ -78,8 +78,6 @@ joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
 lr = .3/Tk
-
-out_f = Path(str(out_f_base) + '_both.pkl')
 
 bodyj = joints['body']['body_dofs']
 
