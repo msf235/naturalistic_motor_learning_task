@@ -60,12 +60,12 @@ data = env.data
 
 util.reset(model, data, 10, body_pos)
 
-targ_traj_mask1 = np.ones((Tk-1,))
+targ_traj_mask1 = np.ones((Tk,))
 targ_traj_mask_type1 = 'progressive'
 
 full_traj1, full_traj2 = arm_t.tennis_traj(model, data, Tk)
 print(data.site('hand_left').xpos)
-targ_traj_mask2 = np.ones((Tk-1,))
+targ_traj_mask2 = np.ones((Tk,))
 targ_traj_mask_type2 = 'progressive'
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
@@ -95,7 +95,6 @@ nr = range(n)
 dt = model.opt.timestep
 T = Tk*dt
 tt = np.arange(0, T-dt, dt)
-
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls

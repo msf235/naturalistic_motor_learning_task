@@ -88,7 +88,7 @@ def tennis_traj(model, data, Tk):
     grab_traj = handxr + s*(grab_targ - handxr)
 
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                                  np.pi/2.5, Tk-Tk3-1, density_fn='')
+                                  np.pi/2.5, Tk-Tk3, density_fn='')
 
     setup_traj = np.zeros((Tk3, 3))
     s = np.linspace(0, 1, Tk3-Tk2)
@@ -119,7 +119,7 @@ def tennis_traj(model, data, Tk):
     arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
                             0, .8*np.pi/2, Tk4-Tk3, density_fn='')
     arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
-                            .8*np.pi/2, .7*np.pi/2, Tk-Tk4-1, density_fn='')
+                            .8*np.pi/2, .7*np.pi/2, Tk-Tk4, density_fn='')
 
     setup_traj = np.zeros((Tk3, 3))
     s = np.linspace(0, 1, Tk3-Tk2)
@@ -286,7 +286,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                                   and targ_traj_mask_types[k] == 'progressive'))
         targ_traj_mask_currs.append(targ_traj_masks[k])
         if targ_traj_progs[k]:
-            targ_traj_mask_currs[k] = np.zeros((Tk-1,))
+            targ_traj_mask_currs[k] = np.zeros((Tk,))
             incr_cnts.append(0)
     lowest_losses = LimLowestDict(keep_top)
 
