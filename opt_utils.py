@@ -298,7 +298,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
-                  update_every=1, update_phase=0):
+                  update_every=2, update_phase=0):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
@@ -341,7 +341,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     dldqs = dldqs * ttm
     # lams[-1] = dldqs[-1]
     lams[tk] = dldqs[tk]
-    grads = np.zeros((Tk, nuderiv))
+    grads = np.zeros((Tk-1, nuderiv))
     # tau_loss_factor = 1e-9
     tau_loss_factor = 0
     loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
@@ -351,41 +351,26 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         lams[tks] = dldqs[tks] + As[tks].T @ lams[tk]
         grads[tks] = tau_loss_factor*loss_u[tks] + Bs[tks].T @ lams[tk]
 
-    breakpoint()
-    grad_filt_mat_block = np.zeros((update_every+1, update_every+1))
+    mat_block = np.zeros((update_every, update_every+1))
     dk = 1/update_every
-    v = np.arange(0, 1+dk, dk)
-    grad_filt_mat_block[:, 0] = v[::-1]
-    grad_filt_mat_block[:, update_every] = v
-    v = np.diag(np.ones(int(Tk/ update_every)))
-    grad_filt_mat = np.kron(v, grad_filt_mat_block)
+    v = np.arange(dk, 1+dk, dk)
+    mat_block[:, 0] = v[::-1]
+    mat_block[1:, update_every] = v[:-1]
+    # if update_phase > 0:
+    n_complete_blocks = (Tk-1) // update_every + 1
+    last_block_size = (Tk-1) % update_every - update_phase
+    first_block_size = update_phase
+    # As = n_complete_blocks * update_every + last_block_size + first_block_size
+    As = Tk-1
+    A = np.zeros((As, As))
+    A[:update_phase, update_phase] = 1
+    for k in range(0, As-update_every-update_phase, update_every):
+        ks = k + update_phase
+        A[ks:ks+update_every, ks:ks+update_every+1] = mat_block
+    A[ks+update_every:, ks+update_every] = 1
     breakpoint()
-    v = np.ones(Tk)
-    w = np.zeros(Tk)
-    w[update_phase::update_every+1] = 1
-    # w[(update_phase+1)::update_every] = 1
-    A = np.zeros((Tk, Tk))
-    if update_every > 1:
-        decay = np.arange(1, 0, -1/(update_every-1))
-        for k in range(1, update_every):
-            sh = k+update_phase
-            term = decay[k-1]*np.diag(v[sh:], sh)
-            A += term
-        A += A.T
-    if update_every > 1:
-        vr = A @ v
-        wr = A @ w
-        An = np.diag(1/vr) @ A
-        An2 = np.diag(1/wr) @ A
-    print(An[:10,:10])
-    print(An2[:10,:10])
-    breakpoint()
-    # # Todo: fix indexing
-    # for tk in range(2, Tk): # Go backwards in time
-        # lams[Tk-tk] = dldqs[Tk-tk] + As[Tk-tk].T @ lams[Tk-tk+1]
-        # # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
-        # grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
-                # + Bs[Tk-tk].T @ lams[Tk-tk+1]
+
+
     return grads, hxs, dldss
 
 ### Gradient descent
