@@ -49,12 +49,22 @@ class ProgressBar:
         self.it += 1
 
 ## Reset and burn in:
-def reset(model, data, nsteps, humanoid_x0=None):
-    jid = model.joint('human_x_root').jntid
-    mj.mj_resetData(model, data)
+# def reset(model, data, nsteps, humanoid_x0=None):
+    # jid = model.joint('human_x_root').jntid
+    # mj.mj_resetData(model, data)
+    # mj.mj_forward(model, data)
+    # if humanoid_x0 is not None:
+        # data.qpos[jid] = humanoid_x0
+    # for k in range(nsteps):
+        # mj.mj_step(model, data)
+
+def reset(model, data, nsteps, keyframe_name=None):
+    if keyframe_name is not None:
+        keyframe_id = model.keyframe(keyframe_name).id
+        mj.mj_resetDataKeyframe(model, data, keyframe_id)
+    else:
+        mj.mj_resetData(model, data)
     mj.mj_forward(model, data)
-    if humanoid_x0 is not None:
-        data.qpos[jid] = humanoid_x0
     for k in range(nsteps):
         mj.mj_step(model, data)
 

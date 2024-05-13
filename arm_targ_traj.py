@@ -223,7 +223,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     stabilize_act_idx, target_trajs, targ_traj_masks,
                     targ_traj_mask_types, ctrls, grad_trunc_tk, seed,
                     CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, keep_top=1,
-                    incr_every=5, amnt_to_incr=5):
+                    incr_every=5, amnt_to_incr=5, grad_update_every=1):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
     computing an LQR stabilizer to keep the rest of the body stable while the
@@ -291,8 +291,6 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             incr_cnts.append(0)
     lowest_losses = LimLowestDict(keep_top)
 
-    ue = 6
-
     Tk1 = int(Tk / 3)
     for k0 in range(max_its):
         for k in range(n_sites):
@@ -309,15 +307,14 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         hxs = [0] * n_sites
         dldss = [0] * n_sites
         losses = [0] * n_sites
-        # up = k0 % ue == 0
-        up = 0
+        update_phase = k0 % grad_update_every
         tic = time.time()
         for k in range(n_sites):
             grads[k], hxs[k], dldss[k] = opt_utils.traj_deriv_new(
                 model, data, ctrls + noisev, target_trajs[k],
                 targ_traj_mask_currs[k], grad_trunc_tk,
                 deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
-                update_every=ue, update_phase=up
+                update_every=grad_update_every, update_phase=update_phase
             )
             losses[k] = np.mean(dldss[k]**2)
             util.reset_state(model, data, data0)
@@ -346,6 +343,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         nr = range(n_sites)
 
         if k0 % incr_every == 0:
+            plt.close('all')
             fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
             for k in nr:
                 util.reset_state(model, data, data0)
@@ -363,7 +361,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 ax.set_title(site_names[k] + ' loss: ' + str(loss))
                 ax.legend()
             fig.tight_layout()
-            plt.show()
+            fig.show()
 
             util.reset_state(model, data, data0)
             qs, qvels = forward_to_contact(env, ctrls + noisev, True)

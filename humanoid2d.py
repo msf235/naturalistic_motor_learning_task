@@ -270,13 +270,6 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             "qvel": self.data.qvel.size,
         }
 
-        # joints = opt_utils.get_joint_names(self.model)
-        # self.ball_joints = joints['ball_jnts']
-        jid = self.model.joint('human_x_root').jntid
-        # mj.mj_resetData(model, data)
-        # mj.mj_forward(model, data)
-        if self.body_pos is not None:
-            self.init_qpos[jid] = self.body_pos
 
     @property
     def healthy_reward(self):
@@ -331,7 +324,7 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         info = {
             "x_position": x_position_after,
             "ball_x_position": ball_x_pos_after,
-            "z_distance_from_origin": self.data.qpos[1] - self.init_qpos[1],
+            "z_distance_from_origin": self.data.qpos[1],
             "x_velocity": x_velocity,
             "ball_x_velocity": ball_x_velocity,
             **reward_info,

@@ -100,7 +100,8 @@ if rerun1 or not out_f.exists():
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, grad_idxs, baseball_idx['not_arm_j'],
         baseball_idx['not_arm_a'], target_trajs, masks, mask_types, ctrls, 30,
-        seed, CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
+        seed, CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10,
+        incr_every=80, amount_to_incr=80)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
     # np.save(out_f, ctrls)

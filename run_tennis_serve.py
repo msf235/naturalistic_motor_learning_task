@@ -45,7 +45,9 @@ rerun1 = True
 render_mode = 'human'
 # render_mode = 'rgb_array'
 
-body_pos = -0.4
+keyframe = 'tennis_wide_pos'
+
+reset = lambda : util.reset(model, data, 40, keyframe)
 
 # Create a Humanoid2dEnv object
 env = humanoid2d.Humanoid2dEnv(
@@ -58,7 +60,7 @@ env = humanoid2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
-util.reset(model, data, 10, body_pos)
+reset()
 
 targ_traj_mask1 = np.ones((Tk,))
 targ_traj_mask_type1 = 'progressive'
@@ -71,6 +73,7 @@ noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
+breakpoint()
 
 lr = .3/Tk
 
@@ -97,19 +100,20 @@ tt = np.arange(0, T-dt, dt)
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
-    util.reset(model, data, 10, body_pos)
+    reset()
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
         bodyj, free_ctrls=np.ones((Tk, len(acts['adh'])))
     )[:2]
-    # util.reset(model, data, 10, body_pos)
-    # arm_t.forward_to_contact(env, ctrls, True)
-    util.reset(model, data, 10, body_pos)
+    reset()
+    arm_t.forward_to_contact(env, ctrls, True)
+    breakpoint()
+    reset()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
         full_trajs, masks, mask_types, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
-        Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=20,
-        amnt_to_incr=80)
+        Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=80,
+        amnt_to_incr=20, grad_update_every=6)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
 else:
@@ -119,7 +123,7 @@ else:
     lowest_losses = load_data['lowest_losses']
 
 # ctrls = lowest_losses.peekitem(0)[1][1]
-util.reset(model, data, 10, body_pos)
+reset()
 
 fig, axs = plt.subplots(1, n, figsize=(5*n, 5))
 for k in nr:
@@ -135,6 +139,6 @@ for k in nr:
 fig.tight_layout()
 plt.show()
 
-util.reset(model, data, 10, body_pos)
+reset()
 arm_t.forward_to_contact(env, ctrls, True)
 
