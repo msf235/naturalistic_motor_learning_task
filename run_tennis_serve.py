@@ -64,7 +64,6 @@ targ_traj_mask1 = np.ones((Tk,))
 targ_traj_mask_type1 = 'progressive'
 
 full_traj1, full_traj2 = arm_t.tennis_traj(model, data, Tk)
-print(data.site('hand_left').xpos)
 targ_traj_mask2 = np.ones((Tk,))
 targ_traj_mask_type2 = 'progressive'
 
@@ -106,7 +105,6 @@ if rerun1 or not out_f.exists():
     # util.reset(model, data, 10, body_pos)
     # arm_t.forward_to_contact(env, ctrls, True)
     util.reset(model, data, 10, body_pos)
-    print(data.site('hand_left').xpos)
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
         full_trajs, masks, mask_types, ctrls, 30, seed, CTRL_RATE, CTRL_STD,

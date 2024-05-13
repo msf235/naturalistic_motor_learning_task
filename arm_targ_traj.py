@@ -7,6 +7,7 @@ import mujoco as mj
 import copy
 import sortedcontainers as sc
 from matplotlib import pyplot as plt
+import time
 
 def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     acts = opt_utils.get_act_ids(model)
@@ -183,9 +184,9 @@ def show_forward_sim(env, ctrls):
         env.render()
 
 def forward_with_site(env, ctrls, site_name, render=False):
-    site_xvs = np.zeros((ctrls.shape[0], 3))
+    site_xvs = np.zeros((ctrls.shape[0]+1, 3))
     site_xvs[0] = env.data.site(site_name).xpos
-    for k in range(ctrls.shape[0]-1):
+    for k in range(ctrls.shape[0]):
         util.step(env.model, env.data, ctrls[k])
         site_xvs[k+1] = env.data.site(site_name).xpos
         if render:
@@ -272,7 +273,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
 
     dt = model.opt.timestep
     T = Tk*dt
-    tt = np.arange(0, T-dt, dt)
+    tt = np.arange(0, T, dt)
 
     optms = []
     targ_traj_progs = []
@@ -290,6 +291,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             incr_cnts.append(0)
     lowest_losses = LimLowestDict(keep_top)
 
+    ue = 6
+
     Tk1 = int(Tk / 3)
     for k0 in range(max_its):
         for k in range(n_sites):
@@ -306,11 +309,15 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         hxs = [0] * n_sites
         dldss = [0] * n_sites
         losses = [0] * n_sites
+        # up = k0 % ue == 0
+        up = 0
+        tic = time.time()
         for k in range(n_sites):
             grads[k], hxs[k], dldss[k] = opt_utils.traj_deriv_new(
                 model, data, ctrls + noisev, target_trajs[k],
                 targ_traj_mask_currs[k], grad_trunc_tk,
-                deriv_ids=site_grad_idxs[k], deriv_site=site_names[k]
+                deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
+                update_every=ue, update_phase=up
             )
             losses[k] = np.mean(dldss[k]**2)
             util.reset_state(model, data, data0)
@@ -322,17 +329,20 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 ctrls[:, site_grad_idxs[k]], grads[k][:Tk-1], 'ctrls',
                 losses[k])
 
+        ctrls = np.clip(ctrls, -1, 1)
         ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
             model, data, Tk, noisev, qpos0, stabilize_act_idx,
             stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
         )
+        ctrls = np.clip(ctrls, -1, 1)
         # ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
             # model, data, Tk, noisev, qpos0, not_arm_a,
             # not_arm_j, ctrls[:, arm_a],
         # )
         loss = sum([loss.item() for loss in losses]) / n_sites
         lowest_losses.append(loss, (k0, ctrls.copy()))
-        print(loss)
+        toc = time.time()
+        print(loss, toc-tic)
         nr = range(n_sites)
 
         if k0 % incr_every == 0:

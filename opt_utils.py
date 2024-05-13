@@ -298,7 +298,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
-                  update_every=2, update_phase=0):
+                  update_every=1, update_phase=0):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
@@ -329,12 +329,13 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
             hxs[tk] = site_xpos
             dldq = C.T @ dlds
             dldqs[tk, :model.nv] = dldq
+            if tk < Tk-1:
+                mj.mjd_transitionFD(
+                    model, data, epsilon, True, As[tk], B, None, None
+                )
+                Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
         
         if tk < Tk-1:
-            mj.mjd_transitionFD(
-                model, data, epsilon, True, As[tk], B, None, None
-            )
-            Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
             sim_util.step(model, data, ctrls[tk])
 
     ttm = targ_traj_mask.reshape(-1, 1)
@@ -368,10 +369,11 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         ks = k + update_phase
         A[ks:ks+update_every, ks:ks+update_every+1] = mat_block
     A[ks+update_every:, ks+update_every] = 1
-    breakpoint()
 
+    grads_interp = A @ grads
 
-    return grads, hxs, dldss
+    return grads_interp, hxs, dldss
+    # return grads, hxs, dldss
 
 ### Gradient descent
 def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
