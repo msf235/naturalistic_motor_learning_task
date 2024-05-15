@@ -372,7 +372,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
 
     grads_interp = A @ grads
 
-    return grads_interp, hxs, dldss
+    return grads_interp
     # return grads, hxs, dldss
 
 ### Gradient descent

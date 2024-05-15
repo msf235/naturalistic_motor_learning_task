@@ -11,6 +11,7 @@ from gymnasium import utils
 # import utils
 # from gymnasium.envs.mujoco import MujocoEnv
 from mujoco_env import MujocoEnv
+import mujoco
 from gymnasium.spaces import Box
 # from gym.utils import seeding # Todo: need to address this 
 # from gymasium.utils import seeding
@@ -191,7 +192,7 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         # xml_file: str = "walker2d_v5.xml",
         xml_file: str = "./humanoid_and_baseball.xml",
         frame_skip: int = 4,
-        body_pos: float = 0.0,
+        keyframe_name: Optional[str] = None,
         default_camera_config: Dict[str, Union[float, int]] = DEFAULT_CAMERA_CONFIG,
         forward_reward_weight: float = 1.0,
         ctrl_cost_weight: float = 1e-3,
@@ -219,7 +220,6 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             **kwargs,
         )
 
-        self.body_pos = body_pos
         self._forward_reward_weight = forward_reward_weight
         self._ctrl_cost_weight = ctrl_cost_weight
 
@@ -244,6 +244,16 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             default_camera_config=default_camera_config,
             **kwargs,
         )
+        if keyframe_name is not None:
+            keyframe_id = self.model.keyframe(keyframe_name).id
+            mujoco.mj_resetDataKeyframe(self.model, self.data, keyframe_id)
+        else:
+            mujoco.mj_resetData(self.model, self.data)
+
+        mujoco.mj_forward(self.model, self.data)
+
+        self.init_qpos = self.data.qpos.ravel().copy()
+        self.init_qvel = self.data.qvel.ravel().copy()
 
         self.metadata = {
             "render_modes": [
@@ -269,6 +279,8 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             - 1 * exclude_current_positions_from_observation,
             "qvel": self.data.qvel.size,
         }
+
+        self.keyframe_name = keyframe_name
 
 
     @property
@@ -366,6 +378,13 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
 
         return reward, reward_info
 
+    def _reset_simulation(self) -> None:
+        if self.keyframe_name is not None:
+            key_id = self.model.keyframe(self.keyframe_name).id
+            mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
+        else:
+            mujoco.mj_resetData(self.model, self.data)
+
     def reset(
         self,
         *,
@@ -380,8 +399,6 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             render = True
         if seed is not None:
             self._np_random, self._np_random_seed = seeding.np_random(seed)
-
-        self._reset_simulation()
 
         ob = self.reset_model(n_steps=n_steps, render=render)
 

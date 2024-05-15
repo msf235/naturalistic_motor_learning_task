@@ -75,6 +75,9 @@ def tennis_traj(model, data, Tk):
     Tk3 = int(2.5*Tk/4)
     # Tk4 = int((Tk+Tk2)/2)
 
+    # fig, ax = plt.subplots()
+    # tt = np.linspace(0, 1, Tk)
+
     # Right arm
 
     grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
@@ -98,15 +101,13 @@ def tennis_traj(model, data, Tk):
 
     right_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs),
                                     axis=0)
+    # ax.plot(tt[:Tk2], grab_traj[:, 2], c='blue')
+    # ax.plot(tt[Tk2:Tk3], setup_traj[:, 2], c='red')
+    # ax.plot(tt[Tk3:Tk], arc_traj_vs[:, 2], c='blue')
 
-    # plt.plot(right_arm_traj[:, 1], right_arm_traj[:, 2])
-    # plt.scatter(shouldxr[1], shouldxr[2])
-    # plt.axis('square')
-    # plt.show()
-
-    Tk1 = int(Tk / 3)
-    Tk2 = int(1.2*Tk / 3)
-    Tk3 = int(2*Tk/4)
+    Tk1 = int(Tk / 4)
+    Tk2 = int(1.1*Tk / 4)
+    Tk3 = int(1.9*Tk/4)
     Tk4 = int(.8*Tk)
     # Tk4 = int((Tk+Tk2)/2)
 
@@ -130,9 +131,10 @@ def tennis_traj(model, data, Tk):
     left_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs,
                                     arc_traj_vs2), axis=0)
 
-    # plt.plot(left_arm_traj[:, 1], left_arm_traj[:, 2])
-    # plt.scatter(shouldxl[1], shouldxl[2])
-    # plt.axis('square')
+    # ax.plot(tt[:Tk2], grab_traj[:, 2], c='blue', linestyle='--')
+    # ax.plot(tt[Tk2:Tk3], setup_traj[:, 2], c='red', linestyle='--')
+    # ax.plot(tt[Tk3:Tk4], arc_traj_vs[:, 2], c='blue', linestyle='--')
+    # ax.plot(tt[Tk4:Tk], arc_traj_vs2[:, 2], c='red', linestyle='--')
     # plt.show()
     return right_arm_traj, left_arm_traj
 
@@ -292,6 +294,11 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     lowest_losses = LimLowestDict(keep_top)
 
     Tk1 = int(Tk / 3)
+    # plt.ion()
+    fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
+    fig.tight_layout()
+    plt.show(block=False)
+    plt.pause(.001)
     for k0 in range(max_its):
         for k in range(n_sites):
             if targ_traj_progs[k] and k0 % incr_every == 0:
@@ -310,13 +317,12 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         update_phase = k0 % grad_update_every
         tic = time.time()
         for k in range(n_sites):
-            grads[k], hxs[k], dldss[k] = opt_utils.traj_deriv_new(
+            grads[k] = opt_utils.traj_deriv_new(
                 model, data, ctrls + noisev, target_trajs[k],
                 targ_traj_mask_currs[k], grad_trunc_tk,
                 deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
                 update_every=grad_update_every, update_phase=update_phase
             )
-            losses[k] = np.mean(dldss[k]**2)
             util.reset_state(model, data, data0)
         grads[0][:, :Tk1] *= 4
         for k in range(n_sites):
@@ -332,6 +338,10 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
         )
         ctrls = np.clip(ctrls, -1, 1)
+        for k in range(n_sites):
+            util.reset_state(model, data, data0)
+            hx = forward_with_site(env, ctrls, site_names[k], False)
+            losses[k] = np.mean((hx - target_trajs[k])**2)
         # ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
             # model, data, Tk, noisev, qpos0, not_arm_a,
             # not_arm_j, ctrls[:, arm_a],
@@ -343,17 +353,16 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         nr = range(n_sites)
 
         if k0 % incr_every == 0:
-            plt.close('all')
-            fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
+            # plt.clf()
             for k in nr:
                 util.reset_state(model, data, data0)
-                mj.mj_forward(model, data)
                 hx = forward_with_site(env, ctrls, site_names[k], False)
                 tm = np.tile(targ_traj_mask_currs[k], (3, 1)).T
                 tm[tm == 0] = np.nan
                 ft = target_trajs[k]*tm
                 loss = np.mean((hx - target_trajs[k])**2)
                 ax = axs[k]
+                ax.cla()
                 ax.plot(tt, hx[:,1], color='blue', label='x')
                 ax.plot(tt, ft[:,1], '--', color='blue')
                 ax.plot(tt, hx[:,2], color='red', label='y')
@@ -361,9 +370,11 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 ax.set_title(site_names[k] + ' loss: ' + str(loss))
                 ax.legend()
             fig.tight_layout()
-            fig.show()
+            plt.show(block=False)
+            # plt.show()
+            plt.pause(.001)
 
-            util.reset_state(model, data, data0)
-            qs, qvels = forward_to_contact(env, ctrls + noisev, True)
+            # util.reset_state(model, data, data0)
+            # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
 
     return ctrls, lowest_losses.dict
