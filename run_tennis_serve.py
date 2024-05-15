@@ -27,13 +27,16 @@ out_f = outdir/'tennis_ctrl.pkl'
 
 
 # Tk = 120
-Tk = 120*8
+Tk = 120*5
+# Tk = 120*6
 # Tk = 320
 # lr = 1/Tk
 # lr = 10/Tk
 lr = 2/Tk
 # max_its = 1200*3
 max_its = 2000
+# max_its = 1200
+# max_its = 1600
 # max_its = 200
 # max_its = 120
 
@@ -64,12 +67,10 @@ data = env.data
 reset()
 # tmp = util.get_contact_pairs(model, data)
 
-targ_traj_mask1 = np.ones((Tk,))
-targ_traj_mask_type1 = 'progressive'
+targ_traj_mask = np.ones((Tk,))
+targ_traj_mask_type = 'progressive'
 
-full_traj1, full_traj2 = arm_t.tennis_traj(model, data, Tk)
-targ_traj_mask2 = np.ones((Tk,))
-targ_traj_mask_type2 = 'progressive'
+right_hand_traj, left_hand_traj, ball_traj = arm_t.tennis_traj(model, data, Tk)
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -80,15 +81,16 @@ lr = .3/Tk
 
 bodyj = joints['body']['body_dofs']
 
-sites = ['hand_right', 'hand_left', 'racket_handle']
-full_trajs = [full_traj1, full_traj2, full_traj1]
-masks = [targ_traj_mask1, targ_traj_mask2, targ_traj_mask1]
-mask_types = [targ_traj_mask_type1, targ_traj_mask_type2, targ_traj_mask_type1]
+sites = ['hand_right', 'hand_left', 'racket_handle', 'ball']
+full_trajs = [right_hand_traj, left_hand_traj, right_hand_traj, ball_traj]
+masks = [targ_traj_mask]*4
+mask_types = [targ_traj_mask_type]*4
 
 tennis_idxs = arm_t.two_arm_idxs(model)
 site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                   tennis_idxs['left_arm_without_adh'],
-                  tennis_idxs['right_arm_without_adh']]
+                  tennis_idxs['right_arm_without_adh'],
+                  tennis_idxs['left_arm_without_adh']]
 stabilize_jnt_idx = tennis_idxs['not_arm_j']
 stabilize_act_idx = tennis_idxs['not_arm_a']
 
@@ -98,6 +100,15 @@ nr = range(n)
 dt = model.opt.timestep
 T = Tk*dt
 tt = np.arange(0, T, dt)
+left_adh_act_vals = np.ones((Tk-1, 1))
+Tk_left_1 = int(Tk / 3) # Duration to grab with left hand (1)
+Tk_left_2 = int(Tk / 8) # Duration to grab with left hand (2)
+t_left_1 = Tk_left_1 + Tk_left_2 # Time up to end of grab
+Tk_left_3 = int(Tk / 4) # Duration to set up
+t_left_2 = t_left_1 + Tk_left_3 # Time to end of setting up
+Tk_left_4 = int(Tk / 8) # Duration to throw ball up
+t_left_3 = t_left_2 + Tk_left_4 # Time to end of throwing ball up
+left_adh_act_vals[t_left_3:] = 0
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
@@ -106,9 +117,10 @@ if rerun1 or not out_f.exists():
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
         bodyj, free_ctrls=np.ones((Tk, len(acts['adh'])))
     )[:2]
-    # reset()
-    # arm_t.forward_to_contact(env, ctrls, True)
+    ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     reset()
+    # arm_t.forward_to_contact(env, ctrls, True)
+    # reset()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
         full_trajs, masks, mask_types, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
@@ -122,8 +134,8 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-# breakpoint()
 ctrls = lowest_losses.peekitem(0)[1][1]
+# ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
 reset()
 
 fig, axs = plt.subplots(1, n, figsize=(5*n, 5))

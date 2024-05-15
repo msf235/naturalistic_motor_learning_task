@@ -70,9 +70,22 @@ def tennis_traj(model, data, Tk):
     r1 = np.sum((shouldxr - elbowx)**2)**.5
     r2 = np.sum((elbowx - handxr)**2)**.5
     r = r1 + r2
-    Tk1 = int(Tk / 3)
-    Tk2 = int(1.2*Tk / 3)
-    Tk3 = int(2.5*Tk/4)
+    Tk_right_1 = int(Tk / 3) # Time to grab with right hand (1)
+    Tk_right_2 = int(Tk / 8) # Time to grab with right hand (2)
+    t_right_1 = Tk_right_1 + Tk_right_2
+    Tk_right_3 = int(Tk / 3) # Time to set up
+    t_right_2 = t_right_1 + Tk_right_3;
+    Tk_right_4 = Tk - t_right_2 # Time to swing
+
+    Tk_left_1 = int(Tk / 3) # Duration to grab with left hand (1)
+    Tk_left_2 = int(Tk / 8) # Duration to grab with left hand (2)
+    t_left_1 = Tk_left_1 + Tk_left_2 # Time up to end of grab
+    Tk_left_3 = int(Tk / 3) # Duration to set up
+    t_left_2 = t_left_1 + Tk_left_3 # Time to end of setting up
+    Tk_left_4 = int(Tk / 10) # Duration to throw ball up
+    t_left_3 = t_left_2 + Tk_left_4 # Time to end of throwing ball up
+    Tk_left_5 = Tk - t_left_3 # Time to move hand down
+
     # Tk4 = int((Tk+Tk2)/2)
 
     # fig, ax = plt.subplots()
@@ -81,62 +94,65 @@ def tennis_traj(model, data, Tk):
     # Right arm
 
     grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
-    sx = np.linspace(0, 1, Tk1)
-    # s = sigmoid(5*sx)
+    sx = np.linspace(0, 1, Tk_right_1)
     s = sigmoid(sx, 5)
-    # plt.plot(sx, s)
-    # plt.show()
-    # breakpoint()
     s = np.tile(s, (3, 1)).T
-    s = np.concatenate((s, np.ones((Tk2-Tk1, 3))), axis=0)
+    s = np.concatenate((s, np.ones((Tk_right_2, 3))), axis=0)
     grab_traj = handxr + s*(grab_targ - handxr)
 
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                                  np.pi/2.5, Tk-Tk3, density_fn='')
+                                  np.pi/2.5, Tk_right_4, density_fn='')
 
-    setup_traj = np.zeros((Tk3, 3))
-    s = np.linspace(0, 1, Tk3-Tk2)
+    s = np.linspace(0, 1, Tk_right_3)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
 
     right_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs),
                                     axis=0)
-    # ax.plot(tt[:Tk2], grab_traj[:, 2], c='blue')
-    # ax.plot(tt[Tk2:Tk3], setup_traj[:, 2], c='red')
-    # ax.plot(tt[Tk3:Tk], arc_traj_vs[:, 2], c='blue')
 
-    Tk1 = int(Tk / 4)
-    Tk2 = int(1.1*Tk / 4)
-    Tk3 = int(1.9*Tk/4)
-    Tk4 = int(.8*Tk)
+    t_fin = Tk * model.opt.timestep
+    tt = np.linspace(0, t_fin, Tk)
+
+    # fig, ax = plt.subplots()
+    # ax.plot(tt[:t_right_1], grab_traj[:, 2], c='blue')
+    # ax.plot(tt[t_right_1:t_right_2], setup_traj[:, 2], c='red')
+    # ax.plot(tt[t_right_2:], arc_traj_vs[:, 2], c='blue')
+
     # Tk4 = int((Tk+Tk2)/2)
 
     # Left arm
     grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
-    s = sigmoid(np.linspace(0, 1, Tk1), 5)
+    s = sigmoid(np.linspace(0, 1, Tk_left_1), 5)
     s = np.tile(s, (3, 1)).T
-    s = np.concatenate((s, np.ones((Tk2-Tk1, 3))), axis=0)
+    s = np.concatenate((s, np.ones((Tk_left_2, 3))), axis=0)
     grab_traj = handxl + s*(grab_targ - handxl)
 
     arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
-                            0, .8*np.pi/2, Tk4-Tk3, density_fn='')
+                            0, .9*np.pi/2, Tk_left_4, density_fn='')
     arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
-                            .8*np.pi/2, .7*np.pi/2, Tk-Tk4, density_fn='')
+                            .8*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
 
-    setup_traj = np.zeros((Tk3, 3))
-    s = np.linspace(0, 1, Tk3-Tk2)
+    setup_traj = np.zeros((Tk_left_3, 3))
+    s = np.linspace(0, 1, Tk_left_3)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
 
     left_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs,
                                     arc_traj_vs2), axis=0)
-
-    # ax.plot(tt[:Tk2], grab_traj[:, 2], c='blue', linestyle='--')
-    # ax.plot(tt[Tk2:Tk3], setup_traj[:, 2], c='red', linestyle='--')
-    # ax.plot(tt[Tk3:Tk4], arc_traj_vs[:, 2], c='blue', linestyle='--')
-    # ax.plot(tt[Tk4:Tk], arc_traj_vs2[:, 2], c='red', linestyle='--')
+    # ax.plot(tt[:t_left_1], grab_traj[:, 2], c='blue', linestyle='--')
+    # ax.plot(tt[t_left_1:t_left_2], setup_traj[:, 2], c='red', linestyle='--')
+    # ax.plot(tt[t_left_2:t_left_3], arc_traj_vs[:, 2], c='blue', linestyle='--')
+    # ax.plot(tt[t_left_3:], arc_traj_vs2[:, 2], c='red', linestyle='--')
     # plt.show()
-    return right_arm_traj, left_arm_traj
+    # breakpoint()
+
+    # Ball trajectory
+    arc_traj_ball = arc_traj(data.site('shoulder1_left').xpos, r, 0,
+                             1.1*np.pi/2, Tk_left_4 + Tk_left_5, density_fn='')
+
+    ball_traj = np.concatenate((grab_traj, setup_traj, arc_traj_ball), axis=0)
+
+    return right_arm_traj, left_arm_traj, ball_traj
 
 def two_arm_idxs(model):
     two_arm_idx = {}
@@ -156,6 +172,8 @@ def two_arm_idxs(model):
                                            not in acts['adh']]
     two_arm_idx['left_arm_without_adh'] = [k for k in acts['left_arm'] if k not
                                           in acts['adh']]
+    two_arm_idx['adh_left_hand'] = acts[f'adh_left_hand']
+    two_arm_idx['adh_right_hand'] = acts[f'adh_right_hand']
     return two_arm_idx
 
 def one_arm_idxs(model, right_or_left='right'):
@@ -277,6 +295,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     T = Tk*dt
     tt = np.arange(0, T, dt)
 
+    progbar = util.ProgressBar(final_it = max_its) 
+
     optms = []
     targ_traj_progs = []
     targ_traj_mask_currs = []
@@ -296,10 +316,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     Tk1 = int(Tk / 3)
     # plt.ion()
     fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
-    fig.tight_layout()
-    plt.show(block=False)
-    plt.pause(.001)
     for k0 in range(max_its):
+        progbar.update()
         for k in range(n_sites):
             if targ_traj_progs[k] and k0 % incr_every == 0:
                 idx = slice(amnt_to_incr*incr_cnts[k],
@@ -353,7 +371,6 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         nr = range(n_sites)
 
         if k0 % incr_every == 0:
-            # plt.clf()
             for k in nr:
                 util.reset_state(model, data, data0)
                 hx = forward_with_site(env, ctrls, site_names[k], False)
@@ -371,8 +388,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 ax.legend()
             fig.tight_layout()
             plt.show(block=False)
-            # plt.show()
             plt.pause(.001)
+            # plt.show()
 
             # util.reset_state(model, data, data0)
             # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
