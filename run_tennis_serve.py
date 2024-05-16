@@ -34,7 +34,8 @@ Tk = 120*5
 # lr = 10/Tk
 lr = 2/Tk
 # max_its = 1200*3
-max_its = 2000
+# max_its = 2000
+max_its = 4000
 # max_its = 1200
 # max_its = 1600
 # max_its = 200
@@ -43,8 +44,8 @@ max_its = 2000
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -70,7 +71,8 @@ reset()
 targ_traj_mask = np.ones((Tk,))
 targ_traj_mask_type = 'progressive'
 
-right_hand_traj, left_hand_traj, ball_traj = arm_t.tennis_traj(model, data, Tk)
+out = arm_t.tennis_traj(model, data, Tk)
+right_hand_traj, left_hand_traj, ball_traj, time_dict = out
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -101,14 +103,7 @@ dt = model.opt.timestep
 T = Tk*dt
 tt = np.arange(0, T, dt)
 left_adh_act_vals = np.ones((Tk-1, 1))
-Tk_left_1 = int(Tk / 3) # Duration to grab with left hand (1)
-Tk_left_2 = int(Tk / 8) # Duration to grab with left hand (2)
-t_left_1 = Tk_left_1 + Tk_left_2 # Time up to end of grab
-Tk_left_3 = int(Tk / 4) # Duration to set up
-t_left_2 = t_left_1 + Tk_left_3 # Time to end of setting up
-Tk_left_4 = int(Tk / 8) # Duration to throw ball up
-t_left_3 = t_left_2 + Tk_left_4 # Time to end of throwing ball up
-left_adh_act_vals[t_left_3:] = 0
+left_adh_act_vals[time_dict['t_left_3']:] = 0
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
@@ -136,6 +131,7 @@ else:
 
 ctrls = lowest_losses.peekitem(0)[1][1]
 # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
+# arm_t.forward_to_contact(env, ctrls, True)
 reset()
 
 fig, axs = plt.subplots(1, n, figsize=(5*n, 5))
@@ -155,6 +151,13 @@ for k in nr:
 fig.tight_layout()
 plt.show()
 
+ctrls_end = np.zeros((100, model.nu))
+ctrls_end[:] = ctrls[-1]
+# ctrls_end[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals[-1]
+ctrls = np.concatenate((ctrls, ctrls_end), axis=0)
+Tk = ctrls.shape[0] + 1
+T = Tk*dt
+tt = np.arange(0, T, dt)
 reset()
 arm_t.forward_to_contact(env, ctrls, True)
 

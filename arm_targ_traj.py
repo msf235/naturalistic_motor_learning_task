@@ -82,7 +82,7 @@ def tennis_traj(model, data, Tk):
     t_left_1 = Tk_left_1 + Tk_left_2 # Time up to end of grab
     Tk_left_3 = int(Tk / 3) # Duration to set up
     t_left_2 = t_left_1 + Tk_left_3 # Time to end of setting up
-    Tk_left_4 = int(Tk / 10) # Duration to throw ball up
+    Tk_left_4 = int(Tk / 20) # Duration to throw ball up
     t_left_3 = t_left_2 + Tk_left_4 # Time to end of throwing ball up
     Tk_left_5 = Tk - t_left_3 # Time to move hand down
 
@@ -128,9 +128,9 @@ def tennis_traj(model, data, Tk):
     grab_traj = handxl + s*(grab_targ - handxl)
 
     arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
-                            0, .9*np.pi/2, Tk_left_4, density_fn='')
+                            0, .95*np.pi/2, Tk_left_4, density_fn='')
     arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
-                            .8*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
+                            .95*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
 
     setup_traj = np.zeros((Tk_left_3, 3))
     s = np.linspace(0, 1, Tk_left_3)
@@ -152,7 +152,14 @@ def tennis_traj(model, data, Tk):
 
     ball_traj = np.concatenate((grab_traj, setup_traj, arc_traj_ball), axis=0)
 
-    return right_arm_traj, left_arm_traj, ball_traj
+    time_dict = dict(
+        Tk_left_1=Tk_left_1, Tk_left_2=Tk_left_2, Tk_left_3=Tk_left_3,
+        Tk_left_4=Tk_left_4, Tk_left_5=Tk_left_5, Tk_right_1=Tk_right_1,
+        Tk_right_2=Tk_right_2, Tk_right_3=Tk_right_3, Tk_right_4=Tk_right_4,
+        t_left_1=t_left_1, t_left_2=t_left_2, t_left_3=t_left_3,
+        t_right_1=t_right_1, t_right_2=t_right_2)
+
+    return right_arm_traj, left_arm_traj, ball_traj, time_dict
 
 def two_arm_idxs(model):
     two_arm_idx = {}
