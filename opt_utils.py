@@ -362,10 +362,10 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     last_block_size = (Tk-1) % update_every - update_phase
     first_block_size = update_phase
     # As = n_complete_blocks * update_every + last_block_size + first_block_size
-    As = Tk-1
-    A = np.zeros((As, As))
+    An = Tk-1
+    A = np.zeros((An, An))
     A[:update_phase, update_phase] = 1
-    for k in range(0, As-update_every-update_phase, update_every):
+    for k in range(0, An-update_every-update_phase, update_every):
         ks = k + update_phase
         A[ks:ks+update_every, ks:ks+update_every+1] = mat_block
     A[ks+update_every:, ks+update_every] = 1
