@@ -30,12 +30,13 @@ out_f = outdir/'tennis_ctrl.pkl'
 Tk = 120*5
 # Tk = 120*6
 # Tk = 320
-# lr = 1/Tk
+# lr = .5/Tk
+# lr = .05/Tk
 lr = 10/Tk
 # lr = 2/Tk
 # max_its = 1200*3
 # max_its = 2000
-max_its = 2000
+max_its = 1000
 # max_its = 1200
 # max_its = 1600
 # max_its = 200
@@ -72,6 +73,7 @@ reset()
 # targ_traj_mask = np.ones((Tk,))
 # targ_traj_mask[Tk//3:] = 0
 targ_traj_mask = np.zeros((Tk,))
+# targ_traj_mask = np.ones((Tk,))
 # targ_traj_mask[4*40] = 1
 targ_traj_mask[:4*40+1] = 1
 # targ_traj_mask_type = 'progressive'
@@ -84,8 +86,6 @@ noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
-
-# lr = .3/Tk
 
 bodyj = joints['body']['body_dofs']
 
@@ -140,10 +140,10 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-# ctrls = lowest_losses.peekitem(0)[1][1]
+ctrls = lowest_losses.peekitem(0)[1][1]
 # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
-reset()
-arm_t.forward_to_contact(env, ctrls, True)
+# reset()
+# arm_t.forward_to_contact(env, ctrls, True)
 reset()
 
 fig, axs = plt.subplots(1, n, figsize=(5*n, 5))
@@ -164,6 +164,9 @@ for k in nr:
     ax.legend()
 fig.tight_layout()
 plt.show()
+
+reset()
+arm_t.forward_to_contact(env, ctrls, True)
 breakpoint()
 
 ctrls_end = np.zeros((100, model.nu))

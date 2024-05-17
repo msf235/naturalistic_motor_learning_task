@@ -10,8 +10,10 @@ import copy
 import sim_util
 import optimizers as opts
 
+epsilon = 1e-10
+
 class AdamOptim():
-    def __init__(self, eta=0.01, beta1=0.9, beta2=0.999, epsilon=1e-8):
+    def __init__(self, eta=0.01, beta1=0.9, beta2=0.999, epsilon=1e-6):
         self.m_dw, self.v_dw = 0, 0
         self.m_db, self.v_db = 0, 0
         self.beta1 = beta1
@@ -204,7 +206,6 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
     nq = model.nq
     A = np.zeros((2*nq, 2*nq))
     B = np.zeros((2*nq, model.nu))
-    epsilon = 1e-6
     flg_centered = True
     mj.mjd_transitionFD(model, data, epsilon, flg_centered, A, B,
                         None, None)
@@ -315,7 +316,6 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     dldss = np.zeros((Tk, 3))
     lams = np.zeros((Tk, 2*model.nv))
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
-    epsilon = 1e-6
     hxs = np.zeros((Tk, 3))
 
     for tk in range(Tk):
@@ -392,7 +392,6 @@ def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
     dldss = np.zeros((Tk, 3))
     lams = np.zeros((Tk, 2*model.nv))
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
-    epsilon = 1e-6
     hxs = np.zeros((Tk, 3))
 
     for tk in range(Tk):

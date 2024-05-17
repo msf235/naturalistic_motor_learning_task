@@ -325,7 +325,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     Tk1 = int(Tk / 3)
     # plt.ion()
     prev_loss = 100
-    # fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
+    fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
     def plot_act(env, data0, ctrls, targ_traj_mask_currs, axs=None):
         model = env.model
         data = env.data
@@ -424,17 +424,17 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             # print(loss, toc-tic)
             nr = range(n_sites)
 
-            # if loss > 2*prev_loss:
-                # print(k0)
-                # breakpoint()
+            if loss > 2*prev_loss:
+                print(k0)
+                breakpoint()
                 # util.reset_state(model, data, data0)
                 # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
             prev_loss = loss
 
             prev_loss = loss
 
-            if k0 >= 203:
-                breakpoint()
+            # if k0 >= 203:
+                # breakpoint()
                 # util.reset_state(model, data, data0)
                 # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
                 # util.reset_state(model, data, data0)
@@ -444,12 +444,12 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 # plt.pause(.001)
                 # breakpoint()
 
-            # if k0 % incr_every == 0:
+            if k0 % incr_every == 0:
                 # # breakpoint()
                 # # util.reset_state(model, data, data0)
                 # # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
-                # util.reset_state(model, data, data0)
-                # plot_act(env, data0, ctrls + noisev, targ_traj_mask_currs, axs)
+                util.reset_state(model, data, data0)
+                plot_act(env, data0, ctrls + noisev, targ_traj_mask_currs, axs)
                 # # plt.show()
                 # plt.show(block=False)
                 # plt.pause(.001)
@@ -466,6 +466,6 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     # util.reset_state(model, data, data0)
     # plot_act(env, data0, ctrls, targ_traj_mask_currs)
     # breakpoint()
-    print(ctrls[:5])
+    # print(ctrls[:5])
 
     return ctrls, lowest_losses.dict
