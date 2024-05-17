@@ -70,7 +70,7 @@ def tennis_traj(model, data, Tk):
     r1 = np.sum((shouldxr - elbowx)**2)**.5
     r2 = np.sum((elbowx - handxr)**2)**.5
     r = r1 + r2
-    Tk_right_1 = int(Tk / 3) # Time to grab with right hand (1)
+    Tk_right_1 = int(Tk / 2.5) # Time to grab with right hand (1)
     Tk_right_2 = int(Tk / 8) # Time to grab with right hand (2)
     t_right_1 = Tk_right_1 + Tk_right_2
     Tk_right_3 = int(Tk / 3) # Time to set up
@@ -93,7 +93,8 @@ def tennis_traj(model, data, Tk):
 
     # Right arm
 
-    grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
+    # grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
+    grab_targ = data.site('racket_handle').xpos + np.array([0, 0, 0])
     sx = np.linspace(0, 1, Tk_right_1)
     s = sigmoid(sx, 5)
     s = np.tile(s, (3, 1)).T
@@ -311,7 +312,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     incr_everys = []
     amnt_to_incrs = []
     for k in range(n_sites):
-        optms.append(opts.Adam(lr=lr))
+        # optms.append(opts.Adam(lr=lr))
+        optms.append(opts.SGD(lr=lr, momentum=0.4))
         targ_traj_progs.append((isinstance(targ_traj_mask_types[k], str)
                                   and targ_traj_mask_types[k] == 'progressive'))
         targ_traj_mask_currs.append(targ_traj_masks[k])
@@ -322,83 +324,148 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
 
     Tk1 = int(Tk / 3)
     # plt.ion()
+    prev_loss = 100
     fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
-    for k0 in range(max_its):
-        progbar.update()
-        for k in range(n_sites):
-            if targ_traj_progs[k] and k0 % incr_every == 0:
-                idx = slice(amnt_to_incr*incr_cnts[k],
-                            amnt_to_incr*(incr_cnts[k]+1))
-                targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
-                incr_cnts[k] += 1
-
-        util.reset_state(model, data, data0)
-        k, ball_contact = forward_to_contact(env, ctrls + noisev, render=False)
-        util.reset_state(model, data, data0)
-        grads = [0] * n_sites
-        hxs = [0] * n_sites
-        dldss = [0] * n_sites
-        losses = [0] * n_sites
-        update_phase = k0 % grad_update_every
-        tic = time.time()
-        for k in range(n_sites):
-            grads[k] = opt_utils.traj_deriv_new(
-                model, data, ctrls + noisev, target_trajs[k],
-                targ_traj_mask_currs[k], grad_trunc_tk,
-                deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
-                update_every=grad_update_every, update_phase=update_phase
-            )
-            util.reset_state(model, data, data0)
-        grads[0][:, :Tk1] *= 4
-        for k in range(n_sites):
-            # ctrls[:, right_arm_without_adh] = optm.update(
-                # ctrls[:, right_arm_without_adh], grads1[:Tk-1], 'ctrls', loss1)
-            ctrls[:, site_grad_idxs[k]] = optms[k].update(
-                ctrls[:, site_grad_idxs[k]], grads[k][:Tk-1], 'ctrls',
-                losses[k])
-
-        ctrls = np.clip(ctrls, -1, 1)
-        ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-            model, data, Tk, noisev, qpos0, stabilize_act_idx,
-            stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
-        )
-        ctrls = np.clip(ctrls, -1, 1)
-        for k in range(n_sites):
+    def plot_act(env, data0, ctrls, targ_traj_mask_currs, axs=None):
+        model = env.model
+        data = env.data
+        n_sites = len(site_names)
+        if axs is None:
+            fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
+        if n_sites == 1:
+            axs = [axs]
+        fig = axs[0].figure
+        dt = model.opt.timestep
+        T = Tk*dt
+        tt = np.arange(0, T, dt)
+        nr = range(n_sites)
+        for k in nr:
             util.reset_state(model, data, data0)
             hx = forward_with_site(env, ctrls, site_names[k], False)
-            losses[k] = np.mean((hx - target_trajs[k])**2)
-        # ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-            # model, data, Tk, noisev, qpos0, not_arm_a,
-            # not_arm_j, ctrls[:, arm_a],
-        # )
-        loss = sum([loss.item() for loss in losses]) / n_sites
-        lowest_losses.append(loss, (k0, ctrls.copy()))
-        toc = time.time()
-        print(loss, toc-tic)
-        nr = range(n_sites)
+            # tm = np.tile(targ_traj_mask_currs[k], (3, 1)).T
+            # tm[tm == 0] = np.nan
+            # ft = target_trajs[k]*tm
+            ft = target_trajs[k]
+            loss = np.mean((hx - target_trajs[k])**2)
+            ax = axs[k]
+            ax.cla()
+            ax.plot(tt, hx[:,1], color='blue', label='x')
+            ax.plot(tt, ft[:,1], '--', color='blue')
+            ax.plot(tt, hx[:,2], color='red', label='y')
+            ax.plot(tt, ft[:,2], '--', color='red')
+            # ax.set_title(site_names[k] + ' loss: ' + str(loss))
+            ax.set_title(site_names[k])
+            ax.legend()
+        fig.tight_layout()
+    try:
+        for k0 in range(max_its):
+            progbar.update()
+            for k in range(n_sites):
+                if targ_traj_progs[k] and k0 % incr_every == 0:
+                    idx = slice(amnt_to_incr*incr_cnts[k],
+                                amnt_to_incr*(incr_cnts[k]+1))
+                    targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
+                    incr_cnts[k] += 1
 
-        if k0 % incr_every == 0:
-            for k in nr:
+            util.reset_state(model, data, data0)
+            # k, ball_contact = forward_to_contact(env, ctrls + noisev, render=False)
+            # util.reset_state(model, data, data0)
+            # plot_act(axs, ctrls, targ_traj_mask_currs)
+            # breakpoint()
+            grads = [0] * n_sites
+            hxs = [0] * n_sites
+            dldss = [0] * n_sites
+            losses = [0] * n_sites
+            losses_filt = [0] * n_sites
+            update_phase = k0 % grad_update_every
+            tic = time.time()
+            for k in range(n_sites):
+                grads[k] = opt_utils.traj_deriv_new(
+                    model, data, ctrls + noisev, target_trajs[k],
+                    targ_traj_mask_currs[k], grad_trunc_tk,
+                    deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
+                    update_every=grad_update_every, update_phase=update_phase
+                )
+                util.reset_state(model, data, data0)
+            # grads[0][:, :Tk1] *= 4
+            for k in range(n_sites):
+                # ctrls[:, right_arm_without_adh] = optm.update(
+                    # ctrls[:, right_arm_without_adh], grads1[:Tk-1], 'ctrls', loss1)
+                ctrls[:, site_grad_idxs[k]] = optms[k].update(
+                    ctrls[:, site_grad_idxs[k]], grads[k][:Tk-1], 'ctrls',
+                    losses[k])
+
+            ctrls = np.clip(ctrls, -1, 1)
+            # plot_act(axs, ctrls, targ_traj_mask_currs)
+            # breakpoint()
+            ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+                model, data, Tk, noisev, qpos0, stabilize_act_idx,
+                stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
+            )
+            ctrls = np.clip(ctrls, -1, 1)
+            # plot_act(axs, ctrls, targ_traj_mask_currs)
+            # breakpoint()
+            for k in range(n_sites):
                 util.reset_state(model, data, data0)
                 hx = forward_with_site(env, ctrls, site_names[k], False)
-                tm = np.tile(targ_traj_mask_currs[k], (3, 1)).T
-                tm[tm == 0] = np.nan
-                ft = target_trajs[k]*tm
-                loss = np.mean((hx - target_trajs[k])**2)
-                ax = axs[k]
-                ax.cla()
-                ax.plot(tt, hx[:,1], color='blue', label='x')
-                ax.plot(tt, ft[:,1], '--', color='blue')
-                ax.plot(tt, hx[:,2], color='red', label='y')
-                ax.plot(tt, ft[:,2], '--', color='red')
-                ax.set_title(site_names[k] + ' loss: ' + str(loss))
-                ax.legend()
-            fig.tight_layout()
-            plt.show(block=False)
-            plt.pause(.001)
-            # plt.show()
+                losses[k] = np.mean((hx - target_trajs[k])**2)
+                mask = targ_traj_mask_currs[k].copy()
+                mask[mask==0] = np.nan
+                mask = np.tile(mask, (3, 1)).T
+                losses_filt[k] = np.nanmean((hx - target_trajs[k]*mask)**2)
+            # ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+                # model, data, Tk, noisev, qpos0, not_arm_a,
+                # not_arm_j, ctrls[:, arm_a],
+            # )
+            loss = sum([loss.item() for loss in losses]) / n_sites
+            lowest_losses.append(loss, (k0, ctrls.copy()))
+            toc = time.time()
+            print(losses_filt[0], loss, toc-tic)
+            # print(loss, toc-tic)
+            nr = range(n_sites)
 
-            # util.reset_state(model, data, data0)
-            # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
+            # if loss > 2*prev_loss:
+                # print(k0)
+                # breakpoint()
+                # util.reset_state(model, data, data0)
+                # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
+            prev_loss = loss
+
+            prev_loss = loss
+
+            if k0 >= 203:
+                breakpoint()
+                util.reset_state(model, data, data0)
+                qs, qvels = forward_to_contact(env, ctrls + noisev, True)
+                util.reset_state(model, data, data0)
+                plot_act(env, data0, ctrls + noisev, targ_traj_mask_currs, axs)
+                # plt.show()
+                plt.show(block=False)
+                plt.pause(.001)
+                breakpoint()
+
+            if k0 % incr_every == 0:
+                # breakpoint()
+                # util.reset_state(model, data, data0)
+                # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
+                util.reset_state(model, data, data0)
+                plot_act(env, data0, ctrls + noisev, targ_traj_mask_currs, axs)
+                # plt.show()
+                plt.show(block=False)
+                plt.pause(.001)
+                print(ctrls[:5])
+                # # breakpoint()
+                # # util.reset_state(model, data, data0)
+                # # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
+    except KeyboardInterrupt:
+        # breakpoint()
+        # util.reset_state(model, data, data0)
+        # plot_act(env, data0, ctrls + noisev, targ_traj_mask_currs)
+        # breakpoint()
+        pass
+    # util.reset_state(model, data, data0)
+    # plot_act(env, data0, ctrls, targ_traj_mask_currs)
+    # breakpoint()
+    print(ctrls[:5])
 
     return ctrls, lowest_losses.dict

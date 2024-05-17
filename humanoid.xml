@@ -234,7 +234,8 @@
     <!--<motor name="knee_left"       gear="80"  joint="knee_left"/>-->
     <!--<motor name="ankle_y_left"    gear="20"  joint="ankle_y_left"/>-->
     <!--<motor name="ankle_x_left"    gear="20"  joint="ankle_x_left"/>-->
-    <motor name="shoulder1_right" gear="40"  joint="shoulder1_right"/>
+    <!--<motor name="shoulder1_right" gear="40"  joint="shoulder1_right"/>-->
+    <motor name="shoulder1_right" gear="20"  joint="shoulder1_right"/>
     <!--<motor name="shoulder2_right" gear="20"  joint="shoulder2_right"/>-->
     <motor name="elbow_right"     gear="40"  joint="elbow_right"/>
     <motor name="shoulder1_left"  gear="20"  joint="shoulder1_left"/>

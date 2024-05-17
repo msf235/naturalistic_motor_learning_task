@@ -169,7 +169,7 @@ def get_Q_balance(model, data):
     return Qbalance
 
 def get_Q_joint(model, data=None, excluded_acts=[]):
-    balance_joint_cost  = 3     # Joints required for balancing.
+    balance_joint_cost  = 30     # Joints required for balancing.
     other_joint_cost    = .3    # Other joints.
     joints = get_joint_ids(model)['body']
     # Construct the Qjoint matrix.
@@ -371,6 +371,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     A[ks+update_every:, ks+update_every] = 1
 
     grads_interp = A @ grads
+    # breakpoint()
 
     return grads_interp
     # return grads, hxs, dldss
@@ -436,4 +437,22 @@ def get_final_loss(model, data, xpos1, xpos2):
     loss = .5*np.mean(dlds**2)
     print(f'loss: {loss}', f'xpos1: {xpos1}', f'xpos2: {xpos2}')
     return loss, lams_fin
+
+def reset(model, data, nsteps1, nsteps2, keyframe_name=None):
+    if keyframe_name is not None:
+        keyframe_id = model.keyframe(keyframe_name).id
+        mj.mj_resetDataKeyframe(model, data, keyframe_id)
+    else:
+        mj.mj_resetData(model, data)
+    mj.mj_forward(model, data)
+    for k in range(nsteps1):
+        mj.mj_step(model, data)
+    noisev = np.zeros((nsteps2, model.nu))
+    joints = get_joint_ids(model)
+    acts = get_act_ids(model)
+    bodyj = joints['body']['body_dofs']
+    ctrls = get_stabilized_ctrls(
+        model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
+        bodyj, free_ctrls=np.ones((nsteps2, len(acts['adh'])))
+    )[0]
 
