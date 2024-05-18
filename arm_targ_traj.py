@@ -312,8 +312,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     incr_everys = []
     amnt_to_incrs = []
     for k in range(n_sites):
-        # optms.append(opts.Adam(lr=lr))
-        optms.append(opts.SGD(lr=lr, momentum=0.4))
+        optms.append(opts.Adam(lr=lr))
+        # optms.append(opts.SGD(lr=lr, momentum=0.4))
         targ_traj_progs.append((isinstance(targ_traj_mask_types[k], str)
                                   and targ_traj_mask_types[k] == 'progressive'))
         targ_traj_mask_currs.append(targ_traj_masks[k])
@@ -424,9 +424,10 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             # print(loss, toc-tic)
             nr = range(n_sites)
 
-            if loss > 2*prev_loss:
-                print(k0)
-                breakpoint()
+            # if loss > 2*prev_loss:
+            # if np.max(np.abs(grads)) > 3:
+                # print(k0)
+                # breakpoint()
                 # util.reset_state(model, data, data0)
                 # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
             prev_loss = loss

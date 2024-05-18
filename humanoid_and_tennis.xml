@@ -16,6 +16,12 @@
 <mujoco model="Humanoid">
   <option timestep="0.0025"/>
   <include file="humanoid.xml"/>
+  <default>
+    <geom solimp=".8 .9 .01" solref=".05 1" friction="1 0.005 0.0001"
+      margin=".001" gap=".001"/>
+  </default>
+  <!--<geom type="capsule" condim="1" friction=".7" solimp=".9 .99 .005"-->
+    <!--solref=".015 1" material="body" group="1"/>-->
   <include file="tennis_serve_scene.xml"/>
   <visual>
     <map force="0.1" zfar="30"/>

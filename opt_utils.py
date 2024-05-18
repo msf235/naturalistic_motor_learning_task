@@ -10,7 +10,7 @@ import copy
 import sim_util
 import optimizers as opts
 
-epsilon = 1e-10
+epsilon = 1e-6
 
 class AdamOptim():
     def __init__(self, eta=0.01, beta1=0.9, beta2=0.999, epsilon=1e-6):
@@ -333,11 +333,14 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                 mj.mjd_transitionFD(
                     model, data, epsilon, True, As[tk], B, None, None
                 )
+                # if np.max(np.abs(As[tk])) > 40:
+                    # breakpoint()
                 Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
         
         if tk < Tk-1:
             sim_util.step(model, data, ctrls[tk])
 
+    print(np.max(np.abs(As)))
     ttm = targ_traj_mask.reshape(-1, 1)
     dldqs = dldqs * ttm
     # lams[-1] = dldqs[-1]

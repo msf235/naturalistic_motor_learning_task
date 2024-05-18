@@ -72,12 +72,12 @@ reset()
 
 # targ_traj_mask = np.ones((Tk,))
 # targ_traj_mask[Tk//3:] = 0
-targ_traj_mask = np.zeros((Tk,))
-# targ_traj_mask = np.ones((Tk,))
+# targ_traj_mask = np.zeros((Tk,))
+targ_traj_mask = np.ones((Tk,))
 # targ_traj_mask[4*40] = 1
-targ_traj_mask[:4*40+1] = 1
-# targ_traj_mask_type = 'progressive'
-targ_traj_mask_type = 'const'
+# targ_traj_mask[:4*40+1] = 1
+targ_traj_mask_type = 'progressive'
+# targ_traj_mask_type = 'const'
 
 out = arm_t.tennis_traj(model, data, Tk)
 right_hand_traj, left_hand_traj, ball_traj, time_dict = out
