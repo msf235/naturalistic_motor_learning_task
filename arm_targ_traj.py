@@ -94,7 +94,7 @@ def tennis_traj(model, data, Tk):
     # Right arm
 
     # grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
-    grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -.02])
+    grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0.03])
     # grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0])
     sx = np.linspace(0, 1, Tk_right_1)
     s = sigmoid(sx, 5)
@@ -106,6 +106,7 @@ def tennis_traj(model, data, Tk):
                                   np.pi/4, Tk_right_4, density_fn='')
 
     s = np.linspace(0, 1, Tk_right_3)
+    s = sigmoid(s, 5)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
 
@@ -124,8 +125,8 @@ def tennis_traj(model, data, Tk):
     # Tk4 = int((Tk+Tk2)/2)
 
     # Left arm
-    grab_targ = data.site('ball').xpos + np.array([0, 0, 0.01])
-    # grab_targ = data.site('ball_top').xpos + np.array([0, 0, 0])
+    # grab_targ = data.site('ball').xpos + np.array([0, 0, 0.04])
+    grab_targ = data.site('ball_top').xpos + np.array([0, 0, .03])
     s = sigmoid(np.linspace(0, 1, Tk_left_1), 5)
     s = np.tile(s, (3, 1)).T
     s = np.concatenate((s, np.ones((Tk_left_2, 3))), axis=0)
@@ -138,6 +139,8 @@ def tennis_traj(model, data, Tk):
 
     setup_traj = np.zeros((Tk_left_3, 3))
     s = np.linspace(0, 1, Tk_left_3)
+    s = sigmoid(s, 5)
+    # s = 2*sigmoid(.5*s, 5)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
 
@@ -156,7 +159,24 @@ def tennis_traj(model, data, Tk):
 
     ball_traj = np.concatenate((grab_traj, setup_traj, arc_traj_ball), axis=0)
 
-    return right_arm_traj, left_arm_traj, ball_traj
+    time_dict = dict(
+        Tk_right_1=Tk_right_1,
+        Tk_right_2=Tk_right_2,
+        Tk_right_3=Tk_right_3,
+        Tk_right_4=Tk_right_4,
+        Tk_left_1=Tk_left_1,
+        Tk_left_2=Tk_left_2,
+        Tk_left_3=Tk_left_3,
+        Tk_left_4=Tk_left_4,
+        Tk_left_5=Tk_left_5,
+        t_right_1=t_right_1,
+        t_right_2=t_right_2,
+        t_left_1=t_left_1,
+        t_left_2=t_left_2,
+        t_left_3=t_left_3,
+    )
+
+    return right_arm_traj, left_arm_traj, ball_traj, time_dict
 
 def two_arm_idxs(model):
     two_arm_idx = {}
@@ -218,20 +238,28 @@ def forward_with_site(env, ctrls, site_name, render=False):
     return site_xvs
 
 
-def forward_to_contact(env, ctrls, render=True):
+def forward_to_contact(env, ctrls, noisev=None, render=True):
     model = env.model
+    act = opt_utils.get_act_ids(model)
     data = env.data
     ball_contact = False
     Tk = ctrls.shape[0]
+    contact_cnt = 0
+    contact = False
+    if noisev is None:
+        noisev = np.zeros((Tk, model.nu))
     for k in range(Tk):
-        util.step(model, data, ctrls[k])
+        util.step(model, data, ctrls[k] + noisev[k])
         if render:
             env.render()
         contact_pairs = util.get_contact_pairs(model, data)
         for cp in contact_pairs:
-            if 'ball' in cp and 'hand_right' in cp:
-                ball_contact = True
-    return k, ball_contact
+            if 'racket_handle' in cp and 'hand_right1' in cp or 'hand_right2' in cp:
+                contact = True
+                if contact_cnt <= 20:
+                    ctrls[k:, act['adh_right_hand']] = .05 * contact_cnt
+                    contact_cnt += 1
+    return k, contact, ctrls
 
 class LimLowestDict:
     def __init__(self, max_len):
@@ -334,6 +362,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     idxs = [0]*n_sites
     for k in range(n_sites):
         optms.append(opts.Adam(lr=lr))
+        # optms.append(opts.SGD(lr=lr, momentum=0.2))
+        # optms.append(opts.SGD(lr=lr))
         if targ_traj_mask_types[k] == 'double_sided_progressive':
             idxs[k] = DoubleSidedProgressive(incr_every, amnt_to_incr,
                                              phase_2_it=phase_2_it)
@@ -347,7 +377,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
 
     Tk1 = int(Tk / 3)
     # plt.ion()
-    fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
+    # fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
+    fig, axs = plt.subplots(2, n_sites, figsize=(5*n_sites, 5))
     try:
         for k0 in range(max_its):
             progbar.update()
@@ -366,7 +397,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     # breakpoint()
 
             util.reset_state(model, data, data0)
-            k, ball_contact = forward_to_contact(env, ctrls + noisev, render=False)
+            k, ball_contact, ctrls = forward_to_contact(env, ctrls, noisev, render=False)
+            if ball_contact:
+                breakpoint()
             util.reset_state(model, data, data0)
             grads = [0] * n_sites
             hxs = [0] * n_sites
@@ -396,8 +429,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     # ctrls[:, site_grad_idxs[k]] = optms[k].update(
                         # ctrls[:, site_grad_idxs[k]], grads[k][:Tk-1], 'ctrls',
                         # losses[k])
-            if np.max(np.abs(grads)) > 5:
-                print(np.max(np.abs(grads)))
+            # if np.max(np.abs(grads)) > 5:
+                # print(np.max(np.abs(grads)))
             for k in range(n_sites):
                 # ctrls[:, right_arm_without_adh] = optm.update(
                     # ctrls[:, right_arm_without_adh], grads1[:Tk-1], 'ctrls', loss1)
@@ -409,6 +442,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                 model, data, Tk, noisev, qpos0, stabilize_act_idx,
                 stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
+                K_update_interv=500,
             )
             ctrls = np.clip(ctrls, -1, 1)
             for k in range(n_sites):
@@ -434,7 +468,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     tm[tm == 0] = np.nan
                     ft = target_trajs[k]*tm
                     loss = np.mean((hx - target_trajs[k])**2)
-                    ax = axs[k]
+                    ax = axs[0, k]
                     ax.cla()
                     ax.plot(tt, hx[:,1], color='blue', label='x')
                     ax.plot(tt, ft[:,1], '--', color='blue')
@@ -442,16 +476,21 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     ax.plot(tt, ft[:,2], '--', color='red')
                     ax.set_title(site_names[k] + ' loss: ' + str(loss))
                     ax.legend()
+                    ax = axs[1,k]
+                    ax.plot(tt[:-1], ctrls[:, site_grad_idxs[k]])
                 fig.tight_layout()
                 plt.show(block=False)
-                plt.pause(.002)
+                plt.pause(.01)
                 # plt.show()
                 # if k0 > phase_2_it:
                     # breakpoint()
 
-                # util.reset_state(model, data, data0)
-                # qs, qvels = forward_to_contact(env, ctrls + noisev, True)
-    except KeyboardInterrupt:
+            util.reset_state(model, data, data0)
+            hx = forward_with_site(env, ctrls, site_names[0], True)
+            # qs, qvels = forward_to_contact(env, ctrls, noisev, True)
+    finally:
         pass
+    # except KeyboardInterrupt:
+        # pass
 
     return ctrls, lowest_losses.dict

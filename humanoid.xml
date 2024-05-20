@@ -26,9 +26,7 @@
     <motor ctrlrange="-1 1" ctrllimited="true"/>
     <!--<adhesion ctrlrange="0 1"/>-->
     <default class="body">
-
-      <!-- geoms -->
-      <geom type="capsule" condim="1" friction=".7" solimp=".9 .99 .003"
+      <geom type="capsule" condim="1" friction=".7" solimp=".9 .99 .001"
         solref=".015 1" material="body" group="1"/>
       <default class="thigh">
         <geom size=".06"/>
@@ -171,8 +169,8 @@
           <body name="hand_right" pos="0 -.18 .18" zaxis="0 -1 1.5">
             <site name="hand_right" class="hand"/>
             <!--<geom name="hand_right" zaxis="0 -1 1.5" class="hand" />-->
-            <geom type="capsule" pos="0 0 -.025" class="hand"/>
-            <geom type="capsule" pos="0 0 .025" rgba="1 1 .5 1" class="hand"/>
+            <geom name="hand_right1" type="capsule" pos="0 0 -.025" class="hand"/>
+            <geom name="hand_right2"  type="capsule" pos="0 0 .025" rgba="1 1 .5 1" class="hand"/>
             <joint name="wrist_right" axis="1 0 0" class="wrist"/>
               <!--friction="1 0.005 0.03"-->
           </body>
@@ -234,15 +232,15 @@
     <!--<motor name="knee_left"       gear="80"  joint="knee_left"/>-->
     <!--<motor name="ankle_y_left"    gear="20"  joint="ankle_y_left"/>-->
     <!--<motor name="ankle_x_left"    gear="20"  joint="ankle_x_left"/>-->
-    <motor name="shoulder1_right" gear="40"  joint="shoulder1_right"/>
+    <motor name="shoulder1_right" gear="20"  joint="shoulder1_right"/>
     <!--<motor name="shoulder2_right" gear="20"  joint="shoulder2_right"/>-->
-    <motor name="elbow_right"     gear="40"  joint="elbow_right"/>
-    <motor name="shoulder1_left"  gear="40"  joint="shoulder1_left"/>
+    <motor name="elbow_right"     gear="20"  joint="elbow_right"/>
+    <motor name="shoulder1_left"  gear="20"  joint="shoulder1_left"/>
     <!--<motor name="shoulder2_left"  gear="20"  joint="shoulder2_left"/>-->
-    <motor name="elbow_left"      gear="40"  joint="elbow_left"/>
-    <adhesion name="hand_right_adh" body="hand_right" gain="10"
+    <motor name="elbow_left"      gear="20"  joint="elbow_left"/>
+    <adhesion name="hand_right_adh" body="hand_right" gain="2000"
       ctrlrange="0 1"/>
-    <adhesion name="hand_left_adh" body="hand_left" gain="10"
+    <adhesion name="hand_left_adh" body="hand_left" gain="2000"
       ctrlrange="0 1"/>
   </actuator>
 

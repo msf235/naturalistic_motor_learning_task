@@ -112,6 +112,7 @@ def get_joint_ids(model, data=None):
     jntn = lambda k: model.joint(k).name
     joints = {}
     joints['joint_names'] = [jntn(k) for k in range(model.njnt)]
+    joints['all'] = {jntn(k): k for k in range(model.njnt)}
     joints['body'] = get_body_joints(model, data)
     joints['ball'] = [
         k for k in range(model.nq) if 'ball' in jntn(k)
@@ -171,10 +172,14 @@ def get_Q_balance(model, data):
 def get_Q_joint(model, data=None, excluded_acts=[]):
     balance_joint_cost  = 3     # Joints required for balancing.
     other_joint_cost    = .3    # Other joints.
-    joints = get_joint_ids(model)['body']
+    joint_ids = get_joint_ids(model)
+    joints = joint_ids['body']
+    # z_joint = joint_ids['all']['human_z_root']
     # Construct the Qjoint matrix.
     Qjoint = np.eye(model.nq)
-    Qjoint[joints['root_dofs'], joints['root_dofs']] *= 0  # Don't penalize free joint directly.
+    # Qjoint[joints['root_dofs'], joints['root_dofs']] *= 0  # Don't penalize free joint directly.
+    Qjoint[joints['root_dofs'], joints['root_dofs']] *= 3
+    # Qjoint[z_joint, z_joint] = 100
     Qjoint[joints['balance_dofs'], joints['balance_dofs']] *= balance_joint_cost
     Qjoint[joints['other_dofs'], joints['other_dofs']] *= other_joint_cost
     Qjoint[excluded_acts, excluded_acts] *= 0
@@ -188,6 +193,8 @@ def get_Q_matrix(model, data, excluded_state_inds=[]):
     Qjoint = get_Q_joint(model, data, excluded_state_inds)
     # Construct the Q matrix for position DoFs.
     Qpos = balance_cost * Qbalance + Qjoint
+    Qpos = balance_cost * Qbalance + 500*Qjoint
+    # Qpos = 1000*Qjoint
 
     # No explicit penalty for velocities.
     nq = model.nq

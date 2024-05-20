@@ -31,23 +31,26 @@ out_f = outdir/'tennis_ctrl.pkl'
 # Tk = 120*3
 # Tk = 120*4
 # Tk = 120*3
-Tk = 120*2
+# Tk = 120*2
 # Tk = 120*6
 # Tk = 320
 # lr = 1/Tk
 # lr = 10/Tk
 # lr = .3/Tk
 # lr = .03/Tk
-lr = 5/Tk
 # lr = 2/Tk
 # lr = 20/Tk
 # max_its = 1200*3
-# max_its = 1000
-max_its = 100
+max_its = 2000
+# max_its = 500
 # max_its = 1200
 # max_its = 1600
 # max_its = 200
 # max_its = 120
+
+# Tf = 1.6
+Tf = 2.3
+
 
 CTRL_STD = 0
 CTRL_RATE = 1
@@ -60,8 +63,6 @@ render_mode = 'human'
 
 keyframe = 'wide_tennis_pos'
 
-# reset = lambda : util.reset(model, data, 40, keyframe)
-reset = lambda : opt_utils.reset(model, data, 30, 50, keyframe)
 
 # Create a Humanoid2dEnv object
 env = humanoid2d.Humanoid2dEnv(
@@ -74,13 +75,31 @@ env = humanoid2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
+dt = model.opt.timestep
+
+Tk = int(Tf / dt)
+
+# lr = .5/Tk
+lr = .002
+lr = .02
+# lr = .1
+# lr = .05
+lr = .001
+# lr = .2
+
+burn_step = int(.1 / dt)
+
+# reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+
 reset()
 # tmp = util.get_contact_pairs(model, data)
 
 targ_traj_mask = np.ones((Tk,))
 # targ_traj_mask_type = 'progressive'
 targ_traj_mask_type = 'double_sided_progressive'
-right_hand_traj, left_hand_traj, ball_traj = arm_t.tennis_traj(model, data, Tk)
+out = arm_t.tennis_traj(model, data, Tk)
+right_hand_traj, left_hand_traj, ball_traj, time_dict = out
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -107,38 +126,34 @@ stabilize_act_idx = tennis_idxs['not_arm_a']
 n = len(sites)
 nr = range(n)
 
-dt = model.opt.timestep
-T = Tk*dt
-tt = np.arange(0, T, dt)
-left_adh_act_vals = np.ones((Tk-1, 1))
-Tk_left_1 = int(Tk / 3) # Duration to grab with left hand (1)
-Tk_left_2 = int(Tk / 8) # Duration to grab with left hand (2)
-t_left_1 = Tk_left_1 + Tk_left_2 # Time up to end of grab
-Tk_left_3 = int(Tk / 4) # Duration to set up
-t_left_2 = t_left_1 + Tk_left_3 # Time to end of setting up
-Tk_left_4 = int(Tk / 8) # Duration to throw ball up
-t_left_3 = t_left_2 + Tk_left_4 # Time to end of throwing ball up
-left_adh_act_vals[t_left_3:] = 0
+tt = np.arange(0, Tf, dt)
+# left_adh_act_vals = np.ones((Tk-1, 1))
+# left_adh_act_vals[time_dict['t_left_3']:] = 0
 
-incr_every = max_its // 15
+incr_every = 20
+t_incr = 0.08
+amnt_to_incr = int(t_incr/dt)
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        bodyj, free_ctrls=np.ones((Tk, len(acts['adh'])))
+        bodyj,
+        # free_ctrls=np.ones((Tk, len(acts['adh'])))
+        free_ctrls=np.zeros((Tk, len(acts['adh'])))
     )[:2]
-    ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
+    # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     reset()
     # arm_t.forward_to_contact(env, ctrls, True)
     # reset()
+    # breakpoint()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
         full_trajs, masks, mask_types, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
         Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=incr_every,
-        amnt_to_incr=Tk // 10,
-        grad_update_every=1,
+        amnt_to_incr=amnt_to_incr,
+        grad_update_every=10,
         phase_2_it=max_its//2)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
