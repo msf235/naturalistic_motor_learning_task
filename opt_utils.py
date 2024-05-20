@@ -298,7 +298,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
-                  update_every=1, update_phase=0):
+                  update_every=1, update_phase=0, grad_filter=True):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
@@ -319,7 +319,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     hxs = np.zeros((Tk, 3))
 
     for tk in range(Tk):
-        if tk in grad_range:
+        if tk in grad_range and targ_traj_mask[tk]:
             mj.mj_forward(model, data)
             mj.mj_jacSite(
                 model, data, C, None, site=data.site(f'{deriv_site}').id)
@@ -337,9 +337,10 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         
         if tk < Tk-1:
             sim_util.step(model, data, ctrls[tk])
-
-    ttm = targ_traj_mask.reshape(-1, 1)
-    dldqs = dldqs * ttm
+    n = 1*(len(deriv_site) < 5)
+    # print(deriv_site + '\t\t' + '\t'*n + str(np.max(np.abs(As))))
+    # ttm = targ_traj_mask.reshape(-1, 1)
+    # dldqs = dldqs * ttm
     # lams[-1] = dldqs[-1]
     lams[tk] = dldqs[tk]
     grads = np.zeros((Tk-1, nuderiv))
@@ -350,7 +351,8 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     for tk in reversed(grad_range[1:]):
         tks = tk - update_every # Shifted by one update
         lams[tks] = dldqs[tks] + As[tks].T @ lams[tk]
-        grads[tks] = tau_loss_factor*loss_u[tks] + Bs[tks].T @ lams[tk]
+        if grad_filter and targ_traj_mask[tk]:
+            grads[tks] = tau_loss_factor*loss_u[tks] + Bs[tks].T @ lams[tk]
 
     mat_block = np.zeros((update_every, update_every+1))
     dk = 1/update_every
@@ -375,65 +377,20 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     return grads_interp
     # return grads, hxs, dldss
 
-### Gradient descent
-def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
-               grad_trunc_tk, deriv_ids=[], deriv_site='hand_right'):
-    """deriv_inds specifies the indices of the actuators that will be
-    updated (for instance, the actuators related to the right arm)."""
-    # data = copy.deepcopy(data)
-    nuderiv = len(deriv_ids)
-    Tk = ctrls.shape[0]
-    As = np.zeros((Tk, 2*model.nv, 2*model.nv))
-    Bs = np.zeros((Tk, 2*model.nv, nuderiv))
-    B = np.zeros((2*model.nv, model.nu))
-    C = np.zeros((3, model.nv))
-    dldqs = np.zeros((Tk, 2*model.nv))
-    dldss = np.zeros((Tk, 3))
-    lams = np.zeros((Tk, 2*model.nv))
-    fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
-    epsilon = 1e-6
-    hxs = np.zeros((Tk, 3))
-
-    for tk in range(Tk):
-        mj.mj_forward(model, data)
-        mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
-        Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
-        mj.mj_jacSite(
-            model, data, C, None, site=data.site(f'{deriv_site}').id)
-        site_xpos = data.site(f'{deriv_site}').xpos
-        dlds = site_xpos - targ_traj[tk]
-        dldss[tk] = dlds
-        hxs[tk] = site_xpos
-        dldq = C.T @ dlds
-        dldqs[tk, :model.nv] = dldq
-        
-        if tk < Tk-1:
-            sim_util.step(model, data, ctrls[tk])
-
-    ttm = targ_traj_mask.reshape(-1, 1)
-    dldqs = dldqs * ttm
-    lams[-1] = dldqs[-1]
-    grads = np.zeros((Tk, nuderiv))
-    # tau_loss_factor = 1e-9
-    tau_loss_factor = 0
-    loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
-
-    # Todo: fix indexing
-    for tk in range(2, Tk): # Go backwards in time
-        lams[Tk-tk] = dldqs[Tk-tk] + As[Tk-tk].T @ lams[Tk-tk+1]
-        # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
-        grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
-                + Bs[Tk-tk].T @ lams[Tk-tk+1]
-    return grads, hxs, dldss
-
-def get_final_loss(model, data, xpos1, xpos2):
-    # I could put a forward sim here for safety (but less efficient)
-    dlds = xpos1 - xpos2
-    C = np.zeros((3, model.nv))
-    mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
-    dldq = C.T @ dlds
-    lams_fin = dldq # 11 and 12 are currently right shoulder and elbow
-    loss = .5*np.mean(dlds**2)
-    print(f'loss: {loss}', f'xpos1: {xpos1}', f'xpos2: {xpos2}')
-    return loss, lams_fin
-
+def reset(model, data, nsteps1, nsteps2, keyframe_name=None):
+    if keyframe_name is not None:
+        keyframe_id = model.keyframe(keyframe_name).id
+        mj.mj_resetDataKeyframe(model, data, keyframe_id)
+    else:
+        mj.mj_resetData(model, data)
+    mj.mj_forward(model, data)
+    for k in range(nsteps1):
+        mj.mj_step(model, data)
+    noisev = np.zeros((nsteps2, model.nu))
+    joints = get_joint_ids(model)
+    acts = get_act_ids(model)
+    bodyj = joints['body']['body_dofs']
+    get_stabilized_ctrls(
+        model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
+        bodyj, free_ctrls=np.ones((nsteps2, len(acts['adh'])))
+    )[0]

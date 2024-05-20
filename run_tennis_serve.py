@@ -27,14 +27,23 @@ out_f = outdir/'tennis_ctrl.pkl'
 
 
 # Tk = 120
-Tk = 120*5
+# Tk = 120*5
+# Tk = 120*3
+# Tk = 120*4
+# Tk = 120*3
+Tk = 120*2
 # Tk = 120*6
 # Tk = 320
 # lr = 1/Tk
 # lr = 10/Tk
-lr = 2/Tk
+# lr = .3/Tk
+# lr = .03/Tk
+lr = 5/Tk
+# lr = 2/Tk
+# lr = 20/Tk
 # max_its = 1200*3
-max_its = 2000
+# max_its = 1000
+max_its = 100
 # max_its = 1200
 # max_its = 1600
 # max_its = 200
@@ -43,15 +52,16 @@ max_its = 2000
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
 
 keyframe = 'wide_tennis_pos'
 
-reset = lambda : util.reset(model, data, 40, keyframe)
+# reset = lambda : util.reset(model, data, 40, keyframe)
+reset = lambda : opt_utils.reset(model, data, 30, 50, keyframe)
 
 # Create a Humanoid2dEnv object
 env = humanoid2d.Humanoid2dEnv(
@@ -68,8 +78,8 @@ reset()
 # tmp = util.get_contact_pairs(model, data)
 
 targ_traj_mask = np.ones((Tk,))
-targ_traj_mask_type = 'progressive'
-
+# targ_traj_mask_type = 'progressive'
+targ_traj_mask_type = 'double_sided_progressive'
 right_hand_traj, left_hand_traj, ball_traj = arm_t.tennis_traj(model, data, Tk)
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
@@ -77,11 +87,11 @@ noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
-lr = .3/Tk
+# lr = .3/Tk
 
 bodyj = joints['body']['body_dofs']
 
-sites = ['hand_right', 'hand_left', 'racket_handle', 'ball']
+sites = ['hand_right', 'hand_left', 'racket_handle_top', 'ball']
 full_trajs = [right_hand_traj, left_hand_traj, right_hand_traj, ball_traj]
 masks = [targ_traj_mask]*4
 mask_types = [targ_traj_mask_type]*4
@@ -110,6 +120,8 @@ Tk_left_4 = int(Tk / 8) # Duration to throw ball up
 t_left_3 = t_left_2 + Tk_left_4 # Time to end of throwing ball up
 left_adh_act_vals[t_left_3:] = 0
 
+incr_every = max_its // 15
+
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
@@ -124,8 +136,10 @@ if rerun1 or not out_f.exists():
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
         full_trajs, masks, mask_types, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
-        Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=80,
-        amnt_to_incr=50, grad_update_every=20)
+        Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=incr_every,
+        amnt_to_incr=Tk // 10,
+        grad_update_every=1,
+        phase_2_it=max_its//2)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
 else:
@@ -134,7 +148,7 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-ctrls = lowest_losses.peekitem(0)[1][1]
+# ctrls = lowest_losses.peekitem(0)[1][1]
 # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
 reset()
 

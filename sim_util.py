@@ -58,15 +58,6 @@ class ProgressBar:
     # for k in range(nsteps):
         # mj.mj_step(model, data)
 
-def reset(model, data, nsteps, keyframe_name=None):
-    if keyframe_name is not None:
-        keyframe_id = model.keyframe(keyframe_name).id
-        mj.mj_resetDataKeyframe(model, data, keyframe_id)
-    else:
-        mj.mj_resetData(model, data)
-    mj.mj_forward(model, data)
-    for k in range(nsteps):
-        mj.mj_step(model, data)
 
 def reset_state(model, data_to, data_from):
     """Resets the state of `data_to` to that of `data_from`."""

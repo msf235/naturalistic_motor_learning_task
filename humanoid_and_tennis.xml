@@ -13,8 +13,11 @@
      limitations under the License.
 -->
 
+    <!--timestep="0.00125"-->
+    <!--integrator="implicitfast"/>-->
 <mujoco model="Humanoid">
-  <option timestep="0.0025"/>
+  <option
+    timestep="0.005"/>
   <include file="humanoid.xml"/>
   <include file="tennis_serve_scene.xml"/>
   <visual>
