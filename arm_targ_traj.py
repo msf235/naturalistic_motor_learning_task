@@ -249,8 +249,10 @@ def forward_to_contact(env, ctrls, noisev=None, render=True):
     adh_ctrl = opt_utils.AdhCtrl()
     if noisev is None:
         noisev = np.zeros((Tk, model.nu))
+    contacts = np.zeros((Tk, 2))
     for k in range(Tk):
-        ctrls[k] = adh_ctrl.get_ctrl(model, data, ctrls[k])
+        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
+        contacts[k] = [cont_k1, cont_k2]
         util.step(model, data, ctrls[k] + noisev[k])
         if render:
             env.render()
@@ -261,7 +263,7 @@ def forward_to_contact(env, ctrls, noisev=None, render=True):
                 # if contact_cnt <= 20:
                     # ctrls[k:, act['adh_right_hand']] = .05 * contact_cnt
                     # contact_cnt += 1
-    return k, ctrls
+    return k, ctrls, contacts
 
 class LimLowestDict:
     def __init__(self, max_len):
@@ -355,6 +357,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
 
     progbar = util.ProgressBar(final_it = max_its) 
 
+    time_dict = tennis_traj(model, data, Tk)[3]
+    grab_time = int(max(time_dict['t_right_1'], time_dict['t_left_1']) * .9)
+
     optms = []
     targ_traj_progs = []
     targ_traj_mask_currs = []
@@ -362,6 +367,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     incr_everys = []
     amnt_to_incrs = []
     idxs = [0]*n_sites
+    # targ_traj_masks_grab = np.zeros((Tk, n_sites))
+    targ_traj_masks_grab = [0]*n_sites
+    # targ_traj_masks_grab[:grab_time, :] = targ_traj_masks[:
     for k in range(n_sites):
         optms.append(opts.Adam(lr=lr))
         # optms.append(opts.SGD(lr=lr, momentum=0.2))
@@ -375,19 +383,24 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         if targ_traj_progs[k]:
             targ_traj_mask_currs[k] = np.zeros((Tk,))
             incr_cnts.append(0)
+        targ_traj_masks_grab[k] = np.zeros((Tk,))
+        targ_traj_masks_grab[k][:grab_time] = targ_traj_masks[k][:grab_time]
     lowest_losses = LimLowestDict(keep_top)
 
-    Tk1 = int(Tk / 3)
     # plt.ion()
     # fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
+    contact_bool = False
     fig, axs = plt.subplots(2, n_sites, figsize=(5*n_sites, 5))
     try:
         for k0 in range(max_its):
             progbar.update()
             for k in range(n_sites):
-                idx = idxs[k].update()
-                targ_traj_mask_currs[k] = np.zeros((Tk,))
-                targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
+                if not contact_bool and k0 > 100:
+                    targ_traj_mask_currs[k][:] = targ_traj_masks_grab[k][:]
+                else:
+                    targ_traj_mask_currs[k] = np.zeros((Tk,))
+                    idx = idxs[k].update()
+                    targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
             # if k0 % incr_every == 0:
                 # breakpoint()
                 
@@ -399,7 +412,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     # breakpoint()
 
             util.reset_state(model, data, data0)
-            k, ctrls = forward_to_contact(env, ctrls, noisev, render=False)
+            k, ctrls, contacts = forward_to_contact(env, ctrls, noisev, False)
+            contact_bool = np.sum(contacts[:, 0]) * np.sum(contacts[:, 1]) > 0
             # if ball_contact:
                 # breakpoint()
             util.reset_state(model, data, data0)
@@ -417,7 +431,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     update_every=grad_update_every, update_phase=update_phase
                 )
                 util.reset_state(model, data, data0)
-            grads[0][:, :Tk1] *= 4
+            grads[0][:, :grab_time] *= 4
             # if np.max(np.abs(grads)) > 5:
                 # print('big_grad', np.max(np.abs(grads)))
                 # for k in range(n_sites):
@@ -460,30 +474,30 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             nr = range(n_sites)
             
 
-            if k0 % incr_every == 0:
+            # if k0 % incr_every == 0:
                 # util.reset_state(model, data, data0)
                 # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
-                for k in nr:
-                    util.reset_state(model, data, data0)
-                    hx = forward_with_site(env, ctrls, site_names[k], False)
-                    tm = np.tile(targ_traj_mask_currs[k], (3, 1)).T
-                    tm[tm == 0] = np.nan
-                    ft = target_trajs[k]*tm
-                    loss = np.mean((hx - target_trajs[k])**2)
-                    ax = axs[0, k]
-                    ax.cla()
-                    ax.plot(tt, hx[:,1], color='blue', label='x')
-                    ax.plot(tt, ft[:,1], '--', color='blue')
-                    ax.plot(tt, hx[:,2], color='red', label='y')
-                    ax.plot(tt, ft[:,2], '--', color='red')
-                    ax.set_title(site_names[k] + ' loss: ' + str(loss))
-                    ax.legend()
-                    ax = axs[1,k]
-                    ax.cla()
-                    ax.plot(tt[:-1], ctrls[:, site_grad_idxs[k]])
-                fig.tight_layout()
-                plt.show(block=False)
-                plt.pause(.01)
+            for k in nr:
+                util.reset_state(model, data, data0)
+                hx = forward_with_site(env, ctrls, site_names[k], False)
+                tm = np.tile(targ_traj_mask_currs[k], (3, 1)).T
+                tm[tm == 0] = np.nan
+                ft = target_trajs[k]*tm
+                loss = np.mean((hx - target_trajs[k])**2)
+                ax = axs[0, k]
+                ax.cla()
+                ax.plot(tt, hx[:,1], color='blue', label='x')
+                ax.plot(tt, ft[:,1], '--', color='blue')
+                ax.plot(tt, hx[:,2], color='red', label='y')
+                ax.plot(tt, ft[:,2], '--', color='red')
+                ax.set_title(site_names[k] + ' loss: ' + str(loss))
+                ax.legend()
+                ax = axs[1,k]
+                ax.cla()
+                ax.plot(tt[:-1], ctrls[:, site_grad_idxs[k]])
+            fig.tight_layout()
+            plt.show(block=False)
+            plt.pause(.01)
                 # plt.show()
                 # if k0 > phase_2_it:
                     # breakpoint()

@@ -84,7 +84,8 @@ lr = .002
 lr = .02
 # lr = .1
 # lr = .05
-lr = .001
+# lr = .001
+lr = .0001
 # lr = .2
 
 burn_step = int(.1 / dt)
