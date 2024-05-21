@@ -246,20 +246,22 @@ def forward_to_contact(env, ctrls, noisev=None, render=True):
     Tk = ctrls.shape[0]
     contact_cnt = 0
     contact = False
+    adh_ctrl = opt_utils.AdhCtrl()
     if noisev is None:
         noisev = np.zeros((Tk, model.nu))
     for k in range(Tk):
+        ctrls[k] = adh_ctrl.get_ctrl(model, data, ctrls[k])
         util.step(model, data, ctrls[k] + noisev[k])
         if render:
             env.render()
-        contact_pairs = util.get_contact_pairs(model, data)
-        for cp in contact_pairs:
-            if 'racket_handle' in cp and 'hand_right1' in cp or 'hand_right2' in cp:
-                contact = True
-                if contact_cnt <= 20:
-                    ctrls[k:, act['adh_right_hand']] = .05 * contact_cnt
-                    contact_cnt += 1
-    return k, contact, ctrls
+        # contact_pairs = util.get_contact_pairs(model, data)
+        # for cp in contact_pairs:
+            # if 'racket_handle' in cp and 'hand_right1' in cp or 'hand_right2' in cp:
+                # contact = True
+                # if contact_cnt <= 20:
+                    # ctrls[k:, act['adh_right_hand']] = .05 * contact_cnt
+                    # contact_cnt += 1
+    return k, ctrls
 
 class LimLowestDict:
     def __init__(self, max_len):
@@ -397,9 +399,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     # breakpoint()
 
             util.reset_state(model, data, data0)
-            k, ball_contact, ctrls = forward_to_contact(env, ctrls, noisev, render=False)
-            if ball_contact:
-                breakpoint()
+            k, ctrls = forward_to_contact(env, ctrls, noisev, render=False)
+            # if ball_contact:
+                # breakpoint()
             util.reset_state(model, data, data0)
             grads = [0] * n_sites
             hxs = [0] * n_sites
@@ -432,8 +434,6 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             # if np.max(np.abs(grads)) > 5:
                 # print(np.max(np.abs(grads)))
             for k in range(n_sites):
-                # ctrls[:, right_arm_without_adh] = optm.update(
-                    # ctrls[:, right_arm_without_adh], grads1[:Tk-1], 'ctrls', loss1)
                 ctrls[:, site_grad_idxs[k]] = optms[k].update(
                     ctrls[:, site_grad_idxs[k]], grads[k][:Tk-1], 'ctrls',
                         losses[k])
@@ -442,7 +442,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                 model, data, Tk, noisev, qpos0, stabilize_act_idx,
                 stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
-                K_update_interv=500,
+                K_update_interv=500, 
             )
             ctrls = np.clip(ctrls, -1, 1)
             for k in range(n_sites):
@@ -461,6 +461,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             
 
             if k0 % incr_every == 0:
+                # util.reset_state(model, data, data0)
+                # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
                 for k in nr:
                     util.reset_state(model, data, data0)
                     hx = forward_with_site(env, ctrls, site_names[k], False)
@@ -477,6 +479,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     ax.set_title(site_names[k] + ' loss: ' + str(loss))
                     ax.legend()
                     ax = axs[1,k]
+                    ax.cla()
                     ax.plot(tt[:-1], ctrls[:, site_grad_idxs[k]])
                 fig.tight_layout()
                 plt.show(block=False)
@@ -487,7 +490,6 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
 
             util.reset_state(model, data, data0)
             hx = forward_with_site(env, ctrls, site_names[0], True)
-            # qs, qvels = forward_to_contact(env, ctrls, noisev, True)
     finally:
         pass
     # except KeyboardInterrupt:

@@ -10,6 +10,7 @@ import copy
 import sim_util
 import optimizers as opts
 
+
 class AdamOptim():
     def __init__(self, eta=0.01, beta1=0.9, beta2=0.999, epsilon=1e-8):
         self.m_dw, self.v_dw = 0, 0
@@ -153,6 +154,30 @@ def get_act_names_left_or_right(model, data=None, left_or_right='right'):
     ]
     return acts
 
+class AdhCtrl:
+    def __init__(self):
+        self.k_right = 1
+        self.k_left = 1
+
+    def get_ctrl(self, model, data, ctrl):
+        act = get_act_ids(model)
+        # adh = opt_utils.get_act_ids(model)['adh']
+        contact_pairs = util.get_contact_pairs(model, data)
+        for cp in contact_pairs:
+            if 'racket_handle' in cp and ('hand_right1' in cp or 'hand_right2' in cp):
+                ctrl[act['adh_right_hand']] = .05 * self.k_right
+                if self.k_right < 20:
+                    self.k_right += 1
+            if 'ball' in cp and ('hand_left1' in cp or 'hand_left2' in cp):
+                ctrl[act['adh_left_hand']] = .05 * self.k_left
+                if self.k_left < 20:
+                    self.k_left += 1
+        return ctrl
+
+    def reset(self):
+        self.k_right = 0
+        self.k_left = 0
+
 def get_Q_balance(model, data):
     nq = model.nq
     jac_com = np.zeros((3, nq))
@@ -249,7 +274,7 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
 
 def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                          stable_jnt_ids, free_ctrls=None,
-                         K_update_interv=None,):
+                         K_update_interv=None, free_ctrl_fn=None):
     """Get stabilized controls.
 
     Args:
@@ -267,6 +292,8 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         free_ctrls: Free controls.
         K_update_interv: Update interval for K.
         """
+
+    adh_ctrl = AdhCtrl()
 
     data0 = copy.deepcopy(data)
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
@@ -294,13 +321,19 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
                                    stable_jnt_ids)
         ctrls[k][ctrl_act_ids] = ctrl
+        # if free_ctrl_fn is not None:
+            # ctrls[k][free_act_ids] = free_ctrl_fn(model, data, free_ctrls[k])
+        # else:
+            # ctrls[k][free_act_ids] = free_ctrls[k]
         ctrls[k][free_act_ids] = free_ctrls[k]
+        ctrls[k] = adh_ctrl.get_ctrl(model, data, ctrls[k])
         mj.mj_step1(model, data)
         data.ctrl[:] = ctrls[k] + noisev[k]
         mj.mj_step2(model, data)
         qs[k+1] = data.qpos.copy()
         qvels[k+1] = data.qvel.copy()
     return ctrls, K, qs, qvels
+
 
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
@@ -325,6 +358,8 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     epsilon = 1e-6
     hxs = np.zeros((Tk, 3))
 
+    adh_ctrl = AdhCtrl()
+
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
             mj.mj_forward(model, data)
@@ -343,6 +378,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                 Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
         
         if tk < Tk-1:
+            ctrls[tk] = adh_ctrl.get_ctrl(model, data, ctrls[tk])
             sim_util.step(model, data, ctrls[tk])
     n = 1*(len(deriv_site) < 5)
     # print(deriv_site + '\t\t' + '\t'*n + str(np.max(np.abs(As))))
