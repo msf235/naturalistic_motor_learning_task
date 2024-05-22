@@ -159,7 +159,7 @@ class AdhCtrl:
         self.k_right = 1
         self.k_left = 1
         self.tk = 0
-        self.t_zero_thr
+        self.t_zero_thr = t_zero_thr
 
     def get_ctrl(self, model, data, ctrl):
         act = get_act_ids(model)
@@ -178,8 +178,9 @@ class AdhCtrl:
                 ctrl[act['adh_left_hand']] = .05 * self.k_left
                 if self.k_left < 20:
                     self.k_left += 1
-        if self.tk >= self.t_zero_thr:
+        if self.t_zero_thr is not None and self.tk >= self.t_zero_thr:
             ctrl[act['adh_left_hand']] = 0
+        self.tk += 1
         return ctrl, contact1, contact2
 
     def reset(self):
@@ -282,7 +283,8 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
 
 def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                          stable_jnt_ids, free_ctrls=None,
-                         K_update_interv=None, free_ctrl_fn=None):
+                         K_update_interv=None, free_ctrl_fn=None,
+                         let_go_time=None):
     """Get stabilized controls.
 
     Args:
@@ -301,7 +303,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         K_update_interv: Update interval for K.
         """
 
-    adh_ctrl = AdhCtrl()
+    adh_ctrl = AdhCtrl(let_go_time)
 
     data0 = copy.deepcopy(data)
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
@@ -345,8 +347,9 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
 
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
-               grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
-                  update_every=1, update_phase=0, grad_filter=True):
+                   grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
+                   update_every=1, update_phase=0, grad_filter=True,
+                   let_go_time=None):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
@@ -366,7 +369,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     epsilon = 1e-6
     hxs = np.zeros((Tk, 3))
 
-    adh_ctrl = AdhCtrl()
+    adh_ctrl = AdhCtrl(let_go_time)
 
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
@@ -395,7 +398,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     # lams[-1] = dldqs[-1]
     lams[tk] = dldqs[tk]
     grads = np.zeros((Tk-1, nuderiv))
-    tau_loss_factor = 1e-9
+    tau_loss_factor = 1e-11
     # tau_loss_factor = 0
     loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
 

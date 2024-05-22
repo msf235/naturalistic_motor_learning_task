@@ -238,7 +238,7 @@ def forward_with_site(env, ctrls, site_name, render=False):
     return site_xvs
 
 
-def forward_to_contact(env, ctrls, noisev=None, render=True):
+def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_time=None):
     model = env.model
     act = opt_utils.get_act_ids(model)
     data = env.data
@@ -246,7 +246,7 @@ def forward_to_contact(env, ctrls, noisev=None, render=True):
     Tk = ctrls.shape[0]
     contact_cnt = 0
     contact = False
-    adh_ctrl = opt_utils.AdhCtrl()
+    adh_ctrl = opt_utils.AdhCtrl(let_go_time)
     if noisev is None:
         noisev = np.zeros((Tk, model.nu))
     contacts = np.zeros((Tk, 2))
@@ -359,6 +359,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
 
     time_dict = tennis_traj(model, data, Tk)[3]
     grab_time = int(max(time_dict['t_right_1'], time_dict['t_left_1']) * .9)
+    let_go_time = time_dict['t_left_3']
 
     optms = []
     targ_traj_progs = []
@@ -412,7 +413,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     # breakpoint()
 
             util.reset_state(model, data, data0)
-            k, ctrls, contacts = forward_to_contact(env, ctrls, noisev, False)
+            k, ctrls, contacts = forward_to_contact(env, ctrls, noisev, False,
+                                                    let_go_time)
             contact_bool = np.sum(contacts[:, 0]) * np.sum(contacts[:, 1]) > 0
             # if ball_contact:
                 # breakpoint()
@@ -428,7 +430,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     model, data, ctrls + noisev, target_trajs[k],
                     targ_traj_mask_currs[k], grad_trunc_tk,
                     deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
-                    update_every=grad_update_every, update_phase=update_phase
+                    update_every=grad_update_every, update_phase=update_phase,
+                    let_go_time=let_go_time
                 )
                 util.reset_state(model, data, data0)
             grads[0][:, :grab_time] *= 4
@@ -456,7 +459,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                 model, data, Tk, noisev, qpos0, stabilize_act_idx,
                 stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
-                K_update_interv=500, 
+                K_update_interv=500, let_go_time=let_go_time
             )
             ctrls = np.clip(ctrls, -1, 1)
             for k in range(n_sites):
@@ -495,9 +498,12 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 ax = axs[1,k]
                 ax.cla()
                 ax.plot(tt[:-1], ctrls[:, site_grad_idxs[k]])
+            axs[1,0].plot(tt[:-1], ctrls[:, -2])
+            axs[1,1].plot(tt[:-1], ctrls[:, -1])
             fig.tight_layout()
             plt.show(block=False)
             plt.pause(.01)
+            # breakpoint()
                 # plt.show()
                 # if k0 > phase_2_it:
                     # breakpoint()
