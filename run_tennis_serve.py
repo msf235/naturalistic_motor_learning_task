@@ -85,7 +85,7 @@ lr = .02
 # lr = .1
 # lr = .05
 # lr = .001
-lr = .0001
+lr = .0005
 # lr = .2
 
 burn_step = int(.1 / dt)
@@ -131,8 +131,10 @@ tt = np.arange(0, Tf, dt)
 # left_adh_act_vals = np.ones((Tk-1, 1))
 # left_adh_act_vals[time_dict['t_left_3']:] = 0
 
-incr_every = 20
-t_incr = 0.08
+# incr_every = 20
+incr_every = 10
+# t_incr = 0.08
+t_incr = 0.1
 amnt_to_incr = int(t_incr/dt)
 
 if rerun1 or not out_f.exists():
@@ -154,7 +156,8 @@ if rerun1 or not out_f.exists():
         full_trajs, masks, mask_types, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
         Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=incr_every,
         amnt_to_incr=amnt_to_incr,
-        grad_update_every=10,
+        # grad_update_every=10,
+        grad_update_every=1,
         phase_2_it=max_its//2)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)

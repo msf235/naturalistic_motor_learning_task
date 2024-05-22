@@ -344,12 +344,27 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         qvels[k+1] = data.qvel.copy()
     return ctrls, K, qs, qvels
 
+def cum_mat_prod(tuple_of_mat):
+    t = np.eye(tuple_of_mat[0].shape[0])
+    rs = []
+    for m in tuple_of_mat:
+        t = m @ t
+        rs.append(t)
+    return rs
+
+def cum_sum(tuple_of_mat):
+    t = np.zeros(tuple_of_mat[0].shape[0])
+    rs = []
+    for m in tuple_of_mat:
+        t = t + m
+        rs.append(t)
+    return rs
 
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
                    update_every=1, update_phase=0, grad_filter=True,
-                   let_go_time=None):
+                   grab_time=None, let_go_time=None):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
@@ -391,6 +406,12 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         if tk < Tk-1:
             ctrls[tk], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[tk])
             sim_util.step(model, data, ctrls[tk])
+    Ast = [A.T for A in As]
+    Aprods = cum_mat_prod(As)
+    Aprods.insert(0, np.eye(As[0].shape[0]))
+    terms = [Aprods[k]@dldqs[k] for k in range(Tk)]
+    term_cum = cum_sum(terms)
+    breakpoint()
     n = 1*(len(deriv_site) < 5)
     # print(deriv_site + '\t\t' + '\t'*n + str(np.max(np.abs(As))))
     # ttm = targ_traj_mask.reshape(-1, 1)
@@ -398,8 +419,8 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     # lams[-1] = dldqs[-1]
     lams[tk] = dldqs[tk]
     grads = np.zeros((Tk-1, nuderiv))
-    tau_loss_factor = 1e-11
-    # tau_loss_factor = 0
+    # tau_loss_factor = 1e-11
+    tau_loss_factor = 0
     loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
 
     for tk in reversed(grad_range[1:]):

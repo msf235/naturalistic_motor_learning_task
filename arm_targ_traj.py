@@ -275,25 +275,44 @@ class LimLowestDict:
         if len(self.dict) > self.max_len:
             self.dict.popitem()
 
-class DoubleSidedProgressive:
-    def __init__(self, incr_every, amnt_to_incr, phase_2_it, max_idx=1e8):
+# class DoubleSidedProgressive:
+    # def __init__(self, incr_every, amnt_to_incr, phase_2_it, max_idx=1e8):
+        # self.incr_every = incr_every
+        # self.amnt_to_incr = amnt_to_incr
+        # self.k = 0
+        # self.incr_cnt = 0
+        # self.incr_cnt2 = 0
+        # self.phase_2_it = phase_2_it
+        # self.idx = None
+    
+    # def update(self):
+        # if self.k > self.phase_2_it:
+            # if self.k % self.incr_every == 0:
+                # start_idx = self.amnt_to_incr*self.incr_cnt2
+                # self.incr_cnt2 += 1
+        # else:
+            # start_idx = 0
+        # if self.k % self.incr_every == 0:
+            # self.idx = slice(start_idx, self.amnt_to_incr*(self.incr_cnt+1))
+            # self.incr_cnt += 1
+        # self.k += 1
+        # return self.idx
+
+class WindowedIdx:
+    def __init__(self, incr_every, amnt_to_incr, window_size, max_idx=1e8):
         self.incr_every = incr_every
         self.amnt_to_incr = amnt_to_incr
         self.k = 0
         self.incr_cnt = 0
         self.incr_cnt2 = 0
-        self.phase_2_it = phase_2_it
+        self.window_size = window_size
         self.idx = None
     
     def update(self):
-        if self.k > self.phase_2_it:
-            if self.k % self.incr_every == 0:
-                start_idx = self.amnt_to_incr*self.incr_cnt2
-                self.incr_cnt2 += 1
-        else:
-            start_idx = 0
+        end_idx = self.amnt_to_incr*(self.incr_cnt+1)
+        start_idx = max(0, end_idx - self.window_size)
         if self.k % self.incr_every == 0:
-            self.idx = slice(start_idx, self.amnt_to_incr*(self.incr_cnt+1))
+            self.idx = slice(start_idx, end_idx)
             self.incr_cnt += 1
         self.k += 1
         return self.idx
@@ -376,8 +395,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         # optms.append(opts.SGD(lr=lr, momentum=0.2))
         # optms.append(opts.SGD(lr=lr))
         if targ_traj_mask_types[k] == 'double_sided_progressive':
-            idxs[k] = DoubleSidedProgressive(incr_every, amnt_to_incr,
-                                             phase_2_it=phase_2_it)
+            # idxs[k] = DoubleSidedProgressive(incr_every, amnt_to_incr,
+                                             # phase_2_it=phase_2_it)
+            idxs[k] = WindowedIdx(incr_every, amnt_to_incr, 10*amnt_to_incr)
         targ_traj_progs.append((isinstance(targ_traj_mask_types[k], str)
                                   and targ_traj_mask_types[k] == 'progressive'))
         targ_traj_mask_currs.append(targ_traj_masks[k])
@@ -391,7 +411,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     # plt.ion()
     # fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
     contact_bool = False
-    fig, axs = plt.subplots(2, n_sites, figsize=(5*n_sites, 5))
+    # fig, axs = plt.subplots(2, n_sites, figsize=(5*n_sites, 5))
+    fig, axs = plt.subplots(3, n_sites, figsize=(5*n_sites, 5))
     try:
         for k0 in range(max_its):
             progbar.update()
@@ -425,16 +446,19 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             losses = [0] * n_sites
             update_phase = k0 % grad_update_every
             tic = time.time()
+            if k0 == 160:
+                breakpoint()
             for k in range(n_sites):
                 grads[k] = opt_utils.traj_deriv_new(
                     model, data, ctrls + noisev, target_trajs[k],
                     targ_traj_mask_currs[k], grad_trunc_tk,
                     deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
                     update_every=grad_update_every, update_phase=update_phase,
+                    grab_time=grab_time,
                     let_go_time=let_go_time
                 )
                 util.reset_state(model, data, data0)
-            grads[0][:, :grab_time] *= 4
+            # grads[0][:, :grab_time] *= 4
             # if np.max(np.abs(grads)) > 5:
                 # print('big_grad', np.max(np.abs(grads)))
                 # for k in range(n_sites):
@@ -498,6 +522,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 ax = axs[1,k]
                 ax.cla()
                 ax.plot(tt[:-1], ctrls[:, site_grad_idxs[k]])
+                ax = axs[2,k]
+                ax.cla()
+                ax.plot(tt[:-1], grads[k])
             axs[1,0].plot(tt[:-1], ctrls[:, -2])
             axs[1,1].plot(tt[:-1], ctrls[:, -1])
             fig.tight_layout()
