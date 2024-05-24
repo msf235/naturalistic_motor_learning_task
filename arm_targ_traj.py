@@ -275,28 +275,47 @@ class LimLowestDict:
         if len(self.dict) > self.max_len:
             self.dict.popitem()
 
-# class DoubleSidedProgressive:
-    # def __init__(self, incr_every, amnt_to_incr, phase_2_it, max_idx=1e8):
-        # self.incr_every = incr_every
-        # self.amnt_to_incr = amnt_to_incr
-        # self.k = 0
-        # self.incr_cnt = 0
-        # self.incr_cnt2 = 0
-        # self.phase_2_it = phase_2_it
-        # self.idx = None
+class DoubleSidedProgressive:
+    def __init__(self, incr_every, amnt_to_incr, grab_phase_it, grab_phase_tk,
+                 phase_2_it, max_idx=1e8):
+        self.incr_every = incr_every
+        self.amnt_to_incr = amnt_to_incr
+        self.k = 0
+        self.incr_cnt = 0
+        self.incr_cnt2 = 0
+        self.phase_2_it = phase_2_it
+        self.grab_phase_it = grab_phase_it
+        self.grab_phase_tk = grab_phase_tk
+
+    def _update_grab_phase(self):
+        start_idx = 0
+        end_idx = self.graph_phase_tk
+        return slice(start_idx, end_idx)
     
-    # def update(self):
-        # if self.k > self.phase_2_it:
-            # if self.k % self.incr_every == 0:
-                # start_idx = self.amnt_to_incr*self.incr_cnt2
-                # self.incr_cnt2 += 1
-        # else:
-            # start_idx = 0
-        # if self.k % self.incr_every == 0:
-            # self.idx = slice(start_idx, self.amnt_to_incr*(self.incr_cnt+1))
-            # self.incr_cnt += 1
-        # self.k += 1
-        # return self.idx
+    def _update_phase_1(self):
+        start_idx = 0
+        end_idx = self.amnt_to_incr*(self.incr_cnt+1)
+        idx = slice(start_idx, end_idx)
+        self.incr_cnt += 1
+        return idx
+
+    def _update_phase_2(self):
+        start_idx = self.amnt_to_incr*self.incr_cnt2
+        end_idx = self.amnt_to_incr*(self.incr_cnt+1)
+        self.incr_cnt2 += 1
+        idx = slice(start_idx, end_idx)
+        return idx
+
+    def update(self):
+        if self.k < self.grab_phase_it:
+            self.idx = self._update_grab_phase()
+        elif self.k % self.incr_every == 0:
+            if self.k >= self.phase_2_it:
+                self.idx = self._update_phase_2()
+            else:
+                self.idx = self._update_phase_1()
+        self.k += 1
+        return self.idx
 
 class WindowedIdx:
     def __init__(self, incr_every, amnt_to_incr, window_size, max_idx=1e8):
@@ -322,7 +341,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     targ_traj_mask_types, ctrls, grad_trunc_tk, seed,
                     CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, keep_top=1,
                     incr_every=5, amnt_to_incr=5, grad_update_every=1,
-                    phase_2_it=None):
+                    grab_phase_it=0, graph_phase_tk=0, phase_2_it=None):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
     computing an LQR stabilizer to keep the rest of the body stable while the
@@ -391,13 +410,15 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     targ_traj_masks_grab = [0]*n_sites
     # targ_traj_masks_grab[:grab_time, :] = targ_traj_masks[:
     for k in range(n_sites):
-        optms.append(opts.Adam(lr=lr))
+        # optms.append(opts.Adam(lr=lr))
+        # optms.append(opts.RMSProp(lr=lr))
         # optms.append(opts.SGD(lr=lr, momentum=0.2))
-        # optms.append(opts.SGD(lr=lr))
+        optms.append(opts.SGD(lr=lr))
         if targ_traj_mask_types[k] == 'double_sided_progressive':
-            # idxs[k] = DoubleSidedProgressive(incr_every, amnt_to_incr,
-                                             # phase_2_it=phase_2_it)
-            idxs[k] = WindowedIdx(incr_every, amnt_to_incr, 10*amnt_to_incr)
+            idxs[k] = DoubleSidedProgressive(incr_every, amnt_to_incr,
+                                             graph_phase_it, graph_phase_tk,
+                                             phase_2_it=phase_2_it)
+            # idxs[k] = WindowedIdx(incr_every, amnt_to_incr, 10*amnt_to_incr)
         targ_traj_progs.append((isinstance(targ_traj_mask_types[k], str)
                                   and targ_traj_mask_types[k] == 'progressive'))
         targ_traj_mask_currs.append(targ_traj_masks[k])
@@ -417,7 +438,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         for k0 in range(max_its):
             progbar.update()
             for k in range(n_sites):
-                if not contact_bool and k0 > 100:
+                # if False:
+                # if not contact_bool and k0 > 100:
+                if False:
                     targ_traj_mask_currs[k][:] = targ_traj_masks_grab[k][:]
                 else:
                     targ_traj_mask_currs[k] = np.zeros((Tk,))
@@ -446,8 +469,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             losses = [0] * n_sites
             update_phase = k0 % grad_update_every
             tic = time.time()
-            if k0 == 160:
-                breakpoint()
+            # if k0 == 160:
+                # breakpoint()
             for k in range(n_sites):
                 grads[k] = opt_utils.traj_deriv_new(
                     model, data, ctrls + noisev, target_trajs[k],
@@ -517,7 +540,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 ax.plot(tt, ft[:,1], '--', color='blue')
                 ax.plot(tt, hx[:,2], color='red', label='y')
                 ax.plot(tt, ft[:,2], '--', color='red')
-                ax.set_title(site_names[k] + ' loss: ' + str(loss))
+                # ax.set_title(site_names[k] + ' loss: ' + str(loss))
+                ax.set_title(site_names[k])
                 ax.legend()
                 ax = axs[1,k]
                 ax.cla()

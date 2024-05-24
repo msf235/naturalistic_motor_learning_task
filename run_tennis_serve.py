@@ -41,7 +41,7 @@ out_f = outdir/'tennis_ctrl.pkl'
 # lr = 2/Tk
 # lr = 20/Tk
 # max_its = 1200*3
-max_its = 2000
+max_its = 1000
 # max_its = 500
 # max_its = 1200
 # max_its = 1600
@@ -84,8 +84,17 @@ lr = .002
 lr = .02
 # lr = .1
 # lr = .05
+lr = .5
+# lr = .0001
+# lr = .0005
+# lr = .0001
+# lr = 5
+# lr = 2
+# lr = 1
+# lr = .01
 # lr = .001
-lr = .0005
+# lr = .005
+# lr = .0005
 # lr = .2
 
 burn_step = int(.1 / dt)
@@ -99,6 +108,7 @@ reset()
 targ_traj_mask = np.ones((Tk,))
 # targ_traj_mask_type = 'progressive'
 targ_traj_mask_type = 'double_sided_progressive'
+# targ_traj_mask_type = 'const'
 out = arm_t.tennis_traj(model, data, Tk)
 right_hand_traj, left_hand_traj, ball_traj, time_dict = out
 
@@ -131,11 +141,15 @@ tt = np.arange(0, Tf, dt)
 # left_adh_act_vals = np.ones((Tk-1, 1))
 # left_adh_act_vals[time_dict['t_left_3']:] = 0
 
-# incr_every = 20
 incr_every = 10
+# incr_every = 20
+# incr_every = 30
 # t_incr = 0.08
-t_incr = 0.1
+t_incr = 1
 amnt_to_incr = int(t_incr/dt)
+# t_grad = 0.05
+t_grad = 0.1
+n_grad = int(t_grad/dt)
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
@@ -153,12 +167,13 @@ if rerun1 or not out_f.exists():
     # breakpoint()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
-        full_trajs, masks, mask_types, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
+        full_trajs, masks, mask_types, ctrls, n_grad, seed, CTRL_RATE, CTRL_STD,
         Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=incr_every,
         amnt_to_incr=amnt_to_incr,
         # grad_update_every=10,
-        grad_update_every=1,
-        phase_2_it=max_its//2)
+        grad_update_every=1, # Need to check this with new code
+        grab_phase_it=10,
+        phase_2_it=incr_every-1)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
 else:

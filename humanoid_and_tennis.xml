@@ -16,10 +16,10 @@
     <!--timestep="0.00125"-->
     <!--integrator="implicitfast"/>-->
 <mujoco model="Humanoid">
-  <option timestep="0.001"/>
+  <option timestep="0.001" integrator="implicitfast"/>
       <!-- geoms -->
   <default>
-    <geom condim="1" friction=".7" solimp=".9 .99 .001" solref=".015 1"/>
+    <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/>
   </default>
   <include file="humanoid.xml"/>
   <include file="tennis_serve_scene.xml"/>

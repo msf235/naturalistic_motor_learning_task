@@ -160,6 +160,7 @@ class AdhCtrl:
         self.k_left = 1
         self.tk = 0
         self.t_zero_thr = t_zero_thr
+        self.n_steps = 10
 
     def get_ctrl(self, model, data, ctrl):
         act = get_act_ids(model)
@@ -170,13 +171,13 @@ class AdhCtrl:
         for cp in contact_pairs:
             if 'racket_handle' in cp and ('hand_right1' in cp or 'hand_right2' in cp):
                 contact1 = True
-                ctrl[act['adh_right_hand']] = .05 * self.k_right
-                if self.k_right < 20:
+                ctrl[act['adh_right_hand']] = 1/self.n_steps * self.k_right
+                if self.k_right < self.n_steps:
                     self.k_right += 1
             if 'ball' in cp and ('hand_left1' in cp or 'hand_left2' in cp):
                 contact2 = True
-                ctrl[act['adh_left_hand']] = .05 * self.k_left
-                if self.k_left < 20:
+                ctrl[act['adh_left_hand']] = 1/self.n_steps * self.k_left
+                if self.k_left < self.n_steps:
                     self.k_left += 1
         if self.t_zero_thr is not None and self.tk >= self.t_zero_thr:
             ctrl[act['adh_left_hand']] = 0
@@ -348,7 +349,7 @@ def cum_mat_prod(tuple_of_mat):
     t = np.eye(tuple_of_mat[0].shape[0])
     rs = []
     for m in tuple_of_mat:
-        t = m @ t
+        t = t @ m
         rs.append(t)
     return rs
 
@@ -380,6 +381,8 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     dldqs = np.zeros((Tk, 2*model.nv))
     dldss = np.zeros((Tk, 3))
     lams = np.zeros((Tk, 2*model.nv))
+    lams2 = np.zeros((Tk, 2*model.nv))
+    lams3 = np.zeros((Tk, 2*model.nv))
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     epsilon = 1e-6
     hxs = np.zeros((Tk, 3))
@@ -406,28 +409,56 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         if tk < Tk-1:
             ctrls[tk], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[tk])
             sim_util.step(model, data, ctrls[tk])
-    Ast = [A.T for A in As]
-    Aprods = cum_mat_prod(As)
-    Aprods.insert(0, np.eye(As[0].shape[0]))
-    terms = [Aprods[k]@dldqs[k] for k in range(Tk)]
-    term_cum = cum_sum(terms)
-    breakpoint()
-    n = 1*(len(deriv_site) < 5)
+    # Ast = [A.T for A in As]
+    # Aprods = cum_mat_prod(As)
+    # Aprods.insert(0, np.eye(As[0].shape[0]))
+    # terms = [Aprods[k]@dldqs[k] for k in range(Tk)]
+    # lams2 = cum_sum(terms)
+    # n = 1*(len(deriv_site) < 5)
     # print(deriv_site + '\t\t' + '\t'*n + str(np.max(np.abs(As))))
     # ttm = targ_traj_mask.reshape(-1, 1)
     # dldqs = dldqs * ttm
     # lams[-1] = dldqs[-1]
     lams[tk] = dldqs[tk]
+    # lams2[tk] = dldqs[tk]
+    # lams3[tk] = dldqs[tk]
     grads = np.zeros((Tk-1, nuderiv))
-    # tau_loss_factor = 1e-11
-    tau_loss_factor = 0
+    tau_loss_factor = 1e-9
+    # tau_loss_factor = 0
     loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
-
+    
+    # time.tic()
+    # terms = [dldqs[tk]]
+    # terms2 = [dldqs[tk]]
+    # from matplotlib import pyplot as plt
+    # plt.close('all')
+    # fig, ax = plt.subplots()
+    # fig.show()
+    terms = []
     for tk in reversed(grad_range[1:]):
         tks = tk - update_every # Shifted by one update
-        lams[tks] = dldqs[tks] + As[tks].T @ lams[tk]
+        # lams[tks] = dldqs[tks] + As[tks].T @ lams[tk]
+        terms.insert(0, dldqs[tk])
+        while len(terms) > grad_trunc_tk:
+            terms.pop()
+        At = As[tks].T
+        terms = [At @ term for term in terms]
+        # print(np.linalg.norm(terms[0]), np.linalg.norm(terms[-1]))
+        # nrm_terms = np.linalg.norm(terms, axis=1)
+        # ax.cla()
+        # ax.plot(nrm_terms)
+        # plt.pause(1)
+        # mprods = cum_mat_prod(Ast[tks:])
+        # terms = [mat@lam for mat, lam in zip(mprods, dldqs[tk:])]
+        # lams2[tks] = dldqs[tks] + np.sum(terms, axis=0)
+        lams[tks] = dldqs[tks] + np.sum(terms, axis=0)
+        # print(np.linalg.norm(lams[tks]))
         if grad_filter and targ_traj_mask[tk]:
             grads[tks] = tau_loss_factor*loss_u[tks] + Bs[tks].T @ lams[tk]
+    # fig, ax = plt.subplots()
+    # nrms = np.linalg.norm(grads, axis=1)
+    # ax.plot(nrms)
+    # plt.show()
 
     mat_block = np.zeros((update_every, update_every+1))
     dk = 1/update_every
@@ -439,10 +470,10 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     last_block_size = (Tk-1) % update_every - update_phase
     first_block_size = update_phase
     # As = n_complete_blocks * update_every + last_block_size + first_block_size
-    As = Tk-1
-    A = np.zeros((As, As))
+    An = Tk-1
+    A = np.zeros((An, An))
     A[:update_phase, update_phase] = 1
-    for k in range(0, As-update_every-update_phase, update_every):
+    for k in range(0, An-update_every-update_phase, update_every):
         ks = k + update_phase
         A[ks:ks+update_every, ks:ks+update_every+1] = mat_block
     A[ks+update_every:, ks+update_every] = 1
