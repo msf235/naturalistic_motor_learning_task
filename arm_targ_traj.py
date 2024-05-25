@@ -412,10 +412,10 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     targ_traj_masks_grab = [0]*n_sites
     # targ_traj_masks_grab[:grab_time, :] = targ_traj_masks[:
     for k in range(n_sites):
-        # optms.append(opts.Adam(lr=lr))
+        optms.append(opts.Adam(lr=lr))
         # optms.append(opts.RMSProp(lr=lr))
         # optms.append(opts.SGD(lr=lr, momentum=0.2))
-        optms.append(opts.SGD(lr=lr))
+        # optms.append(opts.SGD(lr=lr))
         if targ_traj_mask_types[k] == 'double_sided_progressive':
             idxs[k] = DoubleSidedProgressive(incr_every, amnt_to_incr,
                                              grab_phase_it, grab_phase_tk,
@@ -438,6 +438,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     fig, axs = plt.subplots(3, n_sites, figsize=(5*n_sites, 5))
     try:
         for k0 in range(max_its):
+            if k0 % incr_every == 0:
+                for k in range(n_sites):
+                    optms[k] = opts.Adam(lr=lr)
             progbar.update()
             for k in range(n_sites):
                 # if False:
@@ -526,7 +529,6 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             nr = range(n_sites)
             
 
-            # if k0 % incr_every == 0:
                 # util.reset_state(model, data, data0)
                 # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
             for k in nr:

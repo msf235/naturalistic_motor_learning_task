@@ -80,11 +80,12 @@ dt = model.opt.timestep
 Tk = int(Tf / dt)
 
 # lr = .5/Tk
-lr = .002
-lr = .02
+# lr = .002
+lr = .005
+# lr = .02
 # lr = .1
 # lr = .05
-lr = .5
+# lr = .5
 # lr = .0001
 # lr = .0005
 # lr = .0001
@@ -153,6 +154,7 @@ amnt_to_incr = int(t_incr/dt)
 # t_grad = 0.05
 t_grad = 0.1
 n_grad = int(t_grad/dt)
+grab_phase_it=20
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
@@ -175,7 +177,7 @@ if rerun1 or not out_f.exists():
         amnt_to_incr=amnt_to_incr,
         # grad_update_every=10,
         grad_update_every=1, # Need to check this with new code
-        grab_phase_it=10,
+        grab_phase_it=grab_phase_it,
         grab_phase_tk=grab_tk,
         phase_2_it=Tk+1)
     with open(out_f, 'wb') as f:
