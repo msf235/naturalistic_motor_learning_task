@@ -286,22 +286,24 @@ class DoubleSidedProgressive:
         self.phase_2_it = phase_2_it
         self.grab_phase_it = grab_phase_it
         self.grab_phase_tk = grab_phase_tk
+        self.grab_end_idx = 0
 
     def _update_grab_phase(self):
         start_idx = 0
-        end_idx = self.graph_phase_tk
+        end_idx = self.grab_phase_tk
+        self.grab_end_idx = end_idx
         return slice(start_idx, end_idx)
     
     def _update_phase_1(self):
-        start_idx = 0
-        end_idx = self.amnt_to_incr*(self.incr_cnt+1)
+        start_idx = self.grab_end_idx
+        end_idx = self.amnt_to_incr*(self.incr_cnt+1) + start_idx
         idx = slice(start_idx, end_idx)
         self.incr_cnt += 1
         return idx
 
     def _update_phase_2(self):
-        start_idx = self.amnt_to_incr*self.incr_cnt2
-        end_idx = self.amnt_to_incr*(self.incr_cnt+1)
+        start_idx = self.amnt_to_incr*self.incr_cnt2 + self.grab_end_idx
+        end_idx = self.amnt_to_incr*(self.incr_cnt+1) + start_idx
         self.incr_cnt2 += 1
         idx = slice(start_idx, end_idx)
         return idx
@@ -341,7 +343,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     targ_traj_mask_types, ctrls, grad_trunc_tk, seed,
                     CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, keep_top=1,
                     incr_every=5, amnt_to_incr=5, grad_update_every=1,
-                    grab_phase_it=0, graph_phase_tk=0, phase_2_it=None):
+                    grab_phase_it=0, grab_phase_tk=0, phase_2_it=None):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
     computing an LQR stabilizer to keep the rest of the body stable while the
@@ -416,7 +418,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         optms.append(opts.SGD(lr=lr))
         if targ_traj_mask_types[k] == 'double_sided_progressive':
             idxs[k] = DoubleSidedProgressive(incr_every, amnt_to_incr,
-                                             graph_phase_it, graph_phase_tk,
+                                             grab_phase_it, grab_phase_tk,
                                              phase_2_it=phase_2_it)
             # idxs[k] = WindowedIdx(incr_every, amnt_to_incr, 10*amnt_to_incr)
         targ_traj_progs.append((isinstance(targ_traj_mask_types[k], str)

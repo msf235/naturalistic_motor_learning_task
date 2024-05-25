@@ -144,8 +144,11 @@ tt = np.arange(0, Tf, dt)
 incr_every = 10
 # incr_every = 20
 # incr_every = 30
-# t_incr = 0.08
-t_incr = 1
+grab_t = 1
+grab_tk = int(grab_t/dt)
+print(grab_tk)
+t_incr = 0.08
+t_incr = 0.2
 amnt_to_incr = int(t_incr/dt)
 # t_grad = 0.05
 t_grad = 0.1
@@ -173,7 +176,8 @@ if rerun1 or not out_f.exists():
         # grad_update_every=10,
         grad_update_every=1, # Need to check this with new code
         grab_phase_it=10,
-        phase_2_it=incr_every-1)
+        grab_phase_tk=grab_tk,
+        phase_2_it=Tk+1)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
 else:
