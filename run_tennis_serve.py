@@ -24,53 +24,23 @@ outdir.mkdir(parents=True, exist_ok=True)
 ### Set things up
 seed = 2
 out_f = outdir/'tennis_ctrl.pkl'
+# out_f = outdir/'tennis_ctrl_sm_eps.pkl'
 
 
-# Tk = 120
-# Tk = 120*5
-# Tk = 120*3
-# Tk = 120*4
-# Tk = 120*3
-# Tk = 120*2
-# Tk = 120*6
-# Tk = 320
-# lr = 1/Tk
-# lr = 10/Tk
-# lr = .3/Tk
-# lr = .03/Tk
-# lr = 2/Tk
-# lr = 20/Tk
-# max_its = 1200*3
 max_its = 1500
-# max_its = 500
-# max_its = 1200
-# lr = .0001
-# lr = .0005
-# lr = .0001
-# lr = 5
-# lr = 2
-# lr = 1
-# lr = .01
-# lr = .001
-# lr = .005
-# lr = .0005
-# lr = .2
-# max_its = 1600
-# max_its = 200
-# max_its = 120
 
-# Tf = 1.6
-Tf = 2.3
+Tf = 1.6
+# Tf = 2.3
 
 
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
-render_mode = 'human'
-# render_mode = 'rgb_array'
+# render_mode = 'human'
+render_mode = 'rgb_array'
 
 keyframe = 'wide_tennis_pos'
 
@@ -155,13 +125,14 @@ tt = np.arange(0, Tf, dt)
 incr_every = 10
 # incr_every = 20
 # incr_every = 30
-grab_t = 1
+# grab_t = Tf / 2
+grab_t = Tf / 2.2
 grab_tk = int(grab_t/dt)
-t_incr = 0.08
-t_incr = 0.2
+# t_incr = 0.08
+t_incr = Tf * .08
 amnt_to_incr = int(t_incr/dt)
 # t_grad = 0.05
-t_grad = 0.1
+t_grad = Tf * .04
 n_grad = int(t_grad/dt)
 grab_phase_it=20
 
@@ -188,7 +159,7 @@ if rerun1 or not out_f.exists():
         grad_update_every=1, # Need to check this with new code
         grab_phase_it=grab_phase_it,
         grab_phase_tk=grab_tk,
-        phase_2_it=Tk+1)
+        phase_2_it=max_its+1)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
 else:
