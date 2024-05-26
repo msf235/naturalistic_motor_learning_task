@@ -395,11 +395,13 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
             mj.mj_jacSite(
                 model, data, C, None, site=data.site(f'{deriv_site}').id)
             site_xpos = data.site(f'{deriv_site}').xpos
-            dlds = site_xpos - targ_traj[tk]
+            dlds = site_xpos - targ_traj[tk, :3]
             dldss[tk] = dlds
             hxs[tk] = site_xpos
             dldq = C.T @ dlds
             dldqs[tk, :model.nv] = dldq
+            if tk in targ_vel_mask:
+                dldqs[tk, model.nv:] = data.qvel # punishment for velocity
             if tk < Tk-1:
                 mj.mjd_transitionFD(
                     model, data, epsilon_grad, True, As[tk], B, None, None
@@ -409,6 +411,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         if tk < Tk-1:
             ctrls[tk], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[tk])
             sim_util.step(model, data, ctrls[tk])
+    breakpoint()
     # Ast = [A.T for A in As]
     # Aprods = cum_mat_prod(As)
     # Aprods.insert(0, np.eye(As[0].shape[0]))
