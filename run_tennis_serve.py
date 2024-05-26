@@ -41,9 +41,20 @@ out_f = outdir/'tennis_ctrl.pkl'
 # lr = 2/Tk
 # lr = 20/Tk
 # max_its = 1200*3
-max_its = 1000
+max_its = 1500
 # max_its = 500
 # max_its = 1200
+# lr = .0001
+# lr = .0005
+# lr = .0001
+# lr = 5
+# lr = 2
+# lr = 1
+# lr = .01
+# lr = .001
+# lr = .005
+# lr = .0005
+# lr = .2
 # max_its = 1600
 # max_its = 200
 # max_its = 120
@@ -55,8 +66,8 @@ Tf = 2.3
 CTRL_STD = 0
 CTRL_RATE = 1
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -80,23 +91,22 @@ dt = model.opt.timestep
 Tk = int(Tf / dt)
 
 # lr = .5/Tk
-# lr = .002
-lr = .005
-# lr = .02
-# lr = .1
-# lr = .05
-# lr = .5
-# lr = .0001
-# lr = .0005
-# lr = .0001
-# lr = 5
-# lr = 2
-# lr = 1
-# lr = .01
-# lr = .001
+
+# Adam
+lr = .002
 # lr = .005
-# lr = .0005
-# lr = .2
+
+# SGD
+# lr = .5
+
+# SGD with momentum
+# lr = .05
+# lr = .01
+lr = .005
+
+lr2 = .001
+it_lr2 = int(max_its*.8)
+
 
 burn_step = int(.1 / dt)
 
@@ -147,7 +157,6 @@ incr_every = 10
 # incr_every = 30
 grab_t = 1
 grab_tk = int(grab_t/dt)
-print(grab_tk)
 t_incr = 0.08
 t_incr = 0.2
 amnt_to_incr = int(t_incr/dt)
@@ -173,8 +182,8 @@ if rerun1 or not out_f.exists():
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
         full_trajs, masks, mask_types, ctrls, n_grad, seed, CTRL_RATE, CTRL_STD,
-        Tk, lr=lr, max_its=max_its, keep_top=10, incr_every=incr_every,
-        amnt_to_incr=amnt_to_incr,
+        Tk, lr=lr, lr2=lr2, it_lr2=it_lr2, max_its=max_its, keep_top=10,
+        incr_every=incr_every, amnt_to_incr=amnt_to_incr,
         # grad_update_every=10,
         grad_update_every=1, # Need to check this with new code
         grab_phase_it=grab_phase_it,
@@ -188,7 +197,9 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-# ctrls = lowest_losses.peekitem(0)[1][1]
+ctrls = lowest_losses.peekitem(0)[1][1]
+reset()
+arm_t.forward_with_site(env, ctrls, 'hand_right', render=True)
 # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
 reset()
 
@@ -209,6 +220,4 @@ for k in nr:
 fig.tight_layout()
 plt.show()
 
-reset()
-arm_t.forward_to_contact(env, ctrls, True)
 

@@ -341,7 +341,8 @@ class WindowedIdx:
 def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     stabilize_act_idx, target_trajs, targ_traj_masks,
                     targ_traj_mask_types, ctrls, grad_trunc_tk, seed,
-                    CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, keep_top=1,
+                    CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, lr2=10,
+                    it_lr2=31, keep_top=1,
                     incr_every=5, amnt_to_incr=5, grad_update_every=1,
                     grab_phase_it=0, grab_phase_tk=0, phase_2_it=None):
     """Trains the right arm to follow the target trajectory (targ_traj). This
@@ -412,9 +413,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     targ_traj_masks_grab = [0]*n_sites
     # targ_traj_masks_grab[:grab_time, :] = targ_traj_masks[:
     for k in range(n_sites):
-        optms.append(opts.Adam(lr=lr))
+        # optms.append(opts.Adam(lr=lr))
         # optms.append(opts.RMSProp(lr=lr))
-        # optms.append(opts.SGD(lr=lr, momentum=0.2))
+        optms.append(opts.SGD(lr=lr, momentum=0.2))
         # optms.append(opts.SGD(lr=lr))
         if targ_traj_mask_types[k] == 'double_sided_progressive':
             idxs[k] = DoubleSidedProgressive(incr_every, amnt_to_incr,
@@ -438,6 +439,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     fig, axs = plt.subplots(3, n_sites, figsize=(5*n_sites, 5))
     try:
         for k0 in range(max_its):
+            if k0 >= it_lr2:
+                lr = lr2
             if k0 % incr_every == 0:
                 for k in range(n_sites):
                     optms[k] = opts.Adam(lr=lr)

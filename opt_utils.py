@@ -10,7 +10,7 @@ import copy
 import sim_util
 import optimizers as opts
 
-epsilon_grad = 1e-8
+epsilon_grad = 5e-9
 
 class AdamOptim():
     def __init__(self, eta=0.01, beta1=0.9, beta2=0.999, epsilon=1e-8):
