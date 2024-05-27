@@ -24,7 +24,6 @@ outdir.mkdir(parents=True, exist_ok=True)
 ### Set things up
 seed = 2
 out_f = outdir/'tennis_ctrl.pkl'
-# out_f = outdir/'tennis_ctrl_sm_eps.pkl'
 
 
 max_its = 1500
@@ -36,11 +35,11 @@ Tf = 1.6
 CTRL_STD = 0
 CTRL_RATE = 1
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 
-# render_mode = 'human'
-render_mode = 'rgb_array'
+render_mode = 'human'
+# render_mode = 'rgb_array'
 
 keyframe = 'wide_tennis_pos'
 
