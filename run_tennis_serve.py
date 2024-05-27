@@ -26,7 +26,7 @@ seed = 2
 out_f = outdir/'tennis_ctrl.pkl'
 
 
-max_its = 1500
+max_its = 2000
 
 Tf = 1.6
 # Tf = 2.3
@@ -35,11 +35,11 @@ Tf = 1.6
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
-render_mode = 'human'
-# render_mode = 'rgb_array'
+# render_mode = 'human'
+render_mode = 'rgb_array'
 
 keyframe = 'wide_tennis_pos'
 
@@ -56,6 +56,12 @@ model = env.model
 data = env.data
 
 dt = model.opt.timestep
+burn_step = int(.1 / dt)
+# reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+
+reset()
+
 
 Tk = int(Tf / dt)
 
@@ -71,19 +77,15 @@ lr = .002
 # SGD with momentum
 # lr = .05
 # lr = .01
-lr = .005
+# lr = .005
+lr = .002
 
 lr2 = .001
 it_lr2 = int(max_its*.8)
 
+grab_t = Tf / 2.2
+grab_tk = int(grab_t/dt)
 
-burn_step = int(.1 / dt)
-
-# reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
-reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
-
-reset()
-# tmp = util.get_contact_pairs(model, data)
 
 targ_traj_mask = np.ones((Tk,))
 # targ_traj_mask_type = 'progressive'
@@ -92,12 +94,8 @@ targ_traj_mask_type = 'double_sided_progressive'
 out = arm_t.tennis_traj(model, data, Tk)
 right_hand_traj, left_hand_traj, ball_traj, time_dict = out
 
-noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
-
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
-
-# lr = .3/Tk
 
 bodyj = joints['body']['body_dofs']
 
@@ -114,6 +112,24 @@ site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
 stabilize_jnt_idx = tennis_idxs['not_arm_j']
 stabilize_act_idx = tennis_idxs['not_arm_a']
 
+# tmp = util.get_contact_pairs(model, data)
+
+
+q_targs = [np.zeros((Tk, 2*model.nq))]*4
+# q_targ_masks = [np.zeros((Tk, 2*model.nq))]*4
+q_targ_mask = np.zeros((Tk,2*model.nq))
+arm_vels = [model.nv + x for x in joints['body']['right_arm']]
+p1_dur_k = int(.1 / dt)
+q_targ_mask[grab_tk-p1_dur_k:grab_tk, arm_vels] = 1
+q_targ_masks = [q_targ_mask]*4
+q_targ_mask_types = ['const']*4
+
+noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+
+
+# lr = .3/Tk
+
+
 n = len(sites)
 nr = range(n)
 
@@ -125,8 +141,6 @@ incr_every = 10
 # incr_every = 20
 # incr_every = 30
 # grab_t = Tf / 2
-grab_t = Tf / 2.2
-grab_tk = int(grab_t/dt)
 # t_incr = 0.08
 t_incr = Tf * .08
 amnt_to_incr = int(t_incr/dt)
@@ -151,7 +165,8 @@ if rerun1 or not out_f.exists():
     # breakpoint()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
-        full_trajs, masks, mask_types, ctrls, n_grad, seed, CTRL_RATE, CTRL_STD,
+        full_trajs, masks, mask_types, q_targs, q_targ_masks,
+        q_targ_mask_types, ctrls, n_grad, seed, CTRL_RATE, CTRL_STD,
         Tk, lr=lr, lr2=lr2, it_lr2=it_lr2, max_its=max_its, keep_top=10,
         incr_every=incr_every, amnt_to_incr=amnt_to_incr,
         # grad_update_every=10,

@@ -287,6 +287,7 @@ class DoubleSidedProgressive:
         self.grab_phase_it = grab_phase_it
         self.grab_phase_tk = grab_phase_tk
         self.grab_end_idx = 0
+        self.phase = 'grab'
 
     def _update_grab_phase(self):
         start_idx = 0
@@ -313,8 +314,10 @@ class DoubleSidedProgressive:
             self.idx = self._update_grab_phase()
         elif self.k % self.incr_every == 0:
             if self.k >= self.phase_2_it:
+                self.phase = 'phase_2'
                 self.idx = self._update_phase_2()
             else:
+                self.phase = 'phase_1'
                 self.idx = self._update_phase_1()
         self.k += 1
         return self.idx
@@ -340,7 +343,8 @@ class WindowedIdx:
 
 def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     stabilize_act_idx, target_trajs, targ_traj_masks,
-                    targ_traj_mask_types, ctrls, grad_trunc_tk, seed,
+                    targ_traj_mask_types, q_targs, q_targ_masks,
+                    q_targ_mask_types, ctrls, grad_trunc_tk, seed,
                     CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, lr2=10,
                     it_lr2=31, keep_top=1,
                     incr_every=5, amnt_to_incr=5, grad_update_every=1,
@@ -431,11 +435,13 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         targ_traj_masks_grab[k] = np.zeros((Tk,))
         targ_traj_masks_grab[k][:grab_time] = targ_traj_masks[k][:grab_time]
     lowest_losses = LimLowestDict(keep_top)
+    lowest_losses_curr_mask = LimLowestDict(keep_top)
 
     # plt.ion()
     # fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
     contact_bool = False
     # fig, axs = plt.subplots(2, n_sites, figsize=(5*n_sites, 5))
+    grab_phase_switch = True
     fig, axs = plt.subplots(3, n_sites, figsize=(5*n_sites, 5))
     try:
         for k0 in range(max_its):
@@ -444,6 +450,10 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             if k0 % incr_every == 0:
                 for k in range(n_sites):
                     optms[k] = opts.Adam(lr=lr)
+            if idxs[0].phase != 'grab' and grab_phase_switch:
+                grab_phase_switch = False
+                print("End of grab phase. Selecting best ctrls.")
+                ctrls = lowest_losses_curr_mask.dict.peekitem(0)[1][1]
             progbar.update()
             for k in range(n_sites):
                 # if False:
@@ -475,6 +485,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             hxs = [0] * n_sites
             dldss = [0] * n_sites
             losses = [0] * n_sites
+            losses_curr_mask = [0] * n_sites
             update_phase = k0 % grad_update_every
             tic = time.time()
             # if k0 == 160:
@@ -482,7 +493,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             for k in range(n_sites):
                 grads[k] = opt_utils.traj_deriv_new(
                     model, data, ctrls + noisev, target_trajs[k],
-                    targ_traj_mask_currs[k], grad_trunc_tk,
+                    targ_traj_mask_currs[k],
+                    q_targs[k], q_targ_masks[k],
+                    grad_trunc_tk,
                     deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
                     update_every=grad_update_every, update_phase=update_phase,
                     grab_time=grab_time,
@@ -520,20 +533,24 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             for k in range(n_sites):
                 util.reset_state(model, data, data0)
                 hx = forward_with_site(env, ctrls, site_names[k], False)
-                losses[k] = np.mean((hx - target_trajs[k])**2)
+                diffsq = (hx - target_trajs[k])**2
+                losses[k] = np.mean(diffsq)
+                mask = np.tile((targ_traj_mask_currs[k]>0), (3, 1)).T
+                temp = np.sum(diffsq*mask) / (3*np.sum(mask[:,0]))
+                losses_curr_mask[k] = temp
             # ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                 # model, data, Tk, noisev, qpos0, not_arm_a,
                 # not_arm_j, ctrls[:, arm_a],
             # )
             loss = sum([loss.item() for loss in losses]) / n_sites
             lowest_losses.append(loss, (k0, ctrls.copy()))
+            loss_curr_mask = sum([loss.item() for loss in losses_curr_mask]) / n_sites 
+            lowest_losses_curr_mask.append(loss_curr_mask, (k0, ctrls.copy()))
             toc = time.time()
             # print(loss, toc-tic)
             nr = range(n_sites)
-            
-
-                # util.reset_state(model, data, data0)
-                # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
+            # util.reset_state(model, data, data0)
+            # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
             for k in nr:
                 util.reset_state(model, data, data0)
                 hx = forward_with_site(env, ctrls, site_names[k], False)

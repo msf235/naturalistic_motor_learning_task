@@ -363,6 +363,7 @@ def cum_sum(tuple_of_mat):
 
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
+                   q_targ, q_targ_mask,
                    grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
                    update_every=1, update_phase=0, grad_filter=True,
                    grab_time=None, let_go_time=None):
@@ -388,6 +389,8 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
 
     adh_ctrl = AdhCtrl(let_go_time)
 
+    q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
+
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
             mj.mj_forward(model, data)
@@ -404,11 +407,14 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                     model, data, epsilon_grad, True, As[tk], B, None, None
                 )
                 Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
+        if tk in grad_range and q_targ_mask_flat[tk]:
+            qnow = np.concatenate((data.qpos[:], data.qvel[:]))
+            dldq = qnow - q_targ[tk]
+            dldqs[tk] += dldq * q_targ_mask[tk]
         
         if tk < Tk-1:
             ctrls[tk], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[tk])
             sim_util.step(model, data, ctrls[tk])
-    # breakpoint()
     # Ast = [A.T for A in As]
     # Aprods = cum_mat_prod(As)
     # Aprods.insert(0, np.eye(As[0].shape[0]))
