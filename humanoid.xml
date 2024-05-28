@@ -232,12 +232,12 @@
     <!--<motor name="knee_left"       gear="80"  joint="knee_left"/>-->
     <!--<motor name="ankle_y_left"    gear="20"  joint="ankle_y_left"/>-->
     <!--<motor name="ankle_x_left"    gear="20"  joint="ankle_x_left"/>-->
-    <motor name="shoulder1_right" gear="20"  joint="shoulder1_right"/>
+    <motor name="shoulder1_right" gear="180"  joint="shoulder1_right"/>
     <!--<motor name="shoulder2_right" gear="20"  joint="shoulder2_right"/>-->
-    <motor name="elbow_right"     gear="20"  joint="elbow_right"/>
-    <motor name="shoulder1_left"  gear="20"  joint="shoulder1_left"/>
+    <motor name="elbow_right"     gear="180"  joint="elbow_right"/>
+    <motor name="shoulder1_left"  gear="180"  joint="shoulder1_left"/>
     <!--<motor name="shoulder2_left"  gear="20"  joint="shoulder2_left"/>-->
-    <motor name="elbow_left"      gear="20"  joint="elbow_left"/>
+    <motor name="elbow_left"      gear="180"  joint="elbow_left"/>
     <adhesion name="hand_right_adh" body="hand_right" gain="1500"
       ctrlrange="0 1"/>
     <adhesion name="hand_left_adh" body="hand_left" gain="1500"

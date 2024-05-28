@@ -30,7 +30,7 @@ class ProgressBar:
         self.it = 0
         self.final_it = final_it
 
-    def update(self):
+    def update(self, extra_str=""):
         tic = time.time()
         if tic - self.latest_time > self.update_every:
             elapsed = tic - self.first_time
@@ -40,6 +40,7 @@ class ProgressBar:
             pstring = "[%-15s] %d%%" % ('='*int(15*frac), 100*frac,)
             pstring += "  Est. time remaining: " \
                         + format_time(est_time_remaining)
+            pstring += extra_str
             # Pad with whitespace
             if len(pstring) < 90:
                 pstring += ' '*(90-len(pstring))
