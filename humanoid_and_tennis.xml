@@ -16,7 +16,7 @@
     <!--timestep="0.00125"-->
     <!--integrator="implicitfast"/>-->
 <mujoco model="Humanoid">
-  <option timestep="0.001" integrator="implicitfast"/>
+  <option timestep="0.0005" integrator="implicitfast"/>
       <!-- geoms -->
   <default>
     <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/>

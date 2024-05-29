@@ -361,6 +361,117 @@ def cum_sum(tuple_of_mat):
         rs.append(t)
     return rs
 
+def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
+                   q_targs, q_targ_masks,
+                   grad_trunc_tk, deriv_sites, deriv_id_lists,
+                   update_every=1, update_phase=0, grad_filter=True,
+                   grab_time=None, let_go_time=None):
+    """deriv_inds specifies the indices of the actuators that will be
+    updated (for instance, the actuators related to the right arm)."""
+    # data = copy.deepcopy(data)
+    assert update_phase < update_every
+    n = len(deriv_sites)
+    Tk = ctrls.shape[0]+1
+    grad_range = range(update_phase, Tk, update_every)
+    Tkn = grad_range[-1]
+    Bs = []
+    fixed_act_id_list = []
+    for k in range(n):
+        nuderiv = len(deriv_id_lists[k])
+        Bs.append(np.zeros((Tk-1, 2*model.nv, nuderiv)))
+        fixed_act_id_list.append([i for i in range(model.nu) if i not in
+                                  deriv_id_lists[k]])
+    As = np.zeros((Tk-1, 2*model.nv, 2*model.nv))
+    B = np.zeros((2*model.nv, model.nu))
+    C = np.zeros((3, model.nv))
+    dldqs = np.zeros((n, Tk, 2*model.nv))
+    lams = np.zeros((n, Tk, 2*model.nv))
+
+    adh_ctrl = AdhCtrl(let_go_time)
+
+    # q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
+    targ_traj_mask_any = np.any(np.stack(targ_traj_masks), axis=0)
+
+    for tk in range(Tk):
+        mj.mj_forward(model, data)
+        if tk in grad_range and targ_traj_mask_any[tk]:
+            if tk < Tk-1:
+                mj.mjd_transitionFD(
+                    model, data, epsilon_grad, True, As[tk], B, None, None
+                )
+        for k, deriv_site in enumerate(deriv_sites):
+            if tk in grad_range and targ_traj_masks[k][tk]:
+                mj.mj_jacSite(
+                    model, data, C, None, site=data.site(deriv_site).id)
+                site_xpos = data.site(deriv_site).xpos
+                dlds = site_xpos - targ_trajs[k][tk]
+                dldq = C.T @ dlds
+                dldqs[k, tk, :model.nv] = dldq
+                Bs[k][tk] = np.delete(B, fixed_act_id_list[k], axis=1)
+        # if tk in grad_range and q_targ_mask_flat[tk]:
+        if tk in grad_range:
+            qnow = np.concatenate((data.qpos[:], data.qvel[:]))
+            for k in range(n):
+                q_targ_mask = q_targ_masks[k]
+                dldq = qnow - q_targs[k][tk]
+                dldqs[k, tk] += dldq * q_targ_mask[tk]
+        if tk < Tk-1:
+            ctrls[tk] = adh_ctrl.get_ctrl(model, data, ctrls[tk])[0]
+            sim_util.step(model, data, ctrls[tk])
+    grads = np.zeros((n, Tk-1, nuderiv))
+    loss_us = []
+    for k in range(n):
+        loss_us.append(np.delete(ctrls, fixed_act_id_list[k], axis=1))
+        lams[k, tk] = dldqs[k, tk]
+    
+    tau_loss_factor = 1e-9
+    for tk in reversed(grad_range[1:]):
+        tks = tk - update_every # Shifted by one update
+        term_lists = [[]]*n
+        for k in range(n):
+            terms = term_lists[k]
+            terms.insert(0, dldqs[k, tk])
+            while len(terms) > grad_trunc_tk:
+                terms.pop()
+            At = As[tks].T
+            terms = [At @ term for term in terms]
+            if grad_filter:
+                if targ_traj_masks[k][tk]:
+                    grads[k, tks] = tau_loss_factor*loss_us[k][tks] \
+                        + Bs[k][tks].T @ lams[k, tk]
+            else:
+                grads[k, tks] = tau_loss_factor*loss_us[k][tks] \
+                    + Bs[k][tks].T @ lams[k, tk]
+    # fig, ax = plt.subplots()
+    # nrms = np.linalg.norm(grads, axis=1)
+    # ax.plot(nrms)
+    # plt.show()
+
+    mat_block = np.zeros((update_every, update_every+1))
+    dk = 1/update_every
+    v = np.arange(dk, 1+dk, dk)
+    mat_block[:, 0] = v[::-1]
+    mat_block[1:, update_every] = v[:-1]
+    # if update_phase > 0:
+    n_complete_blocks = (Tk-1) // update_every + 1
+    last_block_size = (Tk-1) % update_every - update_phase
+    first_block_size = update_phase
+    # As = n_complete_blocks * update_every + last_block_size + first_block_size
+    An = Tk-1
+    A = np.zeros((An, An))
+    A[:update_phase, update_phase] = 1
+    for k in range(0, An-update_every-update_phase, update_every):
+        ks = k + update_phase
+        A[ks:ks+update_every, ks:ks+update_every+1] = mat_block
+    A[ks+update_every:, ks+update_every] = 1
+
+    grads_interp = np.zeros((n, Tk-1, nuderiv))
+    for k in range(n):
+        grads_interp[k] = A @ grads[k]
+    breakpoint()
+
+    return grads_interp
+
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    q_targ, q_targ_mask,

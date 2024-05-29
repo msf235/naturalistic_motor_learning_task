@@ -82,7 +82,7 @@ def tennis_traj(model, data, Tk):
     t_left_1 = Tk_left_1 + Tk_left_2 # Time up to end of grab
     Tk_left_3 = int(Tk / 6) # Duration to set up
     t_left_2 = t_left_1 + Tk_left_3 # Time to end of setting up
-    Tk_left_4 = int(Tk / 10) # Duration to throw ball up
+    Tk_left_4 = int(Tk / 6) # Duration to throw ball up
     t_left_3 = t_left_2 + Tk_left_4 # Time to end of throwing ball up
     Tk_left_5 = Tk - t_left_3 # Time to move hand down
 
@@ -549,18 +549,30 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             tic = time.time()
             # if k0 == 160:
                 # breakpoint()
-            for k in range(n_sites):
-                grads[k] = opt_utils.traj_deriv_new(
-                    model, data, ctrls + noisev, target_trajs[k],
-                    targ_traj_mask_currs[k],
-                    q_targs[k], q_targ_masks[k],
-                    grad_trunc_tk,
-                    deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
-                    update_every=grad_update_every, update_phase=update_phase,
-                    grab_time=grab_time,
-                    let_go_time=let_go_time
-                )
-                util.reset_state(model, data, data0)
+            grads = opt_utils.traj_deriv_new2(
+                model, data, ctrls + noisev, target_trajs,
+                targ_traj_mask_currs,
+                q_targs, q_targ_masks,
+                grad_trunc_tk,
+                deriv_sites=site_names,
+                deriv_id_lists=site_grad_idxs,
+                update_every=grad_update_every, update_phase=update_phase,
+                grab_time=grab_time,
+                let_go_time=let_go_time
+            )
+            breakpoint()
+            # for k in range(n_sites):
+                # grads[k] = opt_utils.traj_deriv_new(
+                    # model, data, ctrls + noisev, target_trajs[k],
+                    # targ_traj_mask_currs[k],
+                    # q_targs[k], q_targ_masks[k],
+                    # grad_trunc_tk,
+                    # deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
+                    # update_every=grad_update_every, update_phase=update_phase,
+                    # grab_time=grab_time,
+                    # let_go_time=let_go_time
+                # )
+                # util.reset_state(model, data, data0)
             # grads[0][:, :grab_time] *= 4
             # if np.max(np.abs(grads)) > 5:
                 # print('big_grad', np.max(np.abs(grads)))
@@ -590,7 +602,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             )
             ctrls = np.clip(ctrls, -1, 1)
             util.reset_state(model, data, data0)
-            hxs = forward_with_sites(env, ctrls, site_names, False)
+            hxs = forward_with_sites(env, ctrls, site_names, True)
             for k in range(n_sites):
                 hx = hxs[k]
                 diffsq = (hx - target_trajs[k])**2
