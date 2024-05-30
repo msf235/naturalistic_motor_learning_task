@@ -418,6 +418,10 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
         if tk < Tk-1:
             ctrls[tk] = adh_ctrl.get_ctrl(model, data, ctrls[tk])[0]
             sim_util.step(model, data, ctrls[tk])
+    # print(As[1630])
+    # print(Bs[0][1630])
+    # print(dldqs[0, 1630])
+    # breakpoint()
     grads = np.zeros((n, Tk-1, nuderiv))
     loss_us = []
     for k in range(n):
@@ -442,6 +446,9 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
             else:
                 grads[k, tks] = tau_loss_factor*loss_us[k][tks] \
                     + Bs[k][tks].T @ lams[k, tk]
+        # if np.sum(np.abs(lams[k, tks])) > 0:
+            # breakpoint()
+    # breakpoint()
     # fig, ax = plt.subplots()
     # nrms = np.linalg.norm(grads, axis=1)
     # ax.plot(nrms)
@@ -468,7 +475,6 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
     grads_interp = np.zeros((n, Tk-1, nuderiv))
     for k in range(n):
         grads_interp[k] = A @ grads[k]
-    breakpoint()
 
     return grads_interp
 
@@ -526,6 +532,9 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         if tk < Tk-1:
             ctrls[tk], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[tk])
             sim_util.step(model, data, ctrls[tk])
+    # print(As[1630])
+    # print(Bs[1630])
+    # print(dldqs[1630])
     # Ast = [A.T for A in As]
     # Aprods = cum_mat_prod(As)
     # Aprods.insert(0, np.eye(As[0].shape[0]))
@@ -572,6 +581,9 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         # print(np.linalg.norm(lams[tks]))
         if grad_filter and targ_traj_mask[tk]:
             grads[tks] = tau_loss_factor*loss_u[tks] + Bs[tks].T @ lams[tk]
+        # if np.sum(np.abs(grads[tks])) > 0:
+            # breakpoint()
+    # breakpoint()
     # fig, ax = plt.subplots()
     # nrms = np.linalg.norm(grads, axis=1)
     # ax.plot(nrms)
@@ -596,6 +608,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     A[ks+update_every:, ks+update_every] = 1
 
     grads_interp = A @ grads
+    breakpoint()
 
     return grads_interp
     # return grads, hxs, dldss

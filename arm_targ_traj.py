@@ -516,7 +516,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             if idxs[0].phase != 'grab' and grab_phase_switch:
                 grab_phase_switch = False
                 print("End of grab phase. Selecting best ctrls.")
-                ctrls = lowest_losses_curr_mask.dict.peekitem(0)[1][1]
+                if len(lowest_losses_curr_mask.dict) > 0:
+                    ctrls = lowest_losses_curr_mask.dict.peekitem(0)[1][1]
                 # util.reset_state(model, data, data0)
                 # hxs = forward_with_sites(env, ctrls, site_names, False)
                 # show_plot(hxs, target_trajs, targ_traj_mask_currs, site_names,
@@ -549,30 +550,31 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             tic = time.time()
             # if k0 == 160:
                 # breakpoint()
-            grads = opt_utils.traj_deriv_new2(
-                model, data, ctrls + noisev, target_trajs,
-                targ_traj_mask_currs,
-                q_targs, q_targ_masks,
-                grad_trunc_tk,
-                deriv_sites=site_names,
-                deriv_id_lists=site_grad_idxs,
-                update_every=grad_update_every, update_phase=update_phase,
-                grab_time=grab_time,
-                let_go_time=let_go_time
-            )
-            breakpoint()
-            # for k in range(n_sites):
-                # grads[k] = opt_utils.traj_deriv_new(
-                    # model, data, ctrls + noisev, target_trajs[k],
-                    # targ_traj_mask_currs[k],
-                    # q_targs[k], q_targ_masks[k],
-                    # grad_trunc_tk,
-                    # deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
-                    # update_every=grad_update_every, update_phase=update_phase,
-                    # grab_time=grab_time,
-                    # let_go_time=let_go_time
-                # )
-                # util.reset_state(model, data, data0)
+            # grads = opt_utils.traj_deriv_new2(
+                # model, data, ctrls + noisev, target_trajs,
+                # targ_traj_mask_currs,
+                # q_targs, q_targ_masks,
+                # grad_trunc_tk,
+                # deriv_sites=site_names,
+                # deriv_id_lists=site_grad_idxs,
+                # update_every=grad_update_every, update_phase=update_phase,
+                # grab_time=grab_time,
+                # let_go_time=let_go_time
+            # )
+            # util.reset_state(model, data, data0)
+            for k in range(n_sites):
+                grads[k] = opt_utils.traj_deriv_new(
+                    model, data, ctrls + noisev, target_trajs[k],
+                    targ_traj_mask_currs[k],
+                    q_targs[k], q_targ_masks[k],
+                    grad_trunc_tk,
+                    deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
+                    update_every=grad_update_every, update_phase=update_phase,
+                    grab_time=grab_time,
+                    let_go_time=let_go_time
+                )
+                util.reset_state(model, data, data0)
+            # breakpoint()
             # grads[0][:, :grab_time] *= 4
             # if np.max(np.abs(grads)) > 5:
                 # print('big_grad', np.max(np.abs(grads)))

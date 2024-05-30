@@ -75,6 +75,8 @@ Tk = int(Tf / dt)
 opt = 'adam'
 lr = .001
 lr2 = .0005
+# lr = 1
+# lr2 = .5
 
 # SGD
 # opt = 'sgd'
@@ -120,11 +122,11 @@ site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                   tennis_idxs['left_arm_without_adh'],
                   tennis_idxs['right_arm_without_adh'],
                   tennis_idxs['left_arm_without_adh']]
+breakpoint()
 stabilize_jnt_idx = tennis_idxs['not_arm_j']
 stabilize_act_idx = tennis_idxs['not_arm_a']
 
 # tmp = util.get_contact_pairs(model, data)
-
 
 q_targ = np.zeros((Tk, 2*model.nq))
 # q_targs = [np.zeros((Tk, 2*model.nq))]*4
@@ -135,17 +137,15 @@ q_targ_mask = np.zeros((Tk,2*model.nq))
 # q_targ_mask[grab_tk-p1_dur_k:grab_tk, arm_vels] = 1
 q_targ_mask2 = np.zeros((Tk,2*model.nq))
 q_targ_mask2[time_dict['t_left_2']:time_dict['t_left_3'],
-            joints['all']['wrist_left']] = 1
+            joints['all']['wrist_left']] = 10
 q_targ_nz = np.linspace(0, -2.44, time_dict['Tk_left_3'])
 q_targ[time_dict['t_left_2']:time_dict['t_left_3'], 
         joints['all']['wrist_left']] = q_targ_nz
-q_targ_masks = [q_targ_mask]*4
+q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
 q_targ_mask_types = ['const']*4
 q_targs = [q_targ]*4
 
-
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
-
 
 # lr = .3/Tk
 
@@ -170,7 +170,8 @@ t_grad = Tf * .04
 # grad_update_every = 10
 grad_update_every = 10
 grad_trunc_tk = int(t_grad/(grad_update_every*dt))
-grab_phase_it=15
+# grab_phase_it=15
+grab_phase_it=0
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
