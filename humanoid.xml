@@ -191,7 +191,7 @@
             <geom name="hand_left1" type="capsule" class="hand" pos="0 0 -.025"/>
             <geom name="hand_left2" type="capsule" class="hand"
               pos="0 0 .025" rgba="1 1 .5 1"/>
-            <joint name="wrist_left" axis="-1 0 0" class="wrist" stiffness=".1"/>
+            <joint name="wrist_left" axis="-1 0 0" class="wrist" stiffness=".01"/>
           </body>
         </body>
       </body>
@@ -232,12 +232,12 @@
     <!--<motor name="knee_left"       gear="80"  joint="knee_left"/>-->
     <!--<motor name="ankle_y_left"    gear="20"  joint="ankle_y_left"/>-->
     <!--<motor name="ankle_x_left"    gear="20"  joint="ankle_x_left"/>-->
-    <motor name="shoulder1_right" gear="160"  joint="shoulder1_right"/>
+    <motor name="shoulder1_right" gear="100"  joint="shoulder1_right"/>
     <!--<motor name="shoulder2_right" gear="20"  joint="shoulder2_right"/>-->
-    <motor name="elbow_right"     gear="160"  joint="elbow_right"/>
-    <motor name="shoulder1_left"  gear="160"  joint="shoulder1_left"/>
+    <motor name="elbow_right"     gear="100"  joint="elbow_right"/>
+    <motor name="shoulder1_left"  gear="100"  joint="shoulder1_left"/>
     <!--<motor name="shoulder2_left"  gear="20"  joint="shoulder2_left"/>-->
-    <motor name="elbow_left"      gear="160"  joint="elbow_left"/>
+    <motor name="elbow_left"      gear="100"  joint="elbow_left"/>
     <motor name="wrist_left"      gear="40"  joint="wrist_left"/>
     <adhesion name="hand_right_adh" body="hand_right" gain="1500"
       ctrlrange="0 1"/>

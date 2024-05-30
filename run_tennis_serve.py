@@ -113,16 +113,22 @@ acts = opt_utils.get_act_ids(model)
 bodyj = joints['body']['body_dofs']
 
 sites = ['hand_right', 'hand_left', 'racket_handle_top', 'ball']
+sites = ['hand_right', 'hand_left', 'racket_handle_top']
 full_trajs = [right_hand_traj, left_hand_traj, right_hand_traj, ball_traj]
+full_trajs = [right_hand_traj, left_hand_traj, right_hand_traj]
 masks = [targ_traj_mask, targ_traj_mask, targ_traj_mask, ball_traj_mask]
+masks = [targ_traj_mask, targ_traj_mask, targ_traj_mask]
 mask_types = [targ_traj_mask_type]*4
+mask_types = [targ_traj_mask_type]*3
 
 tennis_idxs = arm_t.two_arm_idxs(model)
 site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                   tennis_idxs['left_arm_without_adh'],
                   tennis_idxs['right_arm_without_adh'],
                   tennis_idxs['left_arm_without_adh']]
-breakpoint()
+site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
+                  tennis_idxs['left_arm_without_adh'],
+                  tennis_idxs['right_arm_without_adh']]
 stabilize_jnt_idx = tennis_idxs['not_arm_j']
 stabilize_act_idx = tennis_idxs['not_arm_a']
 
@@ -136,19 +142,21 @@ q_targ_mask = np.zeros((Tk,2*model.nq))
 # p1_dur_k = int(.1 / dt)
 # q_targ_mask[grab_tk-p1_dur_k:grab_tk, arm_vels] = 1
 q_targ_mask2 = np.zeros((Tk,2*model.nq))
-q_targ_mask2[time_dict['t_left_2']:time_dict['t_left_3'],
-            joints['all']['wrist_left']] = 10
-q_targ_nz = np.linspace(0, -2.44, time_dict['Tk_left_3'])
-q_targ[time_dict['t_left_2']:time_dict['t_left_3'], 
+q_targ_mask2[time_dict['t_left_1']:,
+            joints['all']['wrist_left']] = 1
+q_targ_nz = np.linspace(0, -2.44, time_dict['t_left_2']-time_dict['t_left_1'])
+q_targ[time_dict['t_left_1']:time_dict['t_left_2'], 
         joints['all']['wrist_left']] = q_targ_nz
+q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = -2.44
 q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
 q_targ_mask_types = ['const']*4
+q_targ_mask_types = ['const']*3
 q_targs = [q_targ]*4
+q_targs = [q_targ]*3
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 # lr = .3/Tk
-
 
 n = len(sites)
 nr = range(n)
@@ -170,8 +178,8 @@ t_grad = Tf * .04
 # grad_update_every = 10
 grad_update_every = 10
 grad_trunc_tk = int(t_grad/(grad_update_every*dt))
-# grab_phase_it=15
-grab_phase_it=0
+grab_phase_it=15
+# grab_phase_it=0
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
@@ -207,16 +215,22 @@ else:
     lowest_losses = load_data['lowest_losses']
 
 ctrls = lowest_losses.peekitem(0)[1][1]
-reset()
-hxs = arm_t.forward_with_sites(env, ctrls, sites, render=True)
-# ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
-reset()
-
+hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
+qs_wr = qs[:, joints['all']['wrist_left']]
+q_targs_wr = q_targ[:, joints['all']['wrist_left']]
 grads = np.nan*np.ones((len(sites),) + ctrls.shape)
 fig, axs = plt.subplots(3, n, figsize=(5*n, 5))
-arm_t.show_plot(hxs, full_trajs, masks, sites, site_grad_idxs, ctrls, axs,
-                grads, tt)
-plt.show()
+while True:
+    arm_t.show_plot(hxs, full_trajs, masks, qs_wr, q_targs_wr, sites, site_grad_idxs, ctrls, axs,
+                    grads, tt)
+    # plt.show()
+    fig.show()
+    plt.pause(1)
+    reset()
+    hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=True)
+    # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
+    # reset()
+
 # for k in nr:
 
     # hx = hxs[k]
