@@ -608,7 +608,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     A[ks+update_every:, ks+update_every] = 1
 
     grads_interp = A @ grads
-    breakpoint()
+    # breakpoint()
 
     return grads_interp
     # return grads, hxs, dldss

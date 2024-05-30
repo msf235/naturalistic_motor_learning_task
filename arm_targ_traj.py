@@ -133,7 +133,7 @@ def tennis_traj(model, data, Tk):
     grab_traj = handxl + s*(grab_targ - handxl)
 
     arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
-                            0, .9*np.pi/2, Tk_left_4, density_fn='')
+                            -np.pi/8, .9*np.pi/2, Tk_left_4, density_fn='')
     # arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
                             # .8*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
     arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
@@ -240,16 +240,18 @@ def show_forward_sim(env, ctrls):
 def forward_with_sites(env, ctrls, site_names, render=False):
     n = len(site_names)
     site_xvs = np.zeros((n, ctrls.shape[0]+1, 3))
+    model_qs = np.zeros((ctrls.shape[0]+1, env.model.nq))
+    model_qs[0] = env.data.qpos.copy()
     for k2 in range(n):
         site_xvs[k2, 0] = env.data.site(site_names[k2]).xpos
     for k in range(ctrls.shape[0]):
         util.step(env.model, env.data, ctrls[k])
+        model_qs[k+1] = env.data.qpos.copy()
         for k2 in range(n):
             site_xvs[k2, k+1] = env.data.site(site_names[k2]).xpos
         if render:
             env.render()
-    return site_xvs
-
+    return site_xvs, model_qs
 
 def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_time=None):
     model = env.model
@@ -354,7 +356,7 @@ class WindowedIdx:
         self.k += 1
         return self.idx
 
-def show_plot(hxs, target_trajs, targ_traj_mask_currs, site_names,
+def show_plot(hxs, target_trajs, targ_traj_mask_currs, qs, qs_targs, site_names,
               site_grad_idxs, ctrls, axs, grads, tt):
     fig = axs[0, 0].figure
     n = len(site_names)
@@ -371,6 +373,10 @@ def show_plot(hxs, target_trajs, targ_traj_mask_currs, site_names,
         ax.plot(tt, ft[:,1], '--', color='blue')
         ax.plot(tt, hx[:,2], color='red', label='y')
         ax.plot(tt, ft[:,2], '--', color='red')
+        if k == 1:
+            ax.plot(tt, qs, color='green', label='qs')
+            ax.plot(tt, qs_targs, '--',
+                    color='green', label='qs_targ')
         # ax.set_title(site_names[k] + ' loss: ' + str(loss))
         ax.set_title(site_names[k])
         ax.legend()
@@ -446,6 +452,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     T = Tk*dt
     tt = np.arange(0, T, dt)
 
+    joints = opt_utils.get_joint_ids(model)
+    q_targs_wr = q_targs[1][:, joints['all']['wrist_left']]
+
     progbar = util.ProgressBar(final_it = max_its) 
 
     time_dict = tennis_traj(model, data, Tk)[3]
@@ -498,6 +507,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     fig, axs = plt.subplots(3, n_sites, figsize=(5*n_sites, 5))
     try:
         for k0 in range(max_its):
+            if k0 == 218:
+                breakpoint()
             if k0 >= it_lr2:
                 lr = lr2
             if k0 % incr_every == 0:
@@ -597,14 +608,18 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                         losses[k])
 
             ctrls = np.clip(ctrls, -1, 1)
-            ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-                model, data, Tk, noisev, qpos0, stabilize_act_idx,
-                stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
-                K_update_interv=500, let_go_time=let_go_time
-            )
+            try:
+                ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+                    model, data, Tk, noisev, qpos0, stabilize_act_idx,
+                    stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
+                    K_update_interv=500, let_go_time=let_go_time
+                )
+            except np.linalg.LinAlgError:
+                print("LinAlgError in get_stabilized_ctrls")
+                ctrls[:, not_stabilize_act_idx] *= .99
             ctrls = np.clip(ctrls, -1, 1)
             util.reset_state(model, data, data0)
-            hxs = forward_with_sites(env, ctrls, site_names, True)
+            hxs, qs = forward_with_sites(env, ctrls, site_names, True)
             for k in range(n_sites):
                 hx = hxs[k]
                 diffsq = (hx - target_trajs[k])**2
@@ -625,8 +640,10 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             # print(loss, toc-tic)
             nr = range(n_sites)
             if k0 % update_plot_every == 0 or k0 % incr_every == 0:
-                show_plot(hxs, target_trajs, targ_traj_mask_currs, site_names,
-                          site_grad_idxs, ctrls, axs, grads, tt)
+                qs_wr = qs[:, joints['all']['wrist_left']]
+                show_plot(hxs, target_trajs, targ_traj_mask_currs, qs_wr,
+                          q_targs_wr, site_names, site_grad_idxs, ctrls, axs,
+                          grads, tt)
             # util.reset_state(model, data, data0)
             # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
                 # breakpoint()

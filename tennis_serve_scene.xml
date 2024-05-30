@@ -64,7 +64,7 @@
     <body name="ball" pos="0 0.2 1.05">
       <geom name="ball" size=".05 .05 .05" pos="0 0 0" type="sphere"
         material="obj" condim="3" friction="1 0.005 0.0001"
-        rgba=".7 0 0 1" density="500"/>
+        rgba=".7 0 0 1" mass=".057"/>
       <site name="ball_base" pos="0 0 -.05" size=".01"/>
       <site name="ball" pos="0 0 0"/>
       <site name="ball_top" pos="0 0 0.05"/>
