@@ -82,7 +82,7 @@ def tennis_traj(model, data, Tk):
     t_left_1 = Tk_left_1 + Tk_left_2 # Time up to end of grab
     Tk_left_3 = int(Tk / 6) # Duration to set up
     t_left_2 = t_left_1 + Tk_left_3 # Time to end of setting up
-    Tk_left_4 = int(Tk / 6) # Duration to throw ball up
+    Tk_left_4 = int(Tk / 8) # Duration to throw ball up
     t_left_3 = t_left_2 + Tk_left_4 # Time to end of throwing ball up
     Tk_left_5 = Tk - t_left_3 # Time to move hand down
 
@@ -134,8 +134,14 @@ def tennis_traj(model, data, Tk):
 
     arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
                             -np.pi/8, .9*np.pi/2, Tk_left_4, density_fn='')
+    xs = arc_traj_vs[:, 1].copy()
+    x0 = xs[0]
+    recenter_scale_xs = .8*(xs - x0)
+    arc_traj_vs[:,1] = recenter_scale_xs + x0
     # arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
-                            # .8*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
+                            # .9*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
+    # arc_traj_vs2 = arc_traj_vs[:-Tk_left_5:-1]
+    # breakpoint()
     arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
                             .9*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
 
@@ -148,11 +154,23 @@ def tennis_traj(model, data, Tk):
 
     left_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs,
                                     arc_traj_vs2), axis=0)
-    # ax.plot(tt[:t_left_1], grab_traj[:, 2], c='blue', linestyle='--')
-    # ax.plot(tt[t_left_1:t_left_2], setup_traj[:, 2], c='red', linestyle='--')
-    # ax.plot(tt[t_left_2:t_left_3], arc_traj_vs[:, 2], c='blue', linestyle='--')
-    # ax.plot(tt[t_left_3:], arc_traj_vs2[:, 2], c='red', linestyle='--')
-    # breakpoint()
+    # dim=2
+    # ax.plot(tt[:t_left_1], grab_traj[:, dim], c='blue', linestyle='--')
+    # ax.plot(tt[t_left_1:t_left_2], setup_traj[:, dim], c='red', linestyle='--')
+    # ax.plot(tt[t_left_2:t_left_3], arc_traj_vs[:, dim], c='blue', linestyle='--')
+    # ax.plot(tt[t_left_3:], arc_traj_vs2[:, dim], c='red', linestyle='--')
+    # plt.show()
+
+    # fig, ax = plt.subplots()
+    # dim = 1
+    # # ax.plot(tt[:t_left_1], grab_traj[:, dim], c='blue', linestyle='--')
+    # # ax.plot(tt[t_left_1:t_left_2], setup_traj[:, dim], c='red', linestyle='--')
+    # # ax.plot(tt[t_left_2:t_left_3], arc_traj_vs[:, dim], c='blue', linestyle='--')
+    # # ax.plot(tt[t_left_2:t_left_3], xs, c='cyan', linestyle='-.')
+    # ax.plot(arc_traj_vs[:, 1], arc_traj_vs[:, 2], c='blue', linestyle='--')
+    # ax.plot(xs, arc_traj_vs[:, 2], c='cyan', linestyle='-.')
+    # # ax.plot(tt[t_left_3:], arc_traj_vs2[:, dim], c='red', linestyle='--')
+    # plt.show()
 
     # Ball trajectory
     # arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
@@ -507,8 +525,6 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     fig, axs = plt.subplots(3, n_sites, figsize=(5*n_sites, 5))
     try:
         for k0 in range(max_its):
-            if k0 == 218:
-                breakpoint()
             if k0 >= it_lr2:
                 lr = lr2
             if k0 % incr_every == 0:
