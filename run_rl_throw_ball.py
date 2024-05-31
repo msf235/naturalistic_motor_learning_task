@@ -32,22 +32,34 @@ outdir.mkdir(parents=True, exist_ok=True)
 seed = 2
 out_f = outdir / 'grab_ball_ctrl.npy'
 
-Tk = 2*120
-lr = 2/Tk
-lr2 = .06
+Tf = 1.8
+# Tf = 2
+# Tf = 2.3
+
+# Adam
+opt = 'adam'
+lr = .001
+lr2 = .0005
+# lr = 1
+# lr2 = .5
+
+# lr = 2/Tk
+# lr2 = .06
 max_its = 400
-# max_its = 200
-# max_its = 120
-n_episode = 10000
+# # max_its = 200
+# # max_its = 120
+# n_episode = 10000
+
+it_lr2 = int(max_its*.8)
 
 # rerun1 = False
 rerun1 = True
-rerun2 = False
+# rerun2 = False
 # rerun2 = True
 render_mode = 'human'
 # render_mode = 'rgb_array'
 
-body_pos = -0.3
+keyframe = 'baseball_pos'
 
 # Create a Humanoid2dEnv object
 env = h2d.Humanoid2dEnv(
@@ -55,9 +67,19 @@ env = h2d.Humanoid2dEnv(
     frame_skip=1,
     default_camera_config=DEFAULT_CAMERA_CONFIG,
     reset_noise_scale=0,
-    body_pos=body_pos,)
+    keyframe_name=keyframe,)
 model = env.model
 data = env.data
+
+dt = model.opt.timestep
+burn_step = int(.1 / dt)
+# reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+
+reset()
+
+# Tk = 2*120
+Tk = int(Tf / dt)
 
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
@@ -82,26 +104,53 @@ noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 baseball_idx = arm_t.one_arm_idxs(model)
 
-sites = ['hand_right', 'base']
-grad_idxs = 2*[baseball_idx['arm_a_without_adh']]
-target_trajs = 2*[full_traj]
-masks = 2*[targ_traj_mask]
-mask_types = 2*[targ_traj_mask_type]
+sites = ['hand_right']
+grad_idxs = [baseball_idx['arm_a_without_adh']]
+target_trajs = [full_traj]
+masks = [targ_traj_mask]
+mask_types = [targ_traj_mask_type]
+
+grab_t = Tf / 2.2
+grab_tk = int(grab_t/dt)
+
+bodyj = joints['body']['body_dofs']
+
+q_targs = [np.zeros((Tk, 2*model.nq))]
+q_targ_masks = [np.zeros((Tk,2*model.nq))]
+q_targ_mask_types = ['const']
+
+incr_every = 50
+t_incr = Tf
+amnt_to_incr = int(t_incr/dt)
+# t_grad = 0.05
+t_grad = Tf * .04
+# grad_update_every = 10
+grad_update_every = 10
+grad_trunc_tk = int(t_grad/(grad_update_every*dt))
+grab_phase_it=15
+# grab_phase_it=0
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
-    util.reset(model, data, 10, body_pos)
+    reset()
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        joints['body']['all'], free_ctrls=np.ones((Tk,n_adh)))[:2]
+        bodyj, free_ctrls=np.ones((Tk,n_adh)))[:2]
     # util.reset(model, data, 10, body_pos)
     # arm_t.forward_to_contact(env, ctrls+noisev, True)
-    util.reset(model, data, 10, body_pos)
+    reset()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, grad_idxs, baseball_idx['not_arm_j'],
-        baseball_idx['not_arm_a'], target_trajs, masks, mask_types, ctrls, 30,
-        seed, CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10,
-        incr_every=80, amount_to_incr=80)
+        baseball_idx['not_arm_a'], target_trajs, masks, mask_types,
+        q_targs, q_targ_masks, q_targ_mask_types, ctrls, grad_trunc_tk,
+        seed, CTRL_RATE, CTRL_STD, Tk, lr=lr, lr2=lr2, it_lr2=it_lr2,
+        max_its=max_its, keep_top=10,
+        incr_every=incr_every, amount_to_incr=amnt_to_incr,
+        grad_update_every=grad_update_every,
+        grab_phase_it=grab_phase_it,
+        grab_phase_tk=grab_tk,
+        phase_2_it=max_its+1,
+        optimizer=opt)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
     # np.save(out_f, ctrls)
@@ -112,7 +161,7 @@ else:
     lowest_losses = load_data['lowest_losses']
 
 ctrls = lowest_losses.peekitem(0)[1][1]
-util.reset(model, data, 10, body_pos)
+reset()
 
 dt = model.opt.timestep
 T = Tk*dt

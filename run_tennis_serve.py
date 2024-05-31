@@ -29,7 +29,7 @@ out_f = outdir/'tennis_ctrl.pkl'
 # out_f = outdir/'tennis_ctrl_sgd.pkl'
 
 
-max_its = 2000
+max_its = 1000
 
 Tf = 1.8
 # Tf = 2
@@ -39,8 +39,8 @@ Tf = 1.8
 CTRL_STD = 0
 CTRL_RATE = 1
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'

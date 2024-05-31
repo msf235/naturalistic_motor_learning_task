@@ -70,10 +70,10 @@ def tennis_traj(model, data, Tk):
     r1 = np.sum((shouldxr - elbowx)**2)**.5
     r2 = np.sum((elbowx - handxr)**2)**.5
     r = r1 + r2
-    Tk_right_1 = int(Tk / 3) # Time to grab with right hand (1)
-    Tk_right_2 = int(Tk / 8) # Time to grab with right hand (2)
+    Tk_right_1 = int(Tk / 4) # Time to grab with right hand (1)
+    Tk_right_2 = int(Tk / 12) # Time to grab with right hand (2)
     t_right_1 = Tk_right_1 + Tk_right_2
-    Tk_right_3 = int(Tk / 3) # Time to set up
+    Tk_right_3 = int(Tk / 4) # Time to set up
     t_right_2 = t_right_1 + Tk_right_3;
     Tk_right_4 = Tk - t_right_2 # Time to swing
 
@@ -82,7 +82,7 @@ def tennis_traj(model, data, Tk):
     t_left_1 = Tk_left_1 + Tk_left_2 # Time up to end of grab
     Tk_left_3 = int(Tk / 6) # Duration to set up
     t_left_2 = t_left_1 + Tk_left_3 # Time to end of setting up
-    Tk_left_4 = int(Tk / 8) # Duration to throw ball up
+    Tk_left_4 = int(Tk / 10) # Duration to throw ball up
     t_left_3 = t_left_2 + Tk_left_4 # Time to end of throwing ball up
     Tk_left_5 = Tk - t_left_3 # Time to move hand down
 
@@ -103,7 +103,7 @@ def tennis_traj(model, data, Tk):
     grab_traj = handxr + s*(grab_targ - handxr)
 
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                                  np.pi/4, Tk_right_4, density_fn='')
+                                  np.pi/6, Tk_right_4, density_fn='')
 
     s = np.linspace(0, 1, Tk_right_3)
     s = sigmoid(s, 5)
