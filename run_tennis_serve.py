@@ -154,6 +154,8 @@ q_targ_mask_types = ['const']*3
 q_targs = [q_targ]*4
 q_targs = [q_targ]*3
 
+grab_time = int(max(time_dict['t_right_1'], time_dict['t_left_1']) * .9)
+
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 # lr = .3/Tk
@@ -198,7 +200,7 @@ if rerun1 or not out_f.exists():
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
         full_trajs, masks, mask_types, q_targs, q_targ_masks,
-        q_targ_mask_types, ctrls, grad_trunc_tk, seed, CTRL_RATE, CTRL_STD,
+        q_targ_mask_types, ctrls, grad_trunc_tk, grab_time, seed, CTRL_RATE, CTRL_STD,
         Tk, lr=lr, lr2=lr2, it_lr2=it_lr2, max_its=max_its, keep_top=10,
         incr_every=incr_every, amnt_to_incr=amnt_to_incr,
         # grad_update_every=10,

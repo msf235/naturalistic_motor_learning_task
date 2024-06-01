@@ -87,15 +87,16 @@ acts = opt_utils.get_act_ids(model)
 right_arm_with_adh = acts['right_arm']
 n_adh = len(acts['adh'])
 
-env.reset(seed=seed) # necessary?
-util.reset(model, data, 10, body_pos)
+# env.reset(seed=seed) # necessary?
+reset()
+# util.reset(model, data, 10, body_pos)
 
 # Get noise
 # CTRL_STD = .05       # actuator units
 CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 
-full_traj = arm_t.throw_traj(model, data, Tk)
+full_traj, time_dict = arm_t.throw_traj(model, data, Tk)
 
 targ_traj_mask = np.ones((Tk-1,))
 targ_traj_mask_type = 'progressive'
@@ -115,7 +116,12 @@ grab_tk = int(grab_t/dt)
 
 bodyj = joints['body']['body_dofs']
 
-q_targs = [np.zeros((Tk, 2*model.nq))]
+q_targ = np.zeros((Tk, 2*model.nq))
+q_targ_nz = np.linspace(0, -2.44, time_dict['Tk2'])
+q_targ[time_dict['t_1']:time_dict['t_2'], 
+        joints['all']['wrist_left']] = q_targ_nz
+q_targ[time_dict['t_2']:, joints['all']['wrist_left']] = -2.44
+q_targs = [q_targ]
 q_targ_masks = [np.zeros((Tk,2*model.nq))]
 q_targ_mask_types = ['const']
 
@@ -143,9 +149,10 @@ if rerun1 or not out_f.exists():
         env, sites, grad_idxs, baseball_idx['not_arm_j'],
         baseball_idx['not_arm_a'], target_trajs, masks, mask_types,
         q_targs, q_targ_masks, q_targ_mask_types, ctrls, grad_trunc_tk,
+        grab_time,
         seed, CTRL_RATE, CTRL_STD, Tk, lr=lr, lr2=lr2, it_lr2=it_lr2,
         max_its=max_its, keep_top=10,
-        incr_every=incr_every, amount_to_incr=amnt_to_incr,
+        incr_every=incr_every, amnt_to_incr=amnt_to_incr,
         grad_update_every=grad_update_every,
         grab_phase_it=grab_phase_it,
         grab_phase_tk=grab_tk,

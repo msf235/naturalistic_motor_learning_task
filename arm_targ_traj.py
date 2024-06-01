@@ -39,23 +39,38 @@ def throw_traj(model, data, Tk):
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
     Tk1 = int(Tk / 3)
-    Tk2 = int(2*Tk/4)
-    Tk3 = int((Tk+Tk2)/2)
+    t_1 = Tk1
+    # Tk2 = int(2*Tk/4)
+    Tk2 = int(Tk/6)
+    t_2 = t_1 + Tk2
+    Tk3 = Tk - Tk2
+    t_3 = t_2 + Tk3
+    # Tk3 = int((Tk+Tk2)/2)
+    # t_3 = Tk3
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                                  np.pi/2.5, Tk-Tk2-1, density_fn='')
+                                  np.pi/2.5, Tk3, density_fn='')
     grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
-    s = sigmoid(5*np.linspace(0, 1, Tk1))
+    s = sigmoid(np.linspace(0, 1, Tk1), 5)
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s*(grab_targ - handx)
     # grab_traj[-1] = grab_targ
 
-    setup_traj = np.zeros((Tk2, 3))
-    s = np.linspace(0, 1, Tk2-Tk1)
+    # setup_traj = np.zeros((Tk2, 3))
+    s = np.linspace(0, 1, Tk2)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
     full_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
+
+    time_dict = {
+        't_1': t_1,
+        't_2': t_2,
+        't_3': t_3,
+        'Tk1': Tk1,
+        'Tk2': Tk2,
+        'Tk3': Tk3
+    }
     
-    return full_traj
+    return full_traj, time_dict
 
 def sigmoid(x, a):
     # return .5 * (np.tanh(x-.5) + 1)
@@ -391,10 +406,11 @@ def show_plot(hxs, target_trajs, targ_traj_mask_currs, qs, qs_targs, site_names,
         ax.plot(tt, ft[:,1], '--', color='blue')
         ax.plot(tt, hx[:,2], color='red', label='y')
         ax.plot(tt, ft[:,2], '--', color='red')
-        if k == 1:
-            ax.plot(tt, qs, color='green', label='qs')
-            ax.plot(tt, qs_targs, '--',
-                    color='green', label='qs_targ')
+        if qs is not None:
+            if k == 1:
+                ax.plot(tt, qs, color='green', label='qs')
+                ax.plot(tt, qs_targs, '--',
+                        color='green', label='qs_targ')
         # ax.set_title(site_names[k] + ' loss: ' + str(loss))
         ax.set_title(site_names[k])
         ax.legend()
@@ -413,7 +429,7 @@ def show_plot(hxs, target_trajs, targ_traj_mask_currs, qs, qs_targs, site_names,
 def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     stabilize_act_idx, target_trajs, targ_traj_masks,
                     targ_traj_mask_types, q_targs, q_targ_masks,
-                    q_targ_mask_types, ctrls, grad_trunc_tk, seed,
+                    q_targ_mask_types, ctrls, grad_trunc_tk, grab_time, seed,
                     CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, lr2=10,
                     it_lr2=31, keep_top=1,
                     incr_every=5, amnt_to_incr=5, grad_update_every=1,
@@ -471,12 +487,11 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     tt = np.arange(0, T, dt)
 
     joints = opt_utils.get_joint_ids(model)
-    q_targs_wr = q_targs[1][:, joints['all']['wrist_left']]
+    # q_targs_wr = q_targs[1][:, joints['all']['wrist_left']]
 
     progbar = util.ProgressBar(final_it = max_its) 
 
     time_dict = tennis_traj(model, data, Tk)[3]
-    grab_time = int(max(time_dict['t_right_1'], time_dict['t_left_1']) * .9)
     let_go_time = time_dict['t_left_3']
 
     def get_opt(lr):
@@ -657,8 +672,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             nr = range(n_sites)
             if k0 % update_plot_every == 0 or k0 % incr_every == 0:
                 qs_wr = qs[:, joints['all']['wrist_left']]
-                show_plot(hxs, target_trajs, targ_traj_mask_currs, qs_wr,
-                          q_targs_wr, site_names, site_grad_idxs, ctrls, axs,
+                show_plot(hxs, target_trajs, targ_traj_mask_currs, None,
+                          None, site_names, site_grad_idxs, ctrls, axs,
                           grads, tt)
             # util.reset_state(model, data, data0)
             # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
