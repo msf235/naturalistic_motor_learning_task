@@ -14,7 +14,10 @@
 -->
 
 <mujoco model="Humanoid">
-  <option timestep="0.0025"/>
+  <option timestep="0.0005" integrator="implicitfast"/>
+  <default>
+    <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/>
+  </default>
   <include file="baseball_pitch_scene.xml"/>
   <include file="humanoid.xml"/>
   <visual>
@@ -30,8 +33,8 @@
   <keyframe>
     <key name="baseball_pos"
       qpos="
-      0 -.4 0 0 
-      0 0 0 0
+      0 0 0 0 
+      -.3 0 0 0
       0 0 0 0
       0 0 0 0
       0"/>
