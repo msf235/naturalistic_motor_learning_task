@@ -271,7 +271,9 @@ def forward_with_sites(env, ctrls, site_names, render=False):
             env.render()
     return site_xvs, model_qs
 
-def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_time=None):
+def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_time=None,
+                       contact_check_list=None, adh_ids=None
+                      ):
     model = env.model
     act = opt_utils.get_act_ids(model)
     data = env.data
@@ -280,11 +282,20 @@ def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_time=None):
     contact_cnt = 0
     contact = False
     adh_ctrl = opt_utils.AdhCtrl(let_go_time)
+    adh_ctrl_tmp = opt_utils.AdhCtrl(let_go_time)
     if noisev is None:
         noisev = np.zeros((Tk, model.nu))
     contacts = np.zeros((Tk, 2))
     for k in range(Tk):
-        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
+        if k >= 1626:
+            pass
+        ctrl_cpy = ctrls[k].copy()
+        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k],
+                                            contact_check_list, adh_ids)
+        tmp, __, __ = adh_ctrl_tmp.get_ctrl2(model, data, ctrl_cpy,
+                                            contact_check_list, adh_ids)
+        if not np.allclose(ctrls[k], tmp):
+            breakpoint()
         contacts[k] = [cont_k1, cont_k2]
         util.step(model, data, ctrls[k] + noisev[k])
         if render:
@@ -418,7 +429,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     it_lr2=31, keep_top=1,
                     incr_every=5, amnt_to_incr=5, grad_update_every=1,
                     grab_phase_it=0, grab_phase_tk=0, phase_2_it=None,
-                    update_plot_every=1, optimizer='adam'):
+                    update_plot_every=1, optimizer='adam',
+                    contact_check_list=None, adh_ids=None
+                   ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
     computing an LQR stabilizer to keep the rest of the body stable while the
@@ -562,8 +575,11 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     # breakpoint()
 
             util.reset_state(model, data, data0)
-            k, ctrls, contacts = forward_to_contact(env, ctrls, noisev, False,
-                                                    let_go_time)
+            if k0 == 1:
+                breakpoint()
+            k, ctrls, contacts = forward_to_contact(
+                env, ctrls, noisev, False, let_go_time, contact_check_list,
+                adh_ids)
             contact_bool = np.sum(contacts[:, 0]) * np.sum(contacts[:, 1]) > 0
             # if ball_contact:
                 # breakpoint()
@@ -598,7 +614,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
                     update_every=grad_update_every, update_phase=update_phase,
                     grab_time=grab_time,
-                    let_go_time=let_go_time
+                    let_go_time=let_go_time,
+                    contact_check_list=contact_check_list,
+                    adh_ids=adh_ids
                 )
                 util.reset_state(model, data, data0)
             # breakpoint()
