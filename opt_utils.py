@@ -354,8 +354,9 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         # else:
             # ctrls[k][free_act_ids] = free_ctrls[k]
         ctrls[k][free_act_ids] = free_ctrls[k]
-        ctrls[k], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[k],
-                                             contact_check_list, act_ids)
+        if contact_check_list is not None:
+            ctrls[k], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[k],
+                                                 contact_check_list, act_ids)
         mj.mj_step1(model, data)
         data.ctrl[:] = ctrls[k] + noisev[k]
         mj.mj_step2(model, data)
@@ -380,10 +381,11 @@ def cum_sum(tuple_of_mat):
     return rs
 
 def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
-                   q_targs, q_targ_masks,
-                   grad_trunc_tk, deriv_sites, deriv_id_lists,
-                   update_every=1, update_phase=0, grad_filter=True,
-                   grab_time=None, let_go_time=None):
+                    q_targs, q_targ_masks,
+                    grad_trunc_tk, deriv_sites, deriv_id_lists,
+                    contact_check_list, adh_ids,
+                    update_every=1, update_phase=0, grad_filter=True,
+                    grab_time=None, let_go_time=None):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
@@ -500,7 +502,9 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    q_targ, q_targ_mask,
-                   grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
+                   grad_trunc_tk,
+                   contact_check_list, adh_ids,
+                   deriv_ids=[], deriv_site='hand_right',
                    update_every=1, update_phase=0, grad_filter=True,
                    grab_time=None, let_go_time=None):
     """deriv_inds specifies the indices of the actuators that will be
@@ -648,5 +652,5 @@ def reset(model, data, nsteps1, nsteps2, keyframe_name=None):
     bodyj = joints['body']['body_dofs']
     get_stabilized_ctrls(
         model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
-        bodyj, free_ctrls=np.ones((nsteps2, len(acts['adh'])))
+        bodyj, None, None, free_ctrls=np.ones((nsteps2, len(acts['adh'])))
     )[0]

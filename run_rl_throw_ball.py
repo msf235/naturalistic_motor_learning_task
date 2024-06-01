@@ -141,13 +141,17 @@ grab_phase_it=15
 
 grab_time = time_dict['t_1']
 let_go_time = Tk+1
+contact_check_list = [['ball', 'hand_right1'], ['ball', 'hand_right2']]
+act_ids = acts['adh_right_hand']
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        bodyj, free_ctrls=np.zeros((Tk,n_adh)))[:2]
+        bodyj,
+        None, None,
+        free_ctrls=np.zeros((Tk,n_adh)))[:2]
     # util.reset(model, data, 10, body_pos)
     # arm_t.forward_to_contact(env, ctrls+noisev, True)
     reset()
@@ -156,7 +160,8 @@ if rerun1 or not out_f.exists():
         baseball_idx['not_arm_a'], target_trajs, masks, mask_types,
         q_targs, q_targ_masks, q_targ_mask_types, ctrls, grad_trunc_tk,
         grab_time, let_go_time,
-        seed, CTRL_RATE, CTRL_STD, Tk, lr=lr, lr2=lr2, it_lr2=it_lr2,
+        seed, contact_check_list, CTRL_RATE, CTRL_STD, Tk, lr=lr, lr2=lr2,
+        it_lr2=it_lr2,
         max_its=max_its, keep_top=10,
         incr_every=incr_every, amnt_to_incr=amnt_to_incr,
         grad_update_every=grad_update_every,
