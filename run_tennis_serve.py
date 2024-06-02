@@ -39,8 +39,8 @@ Tf = 1.8
 CTRL_STD = 0
 CTRL_RATE = 1
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -131,8 +131,6 @@ site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                   tennis_idxs['right_arm_without_adh']]
 stabilize_jnt_idx = tennis_idxs['not_arm_j']
 stabilize_act_idx = tennis_idxs['not_arm_a']
-
-breakpoint()
 
 # tmp = util.get_contact_pairs(model, data)
 

@@ -232,7 +232,7 @@ def get_Q_matrix(model, data, excluded_state_inds=[]):
     Qjoint = get_Q_joint(model, data, excluded_state_inds)
     # Construct the Q matrix for position DoFs.
     Qpos = balance_cost * Qbalance + Qjoint
-    Qpos = balance_cost * Qbalance + 500*Qjoint
+    Qpos = balance_cost * Qbalance + 10*Qjoint
     # Qpos = 1000*Qjoint
 
     # No explicit penalty for velocities.

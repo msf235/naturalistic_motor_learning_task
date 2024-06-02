@@ -25,15 +25,15 @@ outdir.mkdir(parents=True, exist_ok=True)
 seed = 2
 out_f = outdir/'ball_throw_ctrl.pkl'
 
-max_its = 1000
+max_its = 400
 
 Tf = 1.8
 
 CTRL_STD = 0
 CTRL_RATE = 1
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -177,7 +177,8 @@ incr_every = 50
 t_incr = Tf
 amnt_to_incr = int(t_incr/dt)
 # t_grad = 0.05
-t_grad = Tf * .04
+# t_grad = Tf * .04
+t_grad = Tf * .1 #TODO: check if this is better in run_tennis_serve.py
 # grad_update_every = 10
 grad_update_every = 10
 grad_trunc_tk = int(t_grad/(grad_update_every*dt))
@@ -192,7 +193,7 @@ contact_check_list = [['ball', 'hand_right1'], ['ball', 'hand_right2']]
 adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
 # let_go_ids = [acts['adh_left_hand'][0]]
 let_go_ids = [acts['adh_right_hand'][0]]
-let_go_times = [time_dict['t_3']]
+let_go_times = [Tk]
 
 # grab_time = int(max(time_dict['t_1']*.9, time_dict['t_left_1']) * .9)
 grab_time = int(time_dict['t_1'] * .9)
@@ -241,11 +242,16 @@ else:
     lowest_losses = load_data['lowest_losses']
 
 ctrls = lowest_losses.peekitem(0)[1][1]
+ctrls_end = np.zeros((Tk, model.nu))
+ctrls_full = np.vstack((ctrls, ctrls_end))
 hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
-qs_wr = qs[:, joints['all']['wrist_left']]
-q_targs_wr = q_targ[:, joints['all']['wrist_left']]
+# qs_wr = qs[:, joints['all']['wrist_left']]
+qs_wr = qs[:, joints['all']['wrist_right']]
+# q_targs_wr = q_targ[:, joints['all']['wrist_left']]
+q_targs_wr = q_targ[:, joints['all']['wrist_right']]
 grads = np.nan*np.ones((len(sites),) + ctrls.shape)
 fig, axs = plt.subplots(3, n, figsize=(5*n, 5))
+axs = axs.reshape((3, 1))
 while True:
     arm_t.show_plot(hxs, full_trajs, masks,
                     # qs_wr, q_targs_wr,
@@ -255,7 +261,7 @@ while True:
     fig.show()
     plt.pause(1)
     reset()
-    hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=True)
+    arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     # reset()
 
