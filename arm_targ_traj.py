@@ -42,9 +42,9 @@ def throw_traj(model, data, Tk):
     Tk2 = int(2*Tk/4)
     Tk3 = int((Tk+Tk2)/2)
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                                  np.pi/2.5, Tk-Tk2-1, density_fn='')
+                                  np.pi/2.5, Tk-Tk2, density_fn='')
     grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
-    s = sigmoid(5*np.linspace(0, 1, Tk1))
+    s = sigmoid(np.linspace(0, 1, Tk1), 5)
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s*(grab_targ - handx)
     # grab_traj[-1] = grab_targ
@@ -54,8 +54,17 @@ def throw_traj(model, data, Tk):
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
     full_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
+
+    time_dict = {
+        't_1': Tk1,
+        't_2': Tk2,
+        't_3': Tk3,
+        'Tk1': Tk1,
+        'Tk2': Tk2-Tk1,
+        'Tk3': Tk3-Tk2
+    }
     
-    return full_traj
+    return full_traj, time_dict
 
 def sigmoid(x, a):
     # return .5 * (np.tanh(x-.5) + 1)
@@ -411,7 +420,7 @@ def show_plot(hxs, target_trajs, targ_traj_mask_currs,
         ax.cla()
         ax.plot(tt[:-1], grads[k])
     axs[1,0].plot(tt[:-1], ctrls[:, -2])
-    axs[1,1].plot(tt[:-1], ctrls[:, -1])
+    # axs[1,1].plot(tt[:-1], ctrls[:, -1])
     fig.tight_layout()
     plt.show(block=False)
     plt.pause(.05)
@@ -530,6 +539,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     # fig, axs = plt.subplots(2, n_sites, figsize=(5*n_sites, 5))
     grab_phase_switch = True
     fig, axs = plt.subplots(3, n_sites, figsize=(5*n_sites, 5))
+    if n_sites == 1:
+        axs = axs.reshape((3,1))
     try:
         for k0 in range(max_its):
             if k0 >= it_lr2:

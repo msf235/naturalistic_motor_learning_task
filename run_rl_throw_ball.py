@@ -32,20 +32,22 @@ outdir.mkdir(parents=True, exist_ok=True)
 seed = 2
 out_f = outdir / 'grab_ball_ctrl.npy'
 
-Tf = 1.8
+Tf = 1.2
 # Tf = 2
 # Tf = 2.3
 
 # Adam
 opt = 'adam'
+# lr = .003
 lr = .001
+# lr = .01
 lr2 = .0005
 # lr = 1
 # lr2 = .5
 
 # lr = 2/Tk
 # lr2 = .06
-max_its = 400
+max_its = 1000
 # # max_its = 200
 # # max_its = 120
 # n_episode = 10000
@@ -87,18 +89,19 @@ acts = opt_utils.get_act_ids(model)
 right_arm_with_adh = acts['right_arm']
 n_adh = len(acts['adh'])
 
-env.reset(seed=seed) # necessary?
-util.reset(model, data, 10, body_pos)
+# env.reset(seed=seed) # necessary?
+reset()
+# util.reset(model, data, 10, body_pos)
 
 # Get noise
 # CTRL_STD = .05       # actuator units
 CTRL_STD = 0       # actuator units
 CTRL_RATE = 0.8       # seconds
 
-full_traj = arm_t.throw_traj(model, data, Tk)
+full_traj, time_dict = arm_t.throw_traj(model, data, Tk)
 
-targ_traj_mask = np.ones((Tk-1,))
-targ_traj_mask_type = 'progressive'
+targ_traj_mask = np.ones((Tk,))
+targ_traj_mask_type = 'double_sided_progressive'
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -115,27 +118,42 @@ grab_tk = int(grab_t/dt)
 
 bodyj = joints['body']['body_dofs']
 
-q_targs = [np.zeros((Tk, 2*model.nq))]
-q_targ_masks = [np.zeros((Tk,2*model.nq))]
+q_targ = np.zeros((Tk, 2*model.nq))
+q_targ_nz = np.linspace(0, -2.44, time_dict['Tk2'])
+q_targ[time_dict['t_1']:time_dict['t_2'], 
+        joints['all']['wrist_left']] = q_targ_nz
+q_targ[time_dict['t_2']:, joints['all']['wrist_left']] = -2.44
+q_targs = [q_targ]
+q_targ_mask = np.zeros((Tk,2*model.nq))
+q_targ_mask[time_dict['t_1']:] = 1
+q_targ_masks = [q_targ_mask]
 q_targ_mask_types = ['const']
 
 incr_every = 50
 t_incr = Tf
 amnt_to_incr = int(t_incr/dt)
 # t_grad = 0.05
-t_grad = Tf * .04
+# t_grad = Tf * .04
+t_grad = Tf * .1
 # grad_update_every = 10
-grad_update_every = 10
+grad_update_every = 1
 grad_trunc_tk = int(t_grad/(grad_update_every*dt))
 grab_phase_it=15
 # grab_phase_it=0
+
+grab_time = time_dict['t_1']
+let_go_times = [Tk+1]
+contact_check_list = [['ball', 'hand_right1'], ['ball', 'hand_right2']]
+adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
+let_go_ids = acts['adh_right_hand']
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        bodyj, free_ctrls=np.ones((Tk,n_adh)))[:2]
+        bodyj,
+        free_ctrls=np.zeros((Tk,n_adh)))[:2]
     # util.reset(model, data, 10, body_pos)
     # arm_t.forward_to_contact(env, ctrls+noisev, True)
     reset()
@@ -143,14 +161,22 @@ if rerun1 or not out_f.exists():
         env, sites, grad_idxs, baseball_idx['not_arm_j'],
         baseball_idx['not_arm_a'], target_trajs, masks, mask_types,
         q_targs, q_targ_masks, q_targ_mask_types, ctrls, grad_trunc_tk,
-        seed, CTRL_RATE, CTRL_STD, Tk, lr=lr, lr2=lr2, it_lr2=it_lr2,
+        seed,
+        CTRL_RATE, CTRL_STD, Tk, lr=lr, lr2=lr2,
+        it_lr2=it_lr2,
         max_its=max_its, keep_top=10,
-        incr_every=incr_every, amount_to_incr=amnt_to_incr,
+        incr_every=incr_every, amnt_to_incr=amnt_to_incr,
         grad_update_every=grad_update_every,
         grab_phase_it=grab_phase_it,
         grab_phase_tk=grab_tk,
         phase_2_it=max_its+1,
-        optimizer=opt)
+        optimizer=opt,
+        contact_check_list=contact_check_list,
+        adh_ids=adh_ids,
+        let_go_times=let_go_times,
+        let_go_ids=let_go_ids,
+        grab_time=grab_time
+    )
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
     # np.save(out_f, ctrls)
@@ -159,6 +185,27 @@ else:
         load_data = pkl.load(f)
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
+ctrls = lowest_losses.peekitem(0)[1][1]
+hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
+# qs_wr = qs[:, joints['all']['wrist_left']]
+# q_targs_wr = q_targ[:, joints['all']['wrist_left']]
+n = len(sites)
+grads = np.nan*np.ones((n,) + ctrls.shape)
+tt = np.arange(0, Tf, dt)
+fig, axs = plt.subplots(3, n, figsize=(5*n, 5))
+if n == 1:
+    axs = axs.reshape((3,1))
+while True:
+    arm_t.show_plot(hxs, target_trajs, masks, None, None, sites, grad_idxs,
+                    ctrls, axs, grads, tt)
+    # plt.show()
+    fig.show()
+    plt.pause(1)
+    reset()
+    hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=True)
+    # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
+    # reset()
+
 
 ctrls = lowest_losses.peekitem(0)[1][1]
 reset()
