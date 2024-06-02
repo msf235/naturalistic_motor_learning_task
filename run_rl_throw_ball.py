@@ -38,6 +38,7 @@ Tf = 1.2
 
 # Adam
 opt = 'adam'
+# lr = .003
 lr = .001
 # lr = .01
 lr2 = .0005
@@ -132,17 +133,19 @@ incr_every = 50
 t_incr = Tf
 amnt_to_incr = int(t_incr/dt)
 # t_grad = 0.05
-t_grad = Tf * .04
+# t_grad = Tf * .04
+t_grad = Tf * .1
 # grad_update_every = 10
-grad_update_every = 10
+grad_update_every = 1
 grad_trunc_tk = int(t_grad/(grad_update_every*dt))
 grab_phase_it=15
 # grab_phase_it=0
 
 grab_time = time_dict['t_1']
-let_go_time = Tk+1
+let_go_times = [Tk+1]
 contact_check_list = [['ball', 'hand_right1'], ['ball', 'hand_right2']]
-act_ids = acts['adh_right_hand']
+adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
+let_go_ids = acts['adh_right_hand']
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
@@ -150,7 +153,6 @@ if rerun1 or not out_f.exists():
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
         bodyj,
-        None, None,
         free_ctrls=np.zeros((Tk,n_adh)))[:2]
     # util.reset(model, data, 10, body_pos)
     # arm_t.forward_to_contact(env, ctrls+noisev, True)
@@ -159,8 +161,8 @@ if rerun1 or not out_f.exists():
         env, sites, grad_idxs, baseball_idx['not_arm_j'],
         baseball_idx['not_arm_a'], target_trajs, masks, mask_types,
         q_targs, q_targ_masks, q_targ_mask_types, ctrls, grad_trunc_tk,
-        grab_time, let_go_time,
-        seed, contact_check_list, CTRL_RATE, CTRL_STD, Tk, lr=lr, lr2=lr2,
+        seed,
+        CTRL_RATE, CTRL_STD, Tk, lr=lr, lr2=lr2,
         it_lr2=it_lr2,
         max_its=max_its, keep_top=10,
         incr_every=incr_every, amnt_to_incr=amnt_to_incr,
@@ -168,7 +170,13 @@ if rerun1 or not out_f.exists():
         grab_phase_it=grab_phase_it,
         grab_phase_tk=grab_tk,
         phase_2_it=max_its+1,
-        optimizer=opt)
+        optimizer=opt,
+        contact_check_list=contact_check_list,
+        adh_ids=adh_ids,
+        let_go_times=let_go_times,
+        let_go_ids=let_go_ids,
+        grab_time=grab_time
+    )
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
     # np.save(out_f, ctrls)

@@ -714,7 +714,6 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                           # q_targs_wr,
                           site_names, site_grad_idxs, ctrls, axs,
                           grads, tt)
-                breakpoint()
             # util.reset_state(model, data, data0)
             # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
                 # breakpoint()
