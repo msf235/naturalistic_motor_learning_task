@@ -39,35 +39,29 @@ def throw_traj(model, data, Tk):
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
     Tk1 = int(Tk / 3)
-    t_1 = Tk1
-    # Tk2 = int(2*Tk/4)
-    Tk2 = int(Tk/4)
-    t_2 = t_1 + Tk2
-    Tk3 = Tk - t_2
-    t_3 = t_2 + Tk3
-    # Tk3 = int((Tk+Tk2)/2)
-    # t_3 = Tk3
+    Tk2 = int(2*Tk/4)
+    Tk3 = int((Tk+Tk2)/2)
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                                  np.pi/2.5, Tk3, density_fn='')
+                                  np.pi/2.5, Tk-Tk2, density_fn='')
     grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
     s = sigmoid(np.linspace(0, 1, Tk1), 5)
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s*(grab_targ - handx)
     # grab_traj[-1] = grab_targ
 
-    # setup_traj = np.zeros((Tk2, 3))
-    s = np.linspace(0, 1, Tk2)
+    setup_traj = np.zeros((Tk2, 3))
+    s = np.linspace(0, 1, Tk2-Tk1)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
     full_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
 
     time_dict = {
-        't_1': t_1,
-        't_2': t_2,
-        't_3': t_3,
+        't_1': Tk1,
+        't_2': Tk2,
+        't_3': Tk3,
         'Tk1': Tk1,
-        'Tk2': Tk2,
-        'Tk3': Tk3
+        'Tk2': Tk2-Tk1,
+        'Tk3': Tk3-Tk2
     }
     
     return full_traj, time_dict
@@ -303,9 +297,7 @@ def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=None,
         noisev = np.zeros((Tk, model.nu))
     contacts = np.zeros((Tk, 2))
     for k in range(Tk):
-        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(
-            model, data, ctrls[k],
-        )
+        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
         contacts[k] = [cont_k1, cont_k2]
         util.step(model, data, ctrls[k] + noisev[k])
         if render:
@@ -331,10 +323,11 @@ class LimLowestDict:
 
 class DoubleSidedProgressive:
     def __init__(self, incr_every, amnt_to_incr, grab_phase_it, grab_phase_tk,
-                 phase_2_it=None, max_idx=1e8):
+                 phase_2_it, max_idx=1e8):
         self.incr_every = incr_every
         self.amnt_to_incr = amnt_to_incr
         self.k = 0
+        self.incr_k = 0
         self.incr_cnt = 0
         self.incr_cnt2 = 0
         self.phase_2_it = phase_2_it
@@ -342,8 +335,6 @@ class DoubleSidedProgressive:
         self.grab_phase_tk = grab_phase_tk
         self.grab_end_idx = 0
         self.phase = 'grab'
-        self.phase_switch = False
-        self.just_incr = False
 
     def _update_grab_phase(self):
         start_idx = 0
@@ -366,34 +357,21 @@ class DoubleSidedProgressive:
         return idx
 
     def update(self):
-        self.phase_change = False
-        self.just_incr = False
-        if self.k == self.grab_phase_it:
-            self.phase = 'phase_1'
-            self.incr_cnt = 0
-            self.phase_change = True
-        elif self.k == self.phase_2_it:
-            self.phase = 'phase_2'
-            self.incr_cnt = 0
-            self.phase_change = True
         if self.k < self.grab_phase_it:
             self.idx = self._update_grab_phase()
-        elif self.k % self.incr_every == 0:
-            self.just_incr = True
-            if self.phase == 'phase_2':
+        elif self.k == self.grab_phase_it:
+            self.phase = 'phase_1'
+            self.incr_k = 0
+        if self.phase != 'grab' and self.incr_k % self.incr_every == 0:
+            if self.k >= self.phase_2_it:
+                self.phase = 'phase_2'
                 self.idx = self._update_phase_2()
-            elif self.phase == 'phase_1':
+            else:
+                self.phase = 'phase_1'
                 self.idx = self._update_phase_1()
-
         self.k += 1
+        self.incr_k += 1
         return self.idx
-
-class Progressive(DoubleSidedProgressive):
-    def __init__(self, incr_every, amnt_to_incr, grab_phase_it, grab_phase_tk,
-                 max_idx=1e8):
-        super().__init__(incr_every, amnt_to_incr, grab_phase_it,
-                         grab_phase_tk, None, max_idx)
-
 
 class WindowedIdx:
     def __init__(self, incr_every, amnt_to_incr, window_size, max_idx=1e8):
@@ -446,7 +424,7 @@ def show_plot(hxs, target_trajs, targ_traj_mask_currs,
         ax = axs[2,k]
         ax.cla()
         ax.plot(tt[:-1], grads[k])
-    # axs[1,0].plot(tt[:-1], ctrls[:, -2])
+    axs[1,0].plot(tt[:-1], ctrls[:, -2])
     # axs[1,1].plot(tt[:-1], ctrls[:, -1])
     fig.tight_layout()
     plt.show(block=False)
@@ -455,8 +433,7 @@ def show_plot(hxs, target_trajs, targ_traj_mask_currs,
 def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     stabilize_act_idx, target_trajs, targ_traj_masks,
                     targ_traj_mask_types, q_targs, q_targ_masks,
-                    q_targ_mask_types, ctrls, grad_trunc_tk,
-                    seed,
+                    q_targ_mask_types, ctrls, grad_trunc_tk, seed,
                     CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, lr2=10,
                     it_lr2=31, keep_top=1,
                     incr_every=5, amnt_to_incr=5, grad_update_every=1,
@@ -550,15 +527,12 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                                              grab_phase_it, grab_phase_tk,
                                              phase_2_it=phase_2_it)
             # idxs[k] = WindowedIdx(incr_every, amnt_to_incr, 10*amnt_to_incr)
-        elif targ_traj_mask_types[k] == 'progressive':
-            idxs[k] = Progressive(incr_every, amnt_to_incr, grab_phase_it,
-                                  grab_phase_tk)
-        # targ_traj_progs.append((isinstance(targ_traj_mask_types[k], str)
-                                  # and targ_traj_mask_types[k] == 'progressive'))
+        targ_traj_progs.append((isinstance(targ_traj_mask_types[k], str)
+                                  and targ_traj_mask_types[k] == 'progressive'))
         targ_traj_mask_currs.append(targ_traj_masks[k])
-        # if targ_traj_progs[k]:
-            # targ_traj_mask_currs[k] = np.zeros((Tk,))
-            # incr_cnts.append(0)
+        if targ_traj_progs[k]:
+            targ_traj_mask_currs[k] = np.zeros((Tk,))
+            incr_cnts.append(0)
         targ_traj_masks_grab[k] = np.zeros((Tk,))
         targ_traj_masks_grab[k][:grab_time] = targ_traj_masks[k][:grab_time]
     lowest_losses = LimLowestDict(keep_top)
@@ -568,13 +542,18 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     # fig, axs = plt.subplots(1, n_sites, figsize=(5*n_sites, 5))
     contact_bool = False
     # fig, axs = plt.subplots(2, n_sites, figsize=(5*n_sites, 5))
+    grab_phase_switch = True
     fig, axs = plt.subplots(3, n_sites, figsize=(5*n_sites, 5))
     if n_sites == 1:
-        axs = axs.reshape((3, 1))
+        axs = axs.reshape((3,1))
     try:
         for k0 in range(max_its):
             if k0 >= it_lr2:
                 lr = lr2
+            if k0 % incr_every == 0:
+                # breakpoint()
+                for k in range(n_sites):
+                    optms[k] = get_opt(lr)
             progbar.update(' ' + str(k0))
             for k in range(n_sites):
                 # if False:
@@ -585,10 +564,11 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     targ_traj_mask_currs[k] = np.zeros((Tk,))
                     idx = idxs[k].update()
                     targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
-            if idxs[0].just_incr:
-                for k in range(n_sites):
-                    optms[k] = get_opt(lr)
-            if idxs[0].phase == 'phase_1' and idxs[0].phase_switch:
+            # if (idxs[0].incr_k-1) % incr_every == 0:
+                # for k in range(n_sites):
+                    # optms[k] = get_opt(lr)
+            if idxs[0].phase != 'grab' and grab_phase_switch:
+                grab_phase_switch = False
                 print("End of grab phase. Selecting best ctrls.")
                 if len(lowest_losses_curr_mask.dict) > 0:
                     ctrls = lowest_losses_curr_mask.dict.peekitem(0)[1][1]
