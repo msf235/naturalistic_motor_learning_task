@@ -282,20 +282,13 @@ def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=None,
     Tk = ctrls.shape[0]
     contact_cnt = 0
     contact = False
-    adh_ctrl = opt_utils.AdhCtrl(let_go_times, None, contact_check_list, adh_ids)
-    adh_ctrl_tmp = opt_utils.AdhCtrl(let_go_times, let_go_ids,
-                                     contact_check_list, adh_ids)
+    adh_ctrl = opt_utils.AdhCtrl(let_go_times, let_go_ids, contact_check_list,
+                                 adh_ids)
     if noisev is None:
         noisev = np.zeros((Tk, model.nu))
     contacts = np.zeros((Tk, 2))
     for k in range(Tk):
-        if k >= 1626:
-            pass
-        ctrl_cpy = ctrls[k].copy()
         ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
-        tmp, __, __ = adh_ctrl_tmp.get_ctrl2(model, data, ctrl_cpy,)
-        if not np.allclose(ctrls[k], tmp):
-            breakpoint()
         contacts[k] = [cont_k1, cont_k2]
         util.step(model, data, ctrls[k] + noisev[k])
         if render:
@@ -385,7 +378,9 @@ class WindowedIdx:
         self.k += 1
         return self.idx
 
-def show_plot(hxs, target_trajs, targ_traj_mask_currs, qs, qs_targs, site_names,
+def show_plot(hxs, target_trajs, targ_traj_mask_currs,
+              # qs, qs_targs,
+              site_names,
               site_grad_idxs, ctrls, axs, grads, tt):
     fig = axs[0, 0].figure
     n = len(site_names)
@@ -402,10 +397,10 @@ def show_plot(hxs, target_trajs, targ_traj_mask_currs, qs, qs_targs, site_names,
         ax.plot(tt, ft[:,1], '--', color='blue')
         ax.plot(tt, hx[:,2], color='red', label='y')
         ax.plot(tt, ft[:,2], '--', color='red')
-        if k == 1:
-            ax.plot(tt, qs, color='green', label='qs')
-            ax.plot(tt, qs_targs, '--',
-                    color='green', label='qs_targ')
+        # if k == 1:
+            # ax.plot(tt, qs, color='green', label='qs')
+            # ax.plot(tt, qs_targs, '--',
+                    # color='green', label='qs_targ')
         # ax.set_title(site_names[k] + ' loss: ' + str(loss))
         ax.set_title(site_names[k])
         ax.legend()
@@ -431,6 +426,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     grab_phase_it=0, grab_phase_tk=0, phase_2_it=None,
                     update_plot_every=1, optimizer='adam',
                     contact_check_list=None, adh_ids=None,
+                    let_go_times=None,
+                    let_go_ids=None,
+                    grab_time=None,
                    ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
@@ -484,13 +482,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
     tt = np.arange(0, T, dt)
 
     joints = opt_utils.get_joint_ids(model)
-    q_targs_wr = q_targs[1][:, joints['all']['wrist_left']]
+    # q_targs_wr = q_targs[1][:, joints['all']['wrist_left']]
 
     progbar = util.ProgressBar(final_it = max_its) 
-
-    time_dict = tennis_traj(model, data, Tk)[3]
-    grab_time = int(max(time_dict['t_right_1'], time_dict['t_left_1']) * .9)
-    let_go_time = time_dict['t_left_3']
 
     def get_opt(lr):
         if optimizer == 'rmsprop':
@@ -576,7 +570,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
 
             util.reset_state(model, data, data0)
             k, ctrls, contacts = forward_to_contact(
-                env, ctrls, noisev, False, [let_go_time], [adh_ids[2]],
+                env, ctrls, noisev, False, let_go_times, let_go_ids,
                 contact_check_list, adh_ids)
             contact_bool = np.sum(contacts[:, 0]) * np.sum(contacts[:, 1]) > 0
             # if ball_contact:
@@ -612,8 +606,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
                     update_every=grad_update_every, update_phase=update_phase,
                     grab_time=grab_time,
-                    let_go_times=[let_go_time],
-                    let_go_ids=[adh_ids[2]],
+                    let_go_times=let_go_times,
+                    let_go_ids=let_go_ids,
                     contact_check_list=contact_check_list,
                     adh_ids=adh_ids
                 )
@@ -645,8 +639,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                     model, data, Tk, noisev, qpos0, stabilize_act_idx,
                     stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
-                    K_update_interv=500, let_go_times=[let_go_time],
-                    let_go_ids = [adh_ids[2]]
+                    K_update_interv=500, let_go_times=let_go_times,
+                    let_go_ids = let_go_ids
                 )
             except np.linalg.LinAlgError:
                 print("LinAlgError in get_stabilized_ctrls")
@@ -674,9 +668,11 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             # print(loss, toc-tic)
             nr = range(n_sites)
             if k0 % update_plot_every == 0 or k0 % incr_every == 0:
-                qs_wr = qs[:, joints['all']['wrist_left']]
-                show_plot(hxs, target_trajs, targ_traj_mask_currs, qs_wr,
-                          q_targs_wr, site_names, site_grad_idxs, ctrls, axs,
+                # qs_wr = qs[:, joints['all']['wrist_left']]
+                show_plot(hxs, target_trajs, targ_traj_mask_currs,
+                          # qs_wr,
+                          # q_targs_wr,
+                          site_names, site_grad_idxs, ctrls, axs,
                           grads, tt)
             # util.reset_state(model, data, data0)
             # k, ctrls = forward_to_contact(env, ctrls, noisev, True)

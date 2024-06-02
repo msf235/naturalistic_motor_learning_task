@@ -190,6 +190,8 @@ act_ids = ['adh_right_hand', 'adh_right_hand', 'adh_left_hand',
 let_go_ids = [acts['adh_left_hand'][0]]
 let_go_times = [time_dict['t_left_3']]
 
+grab_time = int(max(time_dict['t_right_1'], time_dict['t_left_1']) * .9)
+
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
@@ -221,6 +223,9 @@ if rerun1 or not out_f.exists():
         phase_2_it=max_its+1, optimizer=opt,
         contact_check_list=contact_check_list,
         adh_ids=adh_ids,
+        let_go_times=let_go_times,
+        let_go_ids=let_go_ids,
+        grab_time=grab_time
     )
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)

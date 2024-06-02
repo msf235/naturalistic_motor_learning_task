@@ -156,24 +156,21 @@ def get_act_names_left_or_right(model, data=None, left_or_right='right'):
     return acts
 
 class AdhCtrl:
-    def __init__(self, t_zero_thrs, t_zero_ids, contact_check_list=None, adh_ids=None):
-        self.k_right = 1
-        self.k_left = 1
+    def __init__(self, t_zero_thrs, t_zero_ids, contact_check_list=None,
+                 adh_ids=None):
         self.tk = 0
         self.t_zero_thrs = t_zero_thrs
-        self.t_zero_thr = t_zero_thrs[0]
         self.t_zero_ids = t_zero_ids
         self.n_steps = 10
         self.contact_check_list = contact_check_list
         self.adh_ids = adh_ids
         self.ks = {k: 1 for k in adh_ids}
 
-    def get_ctrl2(self, model, data, ctrl):
+    def get_ctrl(self, model, data, ctrl):
         ctrl = ctrl.copy()
         ccl = self.contact_check_list
         adh_ids = self.adh_ids
         act = get_act_ids(model)
-        # adh = opt_utils.get_act_ids(model)['adh']
         contact_pairs = util.get_contact_pairs(model, data)
         adh_contact_ids = []
         for cp in contact_pairs:
@@ -190,81 +187,6 @@ class AdhCtrl:
                 ctrl[self.t_zero_ids[k]] = 0
             self.tk += 1
         return ctrl, None, None
-
-    def get_ctrl(self, model, data, ctrl):
-        ctrl = ctrl.copy()
-        act = get_act_ids(model)
-        # adh = opt_utils.get_act_ids(model)['adh']
-        contact_check_list = self.contact_check_list
-        adh_ids = self.adh_ids
-        contact_pairs = util.get_contact_pairs(model, data)
-        contact1 = False
-        contact2 = False
-        for cp in contact_pairs:
-            tmp2 = 'racket_handle' in cp and ('hand_right1' in cp or 'hand_right2' in cp)
-            # tmp1 = False
-            # if contact_check_list is not None:
-            if contact_check_list[0][0] in cp and contact_check_list[0][1] in cp:
-                if not contact1:
-                    contact1 = True
-                    ctrl[act['adh_right_hand']] = 1/self.n_steps * self.k_right
-                    if self.k_right < self.n_steps:
-                        self.k_right += 1
-            if contact_check_list[1][0] in cp and contact_check_list[1][1] in cp:
-                if not contact1:
-                    contact1 = True
-                    ctrl[act['adh_right_hand']] = 1/self.n_steps * self.k_right
-                    if self.k_right < self.n_steps:
-                        self.k_right += 1
-            # if ctrl[act['adh_right_hand']] == 0.2:
-                # breakpoint()
-            if contact_check_list[2][0] in cp and contact_check_list[2][1] in cp:
-                if not contact2:
-                    contact2 = True
-                    ctrl[act['adh_left_hand']] = 1/self.n_steps * self.k_left
-                    if self.k_left < self.n_steps:
-                        self.k_left += 1
-            if contact_check_list[3][0] in cp and contact_check_list[3][1] in cp:
-                if not contact2:
-                    contact2 = True
-                    ctrl[act['adh_left_hand']] = 1/self.n_steps * self.k_left
-                    if self.k_left < self.n_steps:
-                        self.k_left += 1
-            # if 'ball' in cp and ('hand_left1' in cp or 'hand_left2' in cp):
-                # contact2 = True
-                # ctrl[act['adh_left_hand']] = 1/self.n_steps * self.k_left
-                # if self.k_left < self.n_steps:
-                    # self.k_left += 1
-        if self.t_zero_thr is not None and self.tk >= self.t_zero_thr:
-            ctrl[act['adh_left_hand']] = 0
-        self.tk += 1
-        return ctrl, contact1, contact2
-
-    # def get_ctrl(self, model, data, ctrl, contact_check_list=None, adh_ids=None):
-        # ctrl = ctrl.copy()
-        # act = get_act_ids(model)
-        # # adh = opt_utils.get_act_ids(model)['adh']
-        # contact_pairs = util.get_contact_pairs(model, data)
-        # contact1 = False
-        # contact2 = False
-        # for cp in contact_pairs:
-            # if 'racket_handle' in cp and ('hand_right1' in cp or 'hand_right2' in cp):
-                # contact1 = True
-                # ctrl[act['adh_right_hand']] = 1/self.n_steps * self.k_right
-                # if self.k_right < self.n_steps:
-                    # self.k_right += 1
-            # # if ctrl[act['adh_right_hand']] == 0.2:
-                # # breakpoint()
-            # # The below can double count -- fixed in new implementation above
-            # if 'ball' in cp and ('hand_left1' in cp or 'hand_left2' in cp):
-                # contact2 = True
-                # ctrl[act['adh_left_hand']] = 1/self.n_steps * self.k_left
-                # if self.k_left < self.n_steps:
-                    # self.k_left += 1
-        # if self.t_zero_thr is not None and self.tk >= self.t_zero_thr:
-            # ctrl[act['adh_left_hand']] = 0
-        # self.tk += 1
-        # return ctrl, contact1, contact2
 
     def reset(self):
         self.k_right = 0
