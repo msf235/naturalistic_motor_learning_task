@@ -327,6 +327,7 @@ class DoubleSidedProgressive:
         self.incr_every = incr_every
         self.amnt_to_incr = amnt_to_incr
         self.k = 0
+        self.incr_k = 0
         self.incr_cnt = 0
         self.incr_cnt2 = 0
         self.phase_2_it = phase_2_it
@@ -358,7 +359,10 @@ class DoubleSidedProgressive:
     def update(self):
         if self.k < self.grab_phase_it:
             self.idx = self._update_grab_phase()
-        elif self.k % self.incr_every == 0:
+        elif self.k == self.grab_phase_it:
+            self.phase = 'phase_1'
+            self.incr_k = 0
+        if self.phase != 'grab' and self.incr_k % self.incr_every == 0:
             if self.k >= self.phase_2_it:
                 self.phase = 'phase_2'
                 self.idx = self._update_phase_2()
@@ -366,6 +370,7 @@ class DoubleSidedProgressive:
                 self.phase = 'phase_1'
                 self.idx = self._update_phase_1()
         self.k += 1
+        self.incr_k += 1
         return self.idx
 
 class WindowedIdx:
@@ -545,9 +550,10 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         for k0 in range(max_its):
             if k0 >= it_lr2:
                 lr = lr2
-            if k0 % incr_every == 0:
-                for k in range(n_sites):
-                    optms[k] = get_opt(lr)
+            # if k0 % incr_every == 0:
+                # breakpoint()
+                # for k in range(n_sites):
+                    # optms[k] = get_opt(lr)
             progbar.update(' ' + str(k0))
             for k in range(n_sites):
                 # if False:
@@ -558,6 +564,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     targ_traj_mask_currs[k] = np.zeros((Tk,))
                     idx = idxs[k].update()
                     targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
+            # if (idxs[0].incr_k-1) % incr_every == 0:
+                # for k in range(n_sites):
+                    # optms[k] = get_opt(lr)
             if idxs[0].phase != 'grab' and grab_phase_switch:
                 grab_phase_switch = False
                 print("End of grab phase. Selecting best ctrls.")

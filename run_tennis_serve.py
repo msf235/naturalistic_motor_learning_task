@@ -178,7 +178,7 @@ t_grad = Tf * .04
 # grad_update_every = 10
 grad_update_every = 10
 grad_trunc_tk = int(t_grad/(grad_update_every*dt))
-grab_phase_it=15
+grab_phase_it=40
 # grab_phase_it=0
 
 contact_check_list = [['racket_handle', 'hand_right1'], ['racket_handle', 'hand_right2'],
@@ -242,7 +242,9 @@ q_targs_wr = q_targ[:, joints['all']['wrist_left']]
 grads = np.nan*np.ones((len(sites),) + ctrls.shape)
 fig, axs = plt.subplots(3, n, figsize=(5*n, 5))
 while True:
-    arm_t.show_plot(hxs, full_trajs, masks, qs_wr, q_targs_wr, sites, site_grad_idxs, ctrls, axs,
+    arm_t.show_plot(hxs, full_trajs, masks,
+                    # qs_wr, q_targs_wr,
+                    sites, site_grad_idxs, ctrls, axs,
                     grads, tt)
     # plt.show()
     fig.show()
