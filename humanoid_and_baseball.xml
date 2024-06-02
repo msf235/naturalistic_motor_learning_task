@@ -13,10 +13,16 @@
      limitations under the License.
 -->
 
+    <!--timestep="0.00125"-->
+    <!--integrator="implicitfast"/>-->
 <mujoco model="Humanoid">
-  <option timestep="0.0025"/>
-  <include file="baseball_pitch_scene.xml"/>
+  <option timestep="0.0005" integrator="implicitfast"/>
+      <!-- geoms -->
+  <default>
+    <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/>
+  </default>
   <include file="humanoid.xml"/>
+  <include file="baseball_pitch_scene.xml"/>
   <visual>
     <map force="0.1" zfar="30"/>
     <rgba haze="0.15 0.25 0.35 1"/>
@@ -28,12 +34,7 @@
     <headlight ambient=".8 .8 .8" specular=".8 .8 .8"/>
   </visual>
   <keyframe>
-    <key name="baseball_pos"
-      qpos="
-      0 -.4 0 0 
-      0 0 0 0
-      0 0 0 0
-      0 0 0 0
-      0"/>
+    <key name="basic" qpos="0 -.4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"/>
+    <key name="wide" qpos="0 -.4 0 0 -.2 -.1 -.2 .1 0 0 0 0 0 0 0 0 0"/>
   </keyframe>
 </mujoco>

@@ -73,7 +73,7 @@ Tk = int(Tf / dt)
 
 # Adam
 opt = 'adam'
-lr = .001
+lr = .0005
 lr2 = .0005
 # lr = 1
 # lr2 = .5
@@ -131,6 +131,8 @@ site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                   tennis_idxs['right_arm_without_adh']]
 stabilize_jnt_idx = tennis_idxs['not_arm_j']
 stabilize_act_idx = tennis_idxs['not_arm_a']
+
+breakpoint()
 
 # tmp = util.get_contact_pairs(model, data)
 

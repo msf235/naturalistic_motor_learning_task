@@ -550,10 +550,10 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         for k0 in range(max_its):
             if k0 >= it_lr2:
                 lr = lr2
-            # if k0 % incr_every == 0:
+            if k0 % incr_every == 0:
                 # breakpoint()
-                # for k in range(n_sites):
-                    # optms[k] = get_opt(lr)
+                for k in range(n_sites):
+                    optms[k] = get_opt(lr)
             progbar.update(' ' + str(k0))
             for k in range(n_sites):
                 # if False:
