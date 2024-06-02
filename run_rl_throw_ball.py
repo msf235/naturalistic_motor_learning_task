@@ -207,8 +207,6 @@ while True:
     # reset()
 
 
-
-
 ctrls = lowest_losses.peekitem(0)[1][1]
 reset()
 
