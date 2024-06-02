@@ -39,8 +39,8 @@ Tf = 1.8
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -184,6 +184,17 @@ grad_trunc_tk = int(t_grad/(grad_update_every*dt))
 grab_phase_it=15
 # grab_phase_it=0
 
+contact_check_list = [['racket_handle', 'hand_right1'], ['racket_handle', 'hand_right2'],
+                      ['ball', 'hand_left1'], ['ball', 'hand_left2']]
+adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0],
+           acts['adh_left_hand'][0], acts['adh_left_hand'][0]]
+act_ids = ['adh_right_hand', 'adh_right_hand', 'adh_left_hand',
+             'adh_left_hand']
+let_go_ids = [acts['adh_left_hand'][0]]
+let_go_times = [time_dict['t_left_3']]
+
+grab_time = int(max(time_dict['t_right_1'], time_dict['t_left_1']) * .9)
+
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
@@ -191,7 +202,11 @@ if rerun1 or not out_f.exists():
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
         bodyj,
         # free_ctrls=np.ones((Tk, len(acts['adh'])))
-        free_ctrls=np.zeros((Tk, len(acts['adh'])))
+        free_ctrls=np.zeros((Tk, len(acts['adh']))),
+        let_go_times=let_go_times,
+        let_go_ids=let_go_ids,
+        contact_check_list=contact_check_list,
+        adh_ids=adh_ids,
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     reset()
@@ -201,15 +216,22 @@ if rerun1 or not out_f.exists():
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
         full_trajs, masks, mask_types, q_targs, q_targ_masks,
-        q_targ_mask_types, ctrls, grad_trunc_tk, grab_time, let_go_time,
-        seed, contact_check_list, CTRL_RATE, CTRL_STD,
+        q_targ_mask_types, ctrls, grad_trunc_tk,
+        seed,
+        CTRL_RATE, CTRL_STD,
         Tk, lr=lr, lr2=lr2, it_lr2=it_lr2, max_its=max_its, keep_top=10,
         incr_every=incr_every, amnt_to_incr=amnt_to_incr,
         # grad_update_every=10,
         grad_update_every=grad_update_every, # Need to check this with new code
         grab_phase_it=grab_phase_it,
         grab_phase_tk=grab_tk,
-        phase_2_it=max_its+1, optimizer=opt)
+        phase_2_it=max_its+1, optimizer=opt,
+        contact_check_list=contact_check_list,
+        adh_ids=adh_ids,
+        let_go_times=let_go_times,
+        let_go_ids=let_go_ids,
+        grab_time=grab_time
+    )
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
 else:
