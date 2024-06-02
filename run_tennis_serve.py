@@ -185,6 +185,10 @@ contact_check_list = [['racket_handle', 'hand_right1'], ['racket_handle', 'hand_
                       ['ball', 'hand_left1'], ['ball', 'hand_left2']]
 adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0],
            acts['adh_left_hand'][0], acts['adh_left_hand'][0]]
+act_ids = ['adh_right_hand', 'adh_right_hand', 'adh_left_hand',
+             'adh_left_hand']
+let_go_ids = [acts['adh_left_hand'][0]]
+let_go_times = [time_dict['t_left_3']]
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
@@ -194,8 +198,10 @@ if rerun1 or not out_f.exists():
         bodyj,
         # free_ctrls=np.ones((Tk, len(acts['adh'])))
         free_ctrls=np.zeros((Tk, len(acts['adh']))),
+        let_go_times=let_go_times,
+        let_go_ids=let_go_ids,
         contact_check_list=contact_check_list,
-        adh_ids=adh_ids
+        adh_ids=adh_ids,
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     reset()
@@ -214,7 +220,7 @@ if rerun1 or not out_f.exists():
         grab_phase_tk=grab_tk,
         phase_2_it=max_its+1, optimizer=opt,
         contact_check_list=contact_check_list,
-        adh_ids=adh_ids
+        adh_ids=adh_ids,
     )
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)

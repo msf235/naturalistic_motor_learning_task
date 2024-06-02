@@ -156,17 +156,47 @@ def get_act_names_left_or_right(model, data=None, left_or_right='right'):
     return acts
 
 class AdhCtrl:
-    def __init__(self, t_zero_thr):
+    def __init__(self, t_zero_thrs, t_zero_ids, contact_check_list=None, adh_ids=None):
         self.k_right = 1
         self.k_left = 1
         self.tk = 0
-        self.t_zero_thr = t_zero_thr
+        self.t_zero_thrs = t_zero_thrs
+        self.t_zero_thr = t_zero_thrs[0]
+        self.t_zero_ids = t_zero_ids
         self.n_steps = 10
+        self.contact_check_list = contact_check_list
+        self.adh_ids = adh_ids
+        self.ks = {k: 1 for k in adh_ids}
 
-    def get_ctrl(self, model, data, ctrl, contact_check_list=None, adh_ids=None):
+    def get_ctrl2(self, model, data, ctrl):
+        ctrl = ctrl.copy()
+        ccl = self.contact_check_list
+        adh_ids = self.adh_ids
+        act = get_act_ids(model)
+        # adh = opt_utils.get_act_ids(model)['adh']
+        contact_pairs = util.get_contact_pairs(model, data)
+        adh_contact_ids = []
+        for cp in contact_pairs:
+            for k in range(len(ccl)):
+                if ccl[k][0] in cp and ccl[k][1] in cp:
+                    adh_id = adh_ids[k] 
+                    if adh_id not in adh_contact_ids:
+                        adh_contact_ids.append(adh_id)
+                        ctrl[adh_id] = 1/self.n_steps * self.ks[adh_id]
+                        if self.ks[adh_id] < self.n_steps:
+                            self.ks[adh_id] += 1
+        for k in range(len(self.t_zero_thrs)):
+            if self.t_zero_thrs[k] is not None and self.tk >= self.t_zero_thrs[k]:
+                ctrl[self.t_zero_ids[k]] = 0
+            self.tk += 1
+        return ctrl, None, None
+
+    def get_ctrl(self, model, data, ctrl):
         ctrl = ctrl.copy()
         act = get_act_ids(model)
         # adh = opt_utils.get_act_ids(model)['adh']
+        contact_check_list = self.contact_check_list
+        adh_ids = self.adh_ids
         contact_pairs = util.get_contact_pairs(model, data)
         contact1 = False
         contact2 = False
@@ -336,7 +366,7 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
 def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                          stable_jnt_ids, free_ctrls=None,
                          K_update_interv=None, free_ctrl_fn=None,
-                         let_go_time=None,
+                         let_go_times=None, let_go_ids=None,
                          contact_check_list=None, adh_ids=None):
     """Get stabilized controls.
 
@@ -356,7 +386,8 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         K_update_interv: Update interval for K.
         """
 
-    adh_ctrl = AdhCtrl(let_go_time)
+    if contact_check_list is not None:
+        adh_ctrl = AdhCtrl(let_go_times, let_go_ids, contact_check_list, adh_ids)
 
     data0 = copy.deepcopy(data)
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
@@ -390,9 +421,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
             # ctrls[k][free_act_ids] = free_ctrls[k]
         ctrls[k][free_act_ids] = free_ctrls[k]
         if contact_check_list is not None:
-            ctrls[k], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[k],
-                                                 contact_check_list=contact_check_list,
-                                                 adh_ids=adh_ids)
+            ctrls[k], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[k])
         mj.mj_step1(model, data)
         data.ctrl[:] = ctrls[k] + noisev[k]
         mj.mj_step2(model, data)
@@ -442,7 +471,7 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
     dldqs = np.zeros((n, Tk, 2*model.nv))
     lams = np.zeros((n, Tk, 2*model.nv))
 
-    adh_ctrl = AdhCtrl(let_go_time)
+    adh_ctrl = AdhCtrl(let_go_time, contact_check_list, adh_ids)
 
     # q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
     targ_traj_mask_any = np.any(np.stack(targ_traj_masks), axis=0)
@@ -538,7 +567,8 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    q_targ, q_targ_mask,
                    grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
                    update_every=1, update_phase=0, grad_filter=True,
-                   grab_time=None, let_go_time=None,
+                   grab_time=None, let_go_times=None,
+                   let_go_ids=None,
                    contact_check_list=None, adh_ids=None
                   ):
     """deriv_inds specifies the indices of the actuators that will be
@@ -561,7 +591,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     hxs = np.zeros((Tk, 3))
 
-    adh_ctrl = AdhCtrl(let_go_time)
+    adh_ctrl = AdhCtrl(let_go_times, let_go_ids, contact_check_list, adh_ids)
 
     q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
 
@@ -588,8 +618,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         
         if tk < Tk-1:
             ctrls[tk], __, __ = adh_ctrl.get_ctrl(
-                model, data, ctrls[tk], contact_check_list=contact_check_list,
-                adh_ids=adh_ids
+                model, data, ctrls[tk],
             )
             sim_util.step(model, data, ctrls[tk])
     # print(As[1630])

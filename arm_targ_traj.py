@@ -271,8 +271,9 @@ def forward_with_sites(env, ctrls, site_names, render=False):
             env.render()
     return site_xvs, model_qs
 
-def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_time=None,
-                       contact_check_list=None, adh_ids=None
+def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=None,
+                       let_go_ids=None,
+                       contact_check_list=None, adh_ids=None,
                       ):
     model = env.model
     act = opt_utils.get_act_ids(model)
@@ -281,8 +282,9 @@ def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_time=None,
     Tk = ctrls.shape[0]
     contact_cnt = 0
     contact = False
-    adh_ctrl = opt_utils.AdhCtrl(let_go_time)
-    adh_ctrl_tmp = opt_utils.AdhCtrl(let_go_time)
+    adh_ctrl = opt_utils.AdhCtrl(let_go_times, None, contact_check_list, adh_ids)
+    adh_ctrl_tmp = opt_utils.AdhCtrl(let_go_times, let_go_ids,
+                                     contact_check_list, adh_ids)
     if noisev is None:
         noisev = np.zeros((Tk, model.nu))
     contacts = np.zeros((Tk, 2))
@@ -290,10 +292,8 @@ def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_time=None,
         if k >= 1626:
             pass
         ctrl_cpy = ctrls[k].copy()
-        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k],
-                                            contact_check_list, adh_ids)
-        tmp, __, __ = adh_ctrl_tmp.get_ctrl2(model, data, ctrl_cpy,
-                                            contact_check_list, adh_ids)
+        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
+        tmp, __, __ = adh_ctrl_tmp.get_ctrl2(model, data, ctrl_cpy,)
         if not np.allclose(ctrls[k], tmp):
             breakpoint()
         contacts[k] = [cont_k1, cont_k2]
@@ -430,7 +430,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     incr_every=5, amnt_to_incr=5, grad_update_every=1,
                     grab_phase_it=0, grab_phase_tk=0, phase_2_it=None,
                     update_plot_every=1, optimizer='adam',
-                    contact_check_list=None, adh_ids=None
+                    contact_check_list=None, adh_ids=None,
                    ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
@@ -575,11 +575,9 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     # breakpoint()
 
             util.reset_state(model, data, data0)
-            if k0 == 1:
-                breakpoint()
             k, ctrls, contacts = forward_to_contact(
-                env, ctrls, noisev, False, let_go_time, contact_check_list,
-                adh_ids)
+                env, ctrls, noisev, False, [let_go_time], [adh_ids[2]],
+                contact_check_list, adh_ids)
             contact_bool = np.sum(contacts[:, 0]) * np.sum(contacts[:, 1]) > 0
             # if ball_contact:
                 # breakpoint()
@@ -614,7 +612,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
                     update_every=grad_update_every, update_phase=update_phase,
                     grab_time=grab_time,
-                    let_go_time=let_go_time,
+                    let_go_times=[let_go_time],
+                    let_go_ids=[adh_ids[2]],
                     contact_check_list=contact_check_list,
                     adh_ids=adh_ids
                 )
@@ -646,7 +645,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                     model, data, Tk, noisev, qpos0, stabilize_act_idx,
                     stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
-                    K_update_interv=500, let_go_time=let_go_time
+                    K_update_interv=500, let_go_times=[let_go_time],
+                    let_go_ids = [adh_ids[2]]
                 )
             except np.linalg.LinAlgError:
                 print("LinAlgError in get_stabilized_ctrls")
