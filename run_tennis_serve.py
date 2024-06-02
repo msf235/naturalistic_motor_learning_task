@@ -73,7 +73,7 @@ Tk = int(Tf / dt)
 
 # Adam
 opt = 'adam'
-lr = .005
+lr = .001
 lr2 = .0005
 # lr = 1
 # lr2 = .5
