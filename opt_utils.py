@@ -493,7 +493,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    grad_trunc_tk,
                    deriv_ids=[], deriv_site='hand_right',
                    update_every=1, update_phase=0, grad_filter=True,
-                   grab_time=None, let_go_times=None,
+                   let_go_times=None,
                    let_go_ids=None,
                    contact_check_list=None, adh_ids=None
                   ):
@@ -517,9 +517,12 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     hxs = np.zeros((Tk, 3))
 
-    adh_ctrl = AdhCtrl(let_go_times, let_go_ids, contact_check_list, adh_ids)
+    if contact_check_list is not None:
+        adh_ctrl = AdhCtrl(let_go_times, let_go_ids, contact_check_list,
+                           adh_ids)
 
     q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
+    vel_penalty_factor = 1e-2
 
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
@@ -541,11 +544,14 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
             qnow = np.concatenate((data.qpos[:], data.qvel[:]))
             dldq = qnow - q_targ[tk]
             dldqs[tk] += dldq * q_targ_mask[tk]
+        if tk in grad_range:
+            dldqs[tk, model.nv:] *= vel_penalty_factor
         
         if tk < Tk-1:
-            ctrls[tk], __, __ = adh_ctrl.get_ctrl(
-                model, data, ctrls[tk],
-            )
+            if contact_check_list is not None:
+                ctrls[tk], __, __ = adh_ctrl.get_ctrl(
+                    model, data, ctrls[tk],
+                )
             sim_util.step(model, data, ctrls[tk])
     # print(As[1630])
     # print(Bs[1630])
@@ -564,7 +570,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     # lams2[tk] = dldqs[tk]
     # lams3[tk] = dldqs[tk]
     grads = np.zeros((Tk-1, nuderiv))
-    tau_loss_factor = 1e-9
+    tau_loss_factor = 1e-7
     # tau_loss_factor = 0
     loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
     

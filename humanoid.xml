@@ -51,7 +51,7 @@
       </default>
       <default class="hand">
         <!--<geom type="sphere" size=".04"/>-->
-        <geom type="capsule" margin=".002" gap=".002"  size=".03 .025"/>
+        <geom type="capsule" margin=".003" gap=".003"  size=".03 .025"/>
         <site size=".01" pos="0 0 0" rgba="1 1 .5 .7"/>
       </default>
 
@@ -244,7 +244,7 @@
     <!--<motor name="shoulder2_left"  gear="20"  joint="shoulder2_left"/>-->
     <motor name="elbow_left"      gear="100"  joint="elbow_left"/>
     <motor name="wrist_left"      gear="40"  joint="wrist_left"/>
-    <adhesion name="hand_right_adh" body="hand_right" gain="1000"
+    <adhesion name="hand_right_adh" body="hand_right" gain="3000"
       ctrlrange="0 1"/>
     <adhesion name="hand_left_adh" body="hand_left" gain="700"
       ctrlrange="0 1"/>
