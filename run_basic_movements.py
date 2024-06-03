@@ -93,7 +93,9 @@ acts = opt_utils.get_act_ids(model)
         # CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10,
         # right_or_left='right')
     # with open(out_f, 'wb') as f:
-        # pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
+        # pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses,
+                  # 'ctrls_burn_in': np.zeros((10, model.nu))
+                 # }, f)
     # # np.save(out_f, ctrls)
 # else:
     # with open(out_f, 'rb') as f:
@@ -105,52 +107,54 @@ acts = opt_utils.get_act_ids(model)
 # util.reset(model, data, 10, body_pos)
 # arm_t.forward_to_contact(env, ctrls_best, True)
 
-util.reset(model, data, 10, body_pos)
+# util.reset(model, data, 10, body_pos)
 
-# Move left arm while keeping right arm fixed
-rs, thetas = bm.random_arcs_left_arm(model, data, Tk-1,
-                                      data.site('hand_left').xpos)
-traj1_xs = np.zeros((Tk-1, 3))
-traj1_xs[:,1] = rs * np.cos(thetas)
-traj1_xs[:,2] = rs * np.sin(thetas)
-traj1_xs += data.site('shoulder1_left').xpos
-full_traj = traj1_xs
-targ_traj_mask = np.ones((Tk-1,))
-targ_traj_mask_type = 'progressive'
+# # Move left arm while keeping right arm fixed
+# rs, thetas = bm.random_arcs_left_arm(model, data, Tk-1,
+                                      # data.site('hand_left').xpos)
+# traj1_xs = np.zeros((Tk-1, 3))
+# traj1_xs[:,1] = rs * np.cos(thetas)
+# traj1_xs[:,2] = rs * np.sin(thetas)
+# traj1_xs += data.site('shoulder1_left').xpos
+# full_traj = traj1_xs
+# targ_traj_mask = np.ones((Tk-1,))
+# targ_traj_mask_type = 'progressive'
 
-print(data.site('hand_left').xpos)
+# # print(data.site('hand_left').xpos, full_traj[0])
+# # print()
 
-noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
+# noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-out_f = Path(str(out_f_base) + '_left.pkl')
+# out_f = Path(str(out_f_base) + '_left.pkl')
 
-if rerun1 or not out_f.exists():
-    ### Get initial stabilizing controls
-    util.reset(model, data, 10, body_pos)
-    ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        joints['body']['body_dofs'], free_ctrls=np.ones((Tk,1)))[:2]
-    util.reset(model, data, 10, body_pos)
-    ctrls, lowest_losses = arm_t.arm_target_traj(
-        env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
-        CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10,
-        right_or_left='left')
-    with open(out_f, 'wb') as f:
-        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
-    # np.save(out_f, ctrls)
-else:
-    with open(out_f, 'rb') as f:
-        load_data = pkl.load(f)
-    ctrls = load_data['ctrls']
-    lowest_losses = load_data['lowest_losses']
+# if rerun1 or not out_f.exists():
+    # ### Get initial stabilizing controls
+    # util.reset(model, data, 10, body_pos)
+    # ctrls, K = opt_utils.get_stabilized_ctrls(
+        # model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
+        # joints['body']['body_dofs'], free_ctrls=np.ones((Tk,1)))[:2]
+    # util.reset(model, data, 10, body_pos)
+    # ctrls, lowest_losses = arm_t.arm_target_traj(
+        # env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
+        # CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10,
+        # right_or_left='left')
+    # with open(out_f, 'wb') as f:
+        # pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses,
+                  # 'ctrls_burn_in': np.zeros((10, model.nu))
+                 # }, f)
+    # # np.save(out_f, ctrls)
+# else:
+    # with open(out_f, 'rb') as f:
+        # load_data = pkl.load(f)
+    # ctrls = load_data['ctrls']
+    # lowest_losses = load_data['lowest_losses']
 
-ctrls_best = lowest_losses.peekitem(0)[1][1]
-util.reset(model, data, 10, body_pos)
-arm_t.forward_to_contact(env, ctrls_best, True)
+# ctrls_best = lowest_losses.peekitem(0)[1][1]
+# util.reset(model, data, 10, body_pos)
+# arm_t.forward_to_contact(env, ctrls_best, True)
 
-breakpoint()
-
-util.reset(model, data, 10, body_pos)
+# util.reset(model, data, 10, body_pos)
+# # print(data.site('hand_left').xpos, full_traj[0])
 
 # Move both arms simultaneously
 rs, thetas = bm.random_arcs_right_arm(model, data, Tk-1,
@@ -193,7 +197,9 @@ if rerun1 or not out_f.exists():
         ctrls, 30, seed,
         CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10)
     with open(out_f, 'wb') as f:
-        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
+        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses,
+                  'ctrls_burn_in': np.zeros((10, model.nu))
+                 }, f)
 else:
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)

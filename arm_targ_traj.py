@@ -211,14 +211,14 @@ def two_arm_target_traj(env,
         grads1, hxs1, dldss1 = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj1, targ_traj_mask1,
             grad_trunc_tk, deriv_ids=right_arm_without_adh,
-            right_or_left='right'
+            deriv_site='hand_right'
         )
         grads1[:Tk1] *= 20
         util.reset_state(data, data0)
         grads2, hxs2, dldss2 = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj2, targ_traj_mask2,
             grad_trunc_tk, deriv_ids=left_arm_without_adh,
-            right_or_left='left'
+            deriv_site='hand_left'
         )
         grads2[:Tk1] *= 20
         loss1 = np.mean(dldss1**2)
@@ -296,6 +296,9 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
 
     qs, qvels = util.forward_sim(model, data, ctrls)
     util.reset_state(data, data0)
+    mj.mj_forward(model, data)
+    print(data.site('hand_left').xpos, target_traj[0])
+    print()
 
     ### Gradient descent
     qpos0 = data.qpos.copy()
@@ -324,28 +327,38 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
             incr_cnt += 1
 
         util.reset_state(data, data0)
+        mj.mj_forward(model, data)
+        # print(data.site('hand_left').xpos, target_traj[0])
+        # print()
         k, ball_contact = forward_to_contact(env, ctrls + noisev,
                                              render=False)
         util.reset_state(data, data0)
+        mj.mj_forward(model, data)
         grads1, hxs1, dldss1 = opt_utils.traj_deriv(
             model, data, ctrls + noisev, target_traj, targ_traj_mask,
             grad_trunc_tk, deriv_ids=arm_a_without_adh,
-            deriv_site='hand_right'
+            deriv_site=deriv_site
         )
         loss1 = np.mean(dldss1**2)
-        util.reset_state(data, data0)
-        grads2, hxs2, dldss2 = opt_utils.traj_deriv(
-            model, data, ctrls + noisev, target_traj, targ_traj_mask,
-            grad_trunc_tk, deriv_ids=arm_a_without_adh,
-            deriv_site='ball_base'
-        )
+        # util.reset_state(data, data0)
+        # mj.mj_forward(model, data)
+        # grads2, hxs2, dldss2 = opt_utils.traj_deriv(
+            # model, data, ctrls + noisev, target_traj, targ_traj_mask,
+            # grad_trunc_tk, deriv_ids=arm_a_without_adh,
+            # deriv_site='ball_base'
+        # )
+        # print(data.site('hand_left').xpos, target_traj[0])
+        # print()
+        # breakpoint()
         # if k0 == max_its-1:
             # util.reset_state(data, data0)
             # hxs22 = forward_with_site(env, ctrls + noisev, 'ball_base',
                                       # render=True)
-        loss2 = .1*np.mean(dldss2**2)
-        loss = loss1 + loss2
-        grads = grads1 + .1*grads2
+        # loss2 = .1*np.mean(dldss2**2)
+        # loss = loss1 + loss2
+        loss = loss1
+        # grads = grads1 + .1*grads2
+        grads = grads1
         ctrls[:, arm_a_without_adh] = optm.update(
             ctrls[:, arm_a_without_adh], grads, 'ctrls', loss)
         # if k0 == max_its-1:
@@ -354,6 +367,7 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
                                       # render=True)
             # breakpoint()
         util.reset_state(data, data0)
+        mj.mj_forward(model, data)
         ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
             model, data, Tk, noisev, qpos0,
             not_arm_a,
@@ -361,7 +375,8 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
         )
         lowest_losses.append(loss.item(), (k0, ctrls.copy()))
         print(loss.item())
-        # util.reset_state(data, data0)
+        util.reset_state(data, data0)
+        mj.mj_forward(model, data)
         # hxs1 = forward_with_site(env, ctrls, 'hand_right', False)
         # loss1 = np.mean((hxs1 - target_traj)**2)
         # util.reset_state(data, data0)
@@ -370,24 +385,25 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
         # loss = loss1 + loss2
         # lowest_losses.append(loss, (k0, ctrls.copy()))
         # print(list(lowest_losses.dict.keys()))
-        print(data.site('hand_left').xpos)
-        breakpoint()
+        # print(data.site('hand_left').xpos)
+        # print()
 
-        fig, ax = plt.subplots()
-        target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
-        ax.plot(tt, hxs1[:,1], color='blue', label='x')
-        ax.plot(tt, hxs2[:,1], '-.', color='blue', label='x_ball')
-        ax.plot(tt, target_traj[:,1], '--', color='blue', label='x_targ')
-        ax.plot(tt, hxs1[:,2], color='red', label='y')
-        ax.plot(tt, hxs2[:,2], '-.', color='red', label='y_ball')
-        ax.plot(tt, target_traj[:,1], '--', color='blue')
-        ax.plot(tt, target_traj[:,2], '--', color='red')
-        ax.legend()
-        plt.show()
+        # fig, ax = plt.subplots()
+        # target_traj = target_traj * targ_traj_mask.reshape(-1, 1)
+        # ax.plot(tt, hxs1[:,1], color='blue', label='x')
+        # # ax.plot(tt, hxs2[:,1], '-.', color='blue', label='x_ball')
+        # ax.plot(tt, target_traj[:,1], '--', color='blue', label='x_targ')
+        # ax.plot(tt, hxs1[:,2], color='red', label='y')
+        # # ax.plot(tt, hxs2[:,2], '-.', color='red', label='y_ball')
+        # ax.plot(tt, target_traj[:,1], '--', color='blue')
+        # ax.plot(tt, target_traj[:,2], '--', color='red')
+        # ax.legend()
+        # plt.show()
     util.reset_state(data, data0) # This is necessary, but why?
+    mj.mj_forward(model, data)
     k, ball_contact = forward_to_contact(env, ctrls + noisev,
                                          render=True)
-    print(hxs2[-5:,:5])
+    # print(hxs2[-5:,:5])
 
     return ctrls, lowest_losses.dict
 
