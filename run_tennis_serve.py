@@ -39,8 +39,8 @@ Tf = 1.8
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -64,7 +64,7 @@ burn_step = int(.1 / dt)
 # reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
 reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
 
-reset()
+ctrls_burn_in = reset()
 
 
 Tk = int(Tf / dt)
@@ -228,11 +228,13 @@ if rerun1 or not out_f.exists():
         grab_time=grab_time
     )
     with open(out_f, 'wb') as f:
-        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
+        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses,
+                 'ctrls_burn_in': ctrls_burn_in}, f)
 else:
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)
     ctrls = load_data['ctrls']
+    ctrls_burn_in = load_data['ctrls_burn_in']
     lowest_losses = load_data['lowest_losses']
 
 ctrls = lowest_losses.peekitem(0)[1][1]
