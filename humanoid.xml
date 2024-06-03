@@ -174,7 +174,7 @@
             <site name="hand_right1" class="hand" pos="0 0 -.025"/> <!--Check size.-->
             <geom name="hand_right2"  type="capsule" pos="0 0 .025" rgba="1 1 .5 1" class="hand"/>
             <site name="hand_right2" class="hand" pos="0 0 .025"/> <!--Check size.-->
-            <joint name="wrist_right" axis="1 0 0" class="wrist"/>
+            <joint name="wrist_right" axis="1 0 0" class="wrist" stiffness="0"/>
               <!--friction="1 0.005 0.03"-->
           </body>
         </body>

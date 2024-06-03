@@ -39,10 +39,10 @@ def throw_traj(model, data, Tk):
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
     Tk1 = int(Tk / 3)
-    Tk2 = int(2*Tk/4)
+    Tk2 = int(2*Tk/3)
     Tk3 = int((Tk+Tk2)/2)
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                                  np.pi/2.5, Tk-Tk2, density_fn='')
+                                  np.pi/2.2, Tk-Tk2, density_fn='')
     grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
     s = sigmoid(np.linspace(0, 1, Tk1), 5)
     s = np.tile(s, (3, 1)).T
@@ -291,14 +291,16 @@ def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=None,
     Tk = ctrls.shape[0]
     contact_cnt = 0
     contact = False
-    adh_ctrl = opt_utils.AdhCtrl(let_go_times, let_go_ids, contact_check_list,
-                                 adh_ids)
+    if contact_check_list is not None:
+        adh_ctrl = opt_utils.AdhCtrl(let_go_times, let_go_ids, contact_check_list,
+                                     adh_ids)
     if noisev is None:
         noisev = np.zeros((Tk, model.nu))
     contacts = np.zeros((Tk, 2))
     for k in range(Tk):
-        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
-        contacts[k] = [cont_k1, cont_k2]
+        if contact_check_list is not None:
+            ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
+            contacts[k] = [cont_k1, cont_k2]
         util.step(model, data, ctrls[k] + noisev[k])
         if render:
             env.render()
