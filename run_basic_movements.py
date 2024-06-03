@@ -69,8 +69,8 @@ Tk = int(Tf / dt)
 
 # Adam
 opt = 'adam'
-lr = .001
-lr2 = .0005
+lr = .0001
+lr2 = .00005
 # lr = 1
 # lr2 = .5
 
@@ -94,25 +94,44 @@ grab_tk = int(grab_t/dt)
 
 
 # Move both arms simultaneously
-rs, thetas = bm.random_arcs_right_arm(model, data, Tk-1,
+joints = opt_utils.get_joint_ids(model)
+acts = opt_utils.get_act_ids(model)
+
+two_arm_idxs = arm_t.two_arm_idxs(model)
+site_grad_idxs = [two_arm_idxs['right_arm_without_adh'],
+                  two_arm_idxs['left_arm_without_adh']]
+stabilize_jnt_idx = two_arm_idxs['not_arm_j']
+stabilize_act_idx = two_arm_idxs['not_arm_a']
+
+q_targ = np.zeros((Tk, 2*model.nq))
+# q_targs = [np.zeros((Tk, 2*model.nq))]*4
+# q_targ_masks = [np.zeros((Tk, 2*model.nq))]*4
+q_targ_mask = np.ones((Tk,2*model.nq))
+
+K = 400
+rs, thetas, qs = bm.random_arcs_right_arm(model, data, Tk-K,
                                       data.site('hand_right').xpos)
-traj1_xs = np.zeros((Tk-1, 3))
-traj1_xs[:,1] = rs * np.cos(thetas)
-traj1_xs[:,2] = rs * np.sin(thetas)
+traj1_xs = np.zeros((Tk, 3))
+traj1_xs[:K] = data.site('hand_right').xpos
+traj1_xs[K:,1] = rs * np.cos(thetas)
+traj1_xs[K:,2] = rs * np.sin(thetas)
 traj1_xs += data.site('shoulder1_right').xpos
 full_traj1 = traj1_xs
-targ_traj_mask1 = np.ones((Tk-1,))
+targ_traj_mask1 = np.ones((Tk,))
 targ_traj_mask_type1 = 'double_sided_progressive'
+q_targ[K:, joints['all']['wrist_right']] = qs
 
-rs, thetas = bm.random_arcs_left_arm(model, data, Tk-1,
+rs, thetas, qs = bm.random_arcs_left_arm(model, data, Tk-K,
                                       data.site('hand_left').xpos)
-traj2_xs = np.zeros((Tk-1, 3))
-traj2_xs[:,1] = rs * np.cos(thetas)
-traj2_xs[:,2] = rs * np.sin(thetas)
+traj2_xs = np.zeros((Tk, 3))
+traj1_xs[:K] = data.site('hand_left').xpos
+traj2_xs[K:,1] = rs * np.cos(thetas)
+traj2_xs[K:,2] = rs * np.sin(thetas)
 traj2_xs += data.site('shoulder1_left').xpos
 full_traj2 = traj2_xs
-targ_traj_mask2 = np.ones((Tk-1,))
+targ_traj_mask2 = np.ones((Tk,))
 targ_traj_mask_type2 = 'double_sided_progressive'
+q_targ[K:, joints['all']['wrist_left']] = qs
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -120,12 +139,6 @@ sites = ['hand_right', 'hand_left']
 full_trajs = [full_traj1, full_traj2]
 masks = [targ_traj_mask1, targ_traj_mask2]
 mask_types = [targ_traj_mask_type1, targ_traj_mask_type2]
-
-two_arm_idxs = arm_t.two_arm_idxs(model)
-site_grad_idxs = [two_arm_idxs['right_arm_without_adh'],
-                  two_arm_idxs['left_arm_without_adh']]
-stabilize_jnt_idx = two_arm_idxs['not_arm_j']
-stabilize_act_idx = two_arm_idxs['not_arm_a']
 
 out_f = Path(str(out_f_base) + '_both.pkl')
 
@@ -142,7 +155,7 @@ out_f = Path(str(out_f_base) + '_both.pkl')
 # acts = opt_utils.get_act_ids(model)
 
 
-# bodyj = joints['body']['body_dofs']
+bodyj = joints['body']['body_dofs']
 
 # sites = ['hand_right', 'hand_left', 'racket_handle_top', 'ball']
 # sites = ['hand_right', 'hand_left', 'racket_handle_top']
@@ -166,26 +179,22 @@ out_f = Path(str(out_f_base) + '_both.pkl')
 
 # tmp = util.get_contact_pairs(model, data)
 
-q_targ = np.zeros((Tk, 2*model.nq))
-# q_targs = [np.zeros((Tk, 2*model.nq))]*4
-# q_targ_masks = [np.zeros((Tk, 2*model.nq))]*4
-q_targ_mask = np.ones((Tk,2*model.nq))
 # arm_vels = [model.nv + x for x in joints['body']['right_arm']]
 # p1_dur_k = int(.1 / dt)
 # q_targ_mask[grab_tk-p1_dur_k:grab_tk, arm_vels] = 1
 q_targ_mask2 = np.ones((Tk,2*model.nq))
-q_targ_nz = np.linspace(0, -2.44, time_dict['t_left_2']-time_dict['t_left_1'])
-q_targ[time_dict['t_left_1']:time_dict['t_left_2'], 
-        joints['all']['wrist_left']] = q_targ_nz
-q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = -2.44
+# q_targ_nz = np.linspace(0, -2.44, time_dict['t_left_2']-time_dict['t_left_1'])
+# q_targ[time_dict['t_left_1']:time_dict['t_left_2'], 
+        # joints['all']['wrist_left']] = q_targ_nz
+# q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = -2.44
 # q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
-q_targ_masks = [q_targ_mask, q_targ_mask2]
-q_targ_mask_types = ['const']*4
-q_targ_mask_types = ['const']*3
+q_targ_masks = [q_targ_mask, q_targ_mask]
+# q_targ_mask_types = ['const']*4
+# q_targ_mask_types = ['const']*3
 q_targ_mask_types = ['const']*2
-q_targs = [q_targ]*4
-q_targs = [q_targ]*3
-q_targs = [q_targ]*2
+# q_targs = [q_targ]*4
+# q_targs = [q_targ]*3
+q_targs = [q_targ]*2 #TODO: fix this -- probably double counts the gradient
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -196,13 +205,13 @@ tt = np.arange(0, Tf, dt)
 # left_adh_act_vals = np.ones((Tk-1, 1))
 # left_adh_act_vals[time_dict['t_left_3']:] = 0
 
-incr_every = 50
+incr_every = 100
 # incr_every = 20
 # incr_every = 30
 # grab_t = Tf / 2
 # t_incr = 0.08
 # t_incr = Tf * .08
-t_incr = Tf
+t_incr = Tf / 3
 amnt_to_incr = int(t_incr/dt)
 # t_grad = 0.05
 # t_grad = Tf * .04

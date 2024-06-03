@@ -226,13 +226,13 @@ def get_Q_joint(model, data=None, excluded_acts=[]):
 
 def get_Q_matrix(model, data, excluded_state_inds=[]):
     # Cost coefficients.
-    balance_cost        = 1000  # Balancing.
+    balance_cost        = 50000  # Balancing.
 
     Qbalance = get_Q_balance(model, data)
     Qjoint = get_Q_joint(model, data, excluded_state_inds)
     # Construct the Q matrix for position DoFs.
     Qpos = balance_cost * Qbalance + Qjoint
-    Qpos = balance_cost * Qbalance + 100*Qjoint
+    Qpos = balance_cost * Qbalance + 50*Qjoint
     # Qpos = 1000*Qjoint
 
     # No explicit penalty for velocities.
@@ -518,7 +518,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                            adh_ids)
 
     q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
-    vel_penalty_factor = 1e-2
+    vel_penalty_factor = 1e-6
 
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
