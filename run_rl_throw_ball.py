@@ -9,6 +9,7 @@ import arm_targ_traj as arm_t
 import basic_movements as bm
 from matplotlib import pyplot as plt
 import torch
+import mujoco as mj
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -27,7 +28,7 @@ out_f = outdir/'ball_throw_ctrl.pkl'
 
 max_its = 400
 
-Tf = 1.8
+Tf = .6
 
 CTRL_STD = 0
 CTRL_RATE = 1
@@ -56,7 +57,7 @@ burn_step = int(.1 / dt)
 # reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
 reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
 
-reset()
+ctrls_burn_in = reset()
 
 Tk = int(Tf / dt)
 
@@ -103,6 +104,8 @@ joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
 bodyj = joints['body']['body_dofs']
+# bodyj.sort()
+# bodyj = joints['body']['all']
 
 # sites = ['hand_right', 'hand_left', 'racket_handle_top', 'ball']
 # sites = ['hand_right', 'hand_left', 'racket_handle_top']
@@ -182,7 +185,7 @@ t_grad = Tf * .1 #TODO: check if this is better in run_tennis_serve.py
 # grad_update_every = 10
 grad_update_every = 10
 grad_trunc_tk = int(t_grad/(grad_update_every*dt))
-grab_phase_it=40
+grab_phase_it=20
 # grab_phase_it=0
 
 # contact_check_list = [['racket_handle', 'hand_right1'], ['racket_handle', 'hand_right2'],
@@ -213,7 +216,7 @@ if rerun1 or not out_f.exists():
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     reset()
-    # arm_t.forward_to_contact(env, ctrls, True)
+    # arm_t.forward_to_contact(env, ctrls, render=True)
     # reset()
     # breakpoint()
     ctrls, lowest_losses = arm_t.arm_target_traj(
@@ -234,16 +237,23 @@ if rerun1 or not out_f.exists():
         grab_time=grab_time
     )
     with open(out_f, 'wb') as f:
-        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
+        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses,
+                  'ctrls_burn_in': ctrls_burn_in}, f)
 else:
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)
     ctrls = load_data['ctrls']
+    ctrls_burn_in = load_data['ctrls_burn_in']
     lowest_losses = load_data['lowest_losses']
 
 ctrls = lowest_losses.peekitem(0)[1][1]
 ctrls_end = np.zeros((Tk, model.nu))
 ctrls_full = np.vstack((ctrls, ctrls_end))
+mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
+util.forward_sim(model, data, ctrls_burn_in)
+# reset()
+# for tk in range(ctrls_burn_in.shape[0]):
+    # mj
 hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
 # qs_wr = qs[:, joints['all']['wrist_left']]
 qs_wr = qs[:, joints['all']['wrist_right']]
@@ -260,7 +270,9 @@ while True:
     # plt.show()
     fig.show()
     plt.pause(1)
-    reset()
+    mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
+    util.forward_sim(model, data, ctrls_burn_in)
+    # reset()
     arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     # reset()

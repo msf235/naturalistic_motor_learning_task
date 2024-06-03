@@ -232,7 +232,7 @@ def get_Q_matrix(model, data, excluded_state_inds=[]):
     Qjoint = get_Q_joint(model, data, excluded_state_inds)
     # Construct the Q matrix for position DoFs.
     Qpos = balance_cost * Qbalance + Qjoint
-    Qpos = balance_cost * Qbalance + 10*Qjoint
+    Qpos = balance_cost * Qbalance + 100*Qjoint
     # Qpos = 1000*Qjoint
 
     # No explicit penalty for velocities.
@@ -641,7 +641,9 @@ def reset(model, data, nsteps1, nsteps2, keyframe_name=None):
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
     bodyj = joints['body']['body_dofs']
-    get_stabilized_ctrls(
+    ctrls = get_stabilized_ctrls(
         model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
         bodyj, free_ctrls=np.ones((nsteps2, len(acts['adh'])))
-    )
+    )[0]
+    ctrls = np.vstack((np.zeros((nsteps1, model.nu)), ctrls))
+    return ctrls
