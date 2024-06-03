@@ -297,8 +297,6 @@ def arm_target_traj(env, target_traj, targ_traj_mask, targ_traj_mask_type,
     qs, qvels = util.forward_sim(model, data, ctrls)
     util.reset_state(data, data0)
     mj.mj_forward(model, data)
-    print(data.site('hand_left').xpos, target_traj[0])
-    print()
 
     ### Gradient descent
     qpos0 = data.qpos.copy()
