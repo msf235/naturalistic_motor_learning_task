@@ -9,6 +9,7 @@ import arm_targ_traj as arm_t
 import basic_movements as bm
 from matplotlib import pyplot as plt
 import torch
+import mujoco as mj
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -46,7 +47,6 @@ render_mode = 'human'
 # render_mode = 'rgb_array'
 
 keyframe = 'wide_tennis_pos'
-
 
 # Create a Humanoid2dEnv object
 env = humanoid2d.Humanoid2dEnv(
@@ -177,11 +177,12 @@ incr_every = 50
 t_incr = Tf
 amnt_to_incr = int(t_incr/dt)
 # t_grad = 0.05
-t_grad = Tf * .04
+# t_grad = Tf * .04
+t_grad = Tf * 1
 # grad_update_every = 10
 grad_update_every = 10
 grad_trunc_tk = int(t_grad/(grad_update_every*dt))
-grab_phase_it=40
+grab_phase_it=20
 # grab_phase_it=0
 
 contact_check_list = [['racket_handle', 'hand_right1'], ['racket_handle', 'hand_right2'],
@@ -242,7 +243,11 @@ else:
     ctrls_burn_in = load_data['ctrls_burn_in']
     lowest_losses = load_data['lowest_losses']
 
-ctrls = lowest_losses.peekitem(0)[1][1]
+ctrls = lowest_losses.peekitem(1)[1][1]
+ctrls_end = np.zeros((Tk, model.nu))
+ctrls_full = np.vstack((ctrls, ctrls_end))
+mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
+util.forward_sim(model, data, ctrls_burn_in)
 hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
 qs_wr = qs[:, joints['all']['wrist_left']]
 q_targs_wr = q_targ[:, joints['all']['wrist_left']]
@@ -256,8 +261,10 @@ while True:
     # plt.show()
     fig.show()
     plt.pause(1)
-    reset()
-    hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=True)
+    # reset()
+    mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
+    util.forward_sim(model, data, ctrls_burn_in)
+    arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     # reset()
 
