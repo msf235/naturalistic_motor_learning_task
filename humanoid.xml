@@ -53,7 +53,9 @@
         <geom size=".031"/>
       </default>
       <default class="hand">
-        <geom type="sphere" size=".04"/>
+        <!--<geom type="sphere" size=".04"/>-->
+        <geom type="capsule" margin=".003" gap=".003"  size=".03 .025"/>
+        <site size=".01" pos="0 0 0" rgba="1 1 .5 0"/>
       </default>
 
       <!-- joints -->
@@ -92,6 +94,9 @@
       </default>
       <default class="elbow">
         <joint range="-100 85" stiffness="0"/>
+      </default>
+      <default class="wrist">
+        <joint range="-140 85" stiffness="3" pos="0 0 0"/>
       </default>
     </default>
   </default>
@@ -157,32 +162,41 @@
       </body>
       <!--Modified for 2d-->
       <body name="upper_arm_right" pos="0 -.17 .06">
-        <site name="shoulder1_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
+        <site name="shoulder1_right" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
         <joint name="shoulder1_right" axis="1 0 0"  class="shoulder"/>
         <geom name="upper_arm_right" fromto="0 0 0 0 -.16 -.16" class="arm_upper"/>
         <body name="lower_arm_right" pos="0 -.18 -.18">
           <joint name="elbow_right" axis="1 0 0" class="elbow"/>
-          <site name="elbow_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
+          <site name="elbow_right" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
           <geom name="lower_arm_right" fromto="0 .01 .01 0 -.17 .17" class="arm_lower"/>
           <body name="hand_right" pos="0 -.18 .18">
-            <site name="hand_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
-            <geom name="hand_right" zaxis="1 1 1" class="hand" margin=".01"
-              gap=".01" friction="1 0.005 0.03"/>
+            <site name="hand_right" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
+            <!--<geom name="hand_right" zaxis="1 1 1" class="hand" margin=".01"-->
+              <!--gap=".01" friction="1 0.005 0.03"/>-->
+            <geom name="hand_right1" type="capsule" pos="0 0 -.025" class="hand"/>
+            <site name="hand_right1" class="hand" pos="0 0 -.025"/> <!--Check size.-->
+            <geom name="hand_right2"  type="capsule" pos="0 0 .025" rgba="1 1 .5 1" class="hand"/>
+            <site name="hand_right2" class="hand" pos="0 0 .025"/> <!--Check size.-->
+            <joint name="wrist_right" axis="1 0 0" class="wrist" stiffness="0"/>
           </body>
         </body>
       </body>
       <!--Modified for 2d-->
       <body name="upper_arm_left" pos="0 .17 .06">
         <joint name="shoulder1_left" axis="-1 0 0" class="shoulder"/>
-        <site name="shoulder1_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
+        <site name="shoulder1_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
         <geom name="upper_arm_left" fromto="0 0 0 0 .16 -.16" class="arm_upper"/>
         <body name="lower_arm_left" pos="0 .18 -.18">
           <joint name="elbow_left" axis="-1 0 0" class="elbow"/>
-          <site name="elbow_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
+          <site name="elbow_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
           <geom name="lower_arm_left" fromto="0 -.01 .01 0 .17 .17" class="arm_lower"/>
           <body name="hand_left" pos="0 .18 .18">
-            <site name="hand_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
+            <site name="hand_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
             <geom name="hand_left" zaxis="1 -1 1" class="hand"/>
+            <geom name="hand_left1" type="capsule" class="hand" pos="0 0 -.025"/>
+            <site name="hand_left1" class="hand" pos="0 0 -.025"/>
+            <geom name="hand_left2" type="capsule" class="hand"
+              pos="0 0 .025" rgba="1 1 .5 1"/>
           </body>
         </body>
       </body>

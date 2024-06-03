@@ -29,6 +29,10 @@
   </visual>
   <keyframe>
     <key name="baseball_pos"
-      qpos="0 0 0 0 0 0 0 -.3 0 0 0 0 0 0 0"/>
+      qpos="
+      0 0 0 0
+      0 0 0 -.3
+      0 0 0 0
+      0 0 0 0"/>
   </keyframe>
 </mujoco>

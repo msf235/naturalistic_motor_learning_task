@@ -24,7 +24,7 @@ outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
-seed = 2
+seed = 3
 out_f_base = outdir/'move_right_arm_ctrl'
 
 Tk = 120
@@ -59,51 +59,51 @@ data = env.data
 
 util.reset(model, data, 10, body_pos)
 
-# Move right arm while keeping left arm fixed
-rs, thetas = bm.random_arcs_right_arm(model, data, Tk-1,
-                                      data.site('hand_right').xpos)
-traj1_xs = np.zeros((Tk-1, 3))
-traj1_xs[:,1] = rs * np.cos(thetas)
-traj1_xs[:,2] = rs * np.sin(thetas)
-traj1_xs += data.site('shoulder1_right').xpos
-full_traj = traj1_xs
-targ_traj_mask = np.ones((Tk-1,))
-targ_traj_mask_type = 'progressive'
-
-noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
-
 np.random.seed(seed)
 torch.manual_seed(seed)
 
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
-out_f = Path(str(out_f_base) + '_right.pkl')
+# # Move right arm while keeping left arm fixed
+# rs, thetas = bm.random_arcs_right_arm(model, data, Tk-1,
+                                      # data.site('hand_right').xpos)
+# traj1_xs = np.zeros((Tk-1, 3))
+# traj1_xs[:,1] = rs * np.cos(thetas)
+# traj1_xs[:,2] = rs * np.sin(thetas)
+# traj1_xs += data.site('shoulder1_right').xpos
+# full_traj = traj1_xs
+# targ_traj_mask = np.ones((Tk-1,))
+# targ_traj_mask_type = 'progressive'
 
-if rerun1 or not out_f.exists():
-    ### Get initial stabilizing controls
-    util.reset(model, data, 10, body_pos)
-    ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        joints['body']['body_dofs'], free_ctrls=np.ones((Tk,len(acts['adh'])))
-    )[:2]
-    util.reset(model, data, 10, body_pos)
-    ctrls, lowest_losses = arm_t.arm_target_traj(
-        env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
-        CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10,
-        right_or_left='right')
-    with open(out_f, 'wb') as f:
-        pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
-    # np.save(out_f, ctrls)
-else:
-    with open(out_f, 'rb') as f:
-        load_data = pkl.load(f)
-    ctrls = load_data['ctrls']
-    lowest_losses = load_data['lowest_losses']
+# noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-ctrls_best = lowest_losses.peekitem(0)[1][1]
-util.reset(model, data, 10, body_pos)
-arm_t.forward_to_contact(env, ctrls_best, True)
+# out_f = Path(str(out_f_base) + '_right.pkl')
+
+# if rerun1 or not out_f.exists():
+    # ### Get initial stabilizing controls
+    # util.reset(model, data, 10, body_pos)
+    # ctrls, K = opt_utils.get_stabilized_ctrls(
+        # model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
+        # joints['body']['body_dofs'], free_ctrls=np.ones((Tk,len(acts['adh'])))
+    # )[:2]
+    # util.reset(model, data, 10, body_pos)
+    # ctrls, lowest_losses = arm_t.arm_target_traj(
+        # env, full_traj, targ_traj_mask, targ_traj_mask_type, ctrls, 30, seed,
+        # CTRL_RATE, CTRL_STD, Tk, lr=lr, max_its=max_its, keep_top=10,
+        # right_or_left='right')
+    # with open(out_f, 'wb') as f:
+        # pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses}, f)
+    # # np.save(out_f, ctrls)
+# else:
+    # with open(out_f, 'rb') as f:
+        # load_data = pkl.load(f)
+    # ctrls = load_data['ctrls']
+    # lowest_losses = load_data['lowest_losses']
+
+# ctrls_best = lowest_losses.peekitem(0)[1][1]
+# util.reset(model, data, 10, body_pos)
+# arm_t.forward_to_contact(env, ctrls_best, True)
 
 util.reset(model, data, 10, body_pos)
 
@@ -117,6 +117,8 @@ traj1_xs += data.site('shoulder1_left').xpos
 full_traj = traj1_xs
 targ_traj_mask = np.ones((Tk-1,))
 targ_traj_mask_type = 'progressive'
+
+print(data.site('hand_left').xpos)
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -145,6 +147,8 @@ else:
 ctrls_best = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, 10, body_pos)
 arm_t.forward_to_contact(env, ctrls_best, True)
+
+breakpoint()
 
 util.reset(model, data, 10, body_pos)
 

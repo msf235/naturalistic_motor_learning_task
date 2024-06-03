@@ -58,14 +58,14 @@ def reset(model, data, nsteps, humanoid_x0=None):
     for k in range(nsteps):
         mj.mj_step(model, data)
 
-def reset_state(data_from, data_to):
+def reset_state(data_to, data_from):
     """Resets the state of `data_to` to that of `data_from`."""
-    data_from.qpos[:] = data_to.qpos.copy()
-    data_from.qvel[:] = data_to.qvel.copy()
-    data_from.qacc[:] = data_to.qacc.copy()
-    data_from.act[:] = data_to.act.copy()
-    data_from.ctrl[:] = data_to.ctrl.copy()
-    data_from.time = data_to.time
+    data_to.qpos[:] = data_from.qpos.copy()
+    data_to.qvel[:] = data_from.qvel.copy()
+    data_to.qacc[:] = data_from.qacc.copy()
+    data_to.act[:]  = data_from.act.copy()
+    data_to.ctrl[:] = data_from.ctrl.copy()
+    data_to.time = data_from.time
     # data_from.qfrc_applied[:] = data_to.qfrc_applied.copy()
     # state = get_state(data_from)
     # set_state(data_to, state)
