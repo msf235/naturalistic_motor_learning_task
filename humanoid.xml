@@ -14,7 +14,6 @@
 -->
 
 <mujoco model="Humanoid">
-  <option timestep="0.005"/>
   <statistic center="0 0 0.7"/>
 
   <asset>
@@ -27,8 +26,6 @@
     <motor ctrlrange="-1 1" ctrllimited="true"/>
     <!--<adhesion ctrlrange="0 1"/>-->
     <default class="body">
-
-      <!-- geoms -->
       <geom type="capsule" condim="1" friction=".7" solimp=".9 .99 .003"
         solref=".015 1" material="body" group="1"/>
       <default class="thigh">
@@ -55,7 +52,7 @@
       <default class="hand">
         <!--<geom type="sphere" size=".04"/>-->
         <geom type="capsule" margin=".003" gap=".003"  size=".03 .025"/>
-        <site size=".01" pos="0 0 0" rgba="1 1 .5 0"/>
+        <site size=".01" pos="0 0 0" rgba="1 1 .5 .7"/>
       </default>
 
       <!-- joints -->
@@ -154,6 +151,7 @@
                 <!--<joint name="ankle_y_left" class="ankle_y"/>-->
                 <!--<joint name="ankle_x_left" class="ankle_x" axis="-1 0 -.5"/>-->
                 <geom name="foot1_left" class="foot1"/>
+                <site name="foot_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
                 <geom name="foot2_left" class="foot2"/>
               </body>
             </body>
@@ -162,41 +160,43 @@
       </body>
       <!--Modified for 2d-->
       <body name="upper_arm_right" pos="0 -.17 .06">
-        <site name="shoulder1_right" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
+        <site name="shoulder1_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
         <joint name="shoulder1_right" axis="1 0 0"  class="shoulder"/>
         <geom name="upper_arm_right" fromto="0 0 0 0 -.16 -.16" class="arm_upper"/>
         <body name="lower_arm_right" pos="0 -.18 -.18">
           <joint name="elbow_right" axis="1 0 0" class="elbow"/>
-          <site name="elbow_right" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
+          <site name="elbow_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
           <geom name="lower_arm_right" fromto="0 .01 .01 0 -.17 .17" class="arm_lower"/>
-          <body name="hand_right" pos="0 -.18 .18">
-            <site name="hand_right" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
-            <!--<geom name="hand_right" zaxis="1 1 1" class="hand" margin=".01"-->
-              <!--gap=".01" friction="1 0.005 0.03"/>-->
+          <body name="hand_right" pos="0 -.18 .18" zaxis="0 -1 1.5">
+            <site name="hand_right" class="hand"/>
+            <!--<geom name="hand_right" zaxis="0 -1 1.5" class="hand" />-->
             <geom name="hand_right1" type="capsule" pos="0 0 -.025" class="hand"/>
             <site name="hand_right1" class="hand" pos="0 0 -.025"/> <!--Check size.-->
             <geom name="hand_right2"  type="capsule" pos="0 0 .025" rgba="1 1 .5 1" class="hand"/>
             <site name="hand_right2" class="hand" pos="0 0 .025"/> <!--Check size.-->
             <joint name="wrist_right" axis="1 0 0" class="wrist" stiffness="0"/>
+              <!--friction="1 0.005 0.03"-->
           </body>
         </body>
       </body>
       <!--Modified for 2d-->
       <body name="upper_arm_left" pos="0 .17 .06">
         <joint name="shoulder1_left" axis="-1 0 0" class="shoulder"/>
-        <site name="shoulder1_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
+        <site name="shoulder1_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
         <geom name="upper_arm_left" fromto="0 0 0 0 .16 -.16" class="arm_upper"/>
         <body name="lower_arm_left" pos="0 .18 -.18">
           <joint name="elbow_left" axis="-1 0 0" class="elbow"/>
-          <site name="elbow_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
+          <site name="elbow_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
           <geom name="lower_arm_left" fromto="0 -.01 .01 0 .17 .17" class="arm_lower"/>
-          <body name="hand_left" pos="0 .18 .18">
-            <site name="hand_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
-            <geom name="hand_left" zaxis="1 -1 1" class="hand"/>
+          <body name="hand_left" pos="0 .18 .18" zaxis="0 1 1.5">
+            <site name="hand_left" class="hand" />
+            <!--<geom name="hand_left" zaxis="0 1 2" class="hand"/>-->
             <geom name="hand_left1" type="capsule" class="hand" pos="0 0 -.025"/>
             <site name="hand_left1" class="hand" pos="0 0 -.025"/>
             <geom name="hand_left2" type="capsule" class="hand"
               pos="0 0 .025" rgba="1 1 .5 1"/>
+            <site name="hand_left2" class="hand" pos="0 0 .025"/>
+            <joint name="wrist_left" axis="-1 0 0" class="wrist" stiffness="0"/>
           </body>
         </body>
       </body>
@@ -237,17 +237,25 @@
     <!--<motor name="knee_left"       gear="80"  joint="knee_left"/>-->
     <!--<motor name="ankle_y_left"    gear="20"  joint="ankle_y_left"/>-->
     <!--<motor name="ankle_x_left"    gear="20"  joint="ankle_x_left"/>-->
-    <motor name="shoulder1_right" gear="20"  joint="shoulder1_right"/>
+    <motor name="shoulder1_right" gear="100"  joint="shoulder1_right"/>
     <!--<motor name="shoulder2_right" gear="20"  joint="shoulder2_right"/>-->
-    <motor name="elbow_right"     gear="40"  joint="elbow_right"/>
-    <motor name="shoulder1_left"  gear="20"  joint="shoulder1_left"/>
+    <motor name="elbow_right"     gear="100"  joint="elbow_right"/>
+    <motor name="shoulder1_left"  gear="100"  joint="shoulder1_left"/>
     <!--<motor name="shoulder2_left"  gear="20"  joint="shoulder2_left"/>-->
-    <motor name="elbow_left"      gear="40"  joint="elbow_left"/>
-    <adhesion name="hand_right_adh" body="hand_right" gain="200"
+    <motor name="elbow_left"      gear="100"  joint="elbow_left"/>
+    <motor name="wrist_left"      gear="40"  joint="wrist_left"/>
+    <adhesion name="hand_right_adh" body="hand_right" gain="3000"
       ctrlrange="0 1"/>
-    <adhesion name="hand_left_adh" body="hand_left" gain="200"
+    <adhesion name="hand_left_adh" body="hand_left" gain="700"
       ctrlrange="0 1"/>
   </actuator>
+
+  <sensor>
+    <touch name="hand_right1" site="hand_right1"/>
+    <touch name="hand_right2" site="hand_right2"/>
+    <touch name="hand_left1" site="hand_left1"/>
+    <touch name="hand_left2" site="hand_left2"/>
+  </sensor>
 
   <!--<keyframe>-->
     <!--<!---->
