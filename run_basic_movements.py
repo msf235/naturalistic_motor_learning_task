@@ -37,8 +37,8 @@ max_its = 200
 CTRL_STD = 0
 CTRL_RATE = 1
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 
 # render_mode = 'human'
 render_mode = 'rgb_array'
@@ -113,21 +113,22 @@ else:
 
 tt = np.arange(0, (Tk-1)*model.opt.timestep, model.opt.timestep)
 ctrls = lowest_losses.peekitem(0)[1][1]
-util.reset(model, data, burn_steps, body_pos)
-hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', True)
+# util.reset(model, data, burn_steps, body_pos)
+# hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', True)
 # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-fig, ax = plt.subplots()
-target_traj = full_traj * targ_traj_mask.reshape(-1, 1)
-# ax = axs[0]
-ax.plot(tt, hxs1[:,1], color='blue', label='x')
-ax.plot(tt, target_traj[:,1], '--', color='blue')
-ax.plot(tt, hxs1[:,2], color='red', label='y')
-ax.plot(tt, target_traj[:,2], '--', color='red')
-ax.set_title('Right hand')
-ax.legend()
-plt.show()
+# fig, ax = plt.subplots()
+# target_traj = full_traj * targ_traj_mask.reshape(-1, 1)
+# # ax = axs[0]
+# ax.plot(tt, hxs1[:,1], color='blue', label='x')
+# ax.plot(tt, target_traj[:,1], '--', color='blue')
+# ax.plot(tt, hxs1[:,2], color='red', label='y')
+# ax.plot(tt, target_traj[:,2], '--', color='red')
+# ax.set_title('Right hand')
+# ax.legend()
+# plt.show()
 util.reset(model, data, burn_steps, body_pos)
 arm_t.forward_to_contact(env, ctrls, True)
+breakpoint()
 
 util.reset(model, data, burn_steps, body_pos)
 
