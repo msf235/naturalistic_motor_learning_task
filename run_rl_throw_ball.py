@@ -10,6 +10,7 @@ import basic_movements as bm
 from matplotlib import pyplot as plt
 import torch
 import mujoco as mj
+import time
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -21,12 +22,14 @@ DEFAULT_CAMERA_CONFIG = {
 
 outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
+savedir = Path('data')
+savedir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
 seed = 2
-out_f = outdir/'ball_throw_ctrl.pkl'
+out_f = outdir/f'ball_throw_ctrl_seed_{seed}_3.pkl'
 
-max_its = 400
+max_its = 300
 
 Tf = .6
 
@@ -247,33 +250,36 @@ else:
     lowest_losses = load_data['lowest_losses']
 
 ctrls = lowest_losses.peekitem(0)[1][1]
-ctrls_end = np.zeros((Tk, model.nu))
+Te = 3
+Tke = int(3 / dt)
+ctrls_end = np.zeros((Tke, model.nu))
 ctrls_full = np.vstack((ctrls, ctrls_end))
-mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
-util.forward_sim(model, data, ctrls_burn_in)
+# mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
+# util.forward_sim(model, data, ctrls_burn_in)
 # reset()
 # for tk in range(ctrls_burn_in.shape[0]):
     # mj
-hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
-# qs_wr = qs[:, joints['all']['wrist_left']]
-qs_wr = qs[:, joints['all']['wrist_right']]
-# q_targs_wr = q_targ[:, joints['all']['wrist_left']]
-q_targs_wr = q_targ[:, joints['all']['wrist_right']]
-grads = np.nan*np.ones((len(sites),) + ctrls.shape)
-fig, axs = plt.subplots(3, n, figsize=(5*n, 5))
-axs = axs.reshape((3, 1))
+# hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
+# # qs_wr = qs[:, joints['all']['wrist_left']]
+# qs_wr = qs[:, joints['all']['wrist_right']]
+# # q_targs_wr = q_targ[:, joints['all']['wrist_left']]
+# q_targs_wr = q_targ[:, joints['all']['wrist_right']]
+# grads = np.nan*np.ones((len(sites),) + ctrls.shape)
+# fig, axs = plt.subplots(3, n, figsize=(5*n, 5))
+# axs = axs.reshape((3, 1))
 while True:
-    arm_t.show_plot(hxs, full_trajs, masks,
-                    # qs_wr, q_targs_wr,
-                    sites, site_grad_idxs, ctrls, axs,
-                    grads, tt)
-    # plt.show()
-    fig.show()
-    plt.pause(1)
-    mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
-    util.forward_sim(model, data, ctrls_burn_in)
-    # reset()
+    # arm_t.show_plot(hxs, full_trajs, masks,
+                    # # qs_wr, q_targs_wr,
+                    # sites, site_grad_idxs, ctrls, axs,
+                    # grads, tt)
+    # # plt.show()
+    # fig.show()
+    # plt.pause(1)
+    # mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
+    # util.forward_sim(model, data, ctrls_burn_in)
+    reset()
     arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
+    time.sleep(10)
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     # reset()
 
