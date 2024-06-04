@@ -9,6 +9,7 @@ import arm_targ_traj as arm_t
 import basic_movements as bm
 from matplotlib import pyplot as plt
 import torch
+import time
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -38,8 +39,8 @@ env = humanoid2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
-out_f = outdir/'tennis_ctrl_working3.pkl'
-save_str = str(savedir/'tennis_working3')
+out_f = outdir/'tennis_ctrl_working2.pkl'
+save_str = str(savedir/'tennis_working2')
 dt = model.opt.timestep
 Ta = 2
 Tk = int(Ta / dt)
@@ -86,3 +87,5 @@ while True:
     # plt.pause(1)
     reset()
     arm_t.forward_with_sites(env, ctrls, sites, render=True)
+    print('waiting')
+    time.sleep(20)

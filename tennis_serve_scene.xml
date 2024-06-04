@@ -94,7 +94,7 @@
         range="-1000 1000"/>
     </body>
 
-    <body name="target" pos="0 2 .5">
+    <body name="target" pos="0 2 .8">
       <geom name="target" type="cylinder" pos="0 0 0" size="1 .05"
         zaxis="0 1 0"/>
       <site name="bullseye" pos="0 -.05 0" size="0.06" rgba="1 1 1 1"/>

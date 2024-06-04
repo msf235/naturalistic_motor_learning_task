@@ -52,7 +52,7 @@
       <default class="hand">
         <!--<geom type="sphere" size=".04"/>-->
         <geom type="capsule" margin=".002" gap=".002"  size=".03 .025"/>
-        <site size=".01" pos="0 0 0" rgba="1 1 .5 .7"/>
+        <site size=".01" pos="0 0 0" rgba="1 1 .5 0"/>
       </default>
 
       <!-- joints -->
@@ -151,7 +151,7 @@
                 <!--<joint name="ankle_y_left" class="ankle_y"/>-->
                 <!--<joint name="ankle_x_left" class="ankle_x" axis="-1 0 -.5"/>-->
                 <geom name="foot1_left" class="foot1"/>
-                <site name="foot_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
+                <site name="foot_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
                 <geom name="foot2_left" class="foot2"/>
               </body>
             </body>
@@ -160,12 +160,12 @@
       </body>
       <!--Modified for 2d-->
       <body name="upper_arm_right" pos="0 -.17 .06">
-        <site name="shoulder1_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
+        <site name="shoulder1_right" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
         <joint name="shoulder1_right" axis="1 0 0"  class="shoulder"/>
         <geom name="upper_arm_right" fromto="0 0 0 0 -.16 -.16" class="arm_upper"/>
         <body name="lower_arm_right" pos="0 -.18 -.18">
           <joint name="elbow_right" axis="1 0 0" class="elbow"/>
-          <site name="elbow_right" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
+          <site name="elbow_right" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
           <geom name="lower_arm_right" fromto="0 .01 .01 0 -.17 .17" class="arm_lower"/>
           <body name="hand_right" pos="0 -.18 .18" zaxis="0 -1 1.5">
             <site name="hand_right" class="hand"/>
@@ -182,11 +182,11 @@
       <!--Modified for 2d-->
       <body name="upper_arm_left" pos="0 .17 .06">
         <joint name="shoulder1_left" axis="-1 0 0" class="shoulder"/>
-        <site name="shoulder1_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
+        <site name="shoulder1_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
         <geom name="upper_arm_left" fromto="0 0 0 0 .16 -.16" class="arm_upper"/>
         <body name="lower_arm_left" pos="0 .18 -.18">
           <joint name="elbow_left" axis="-1 0 0" class="elbow"/>
-          <site name="elbow_left" size="0.05" pos="0 0 0" rgba="1 1 .5 .7"/>
+          <site name="elbow_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
           <geom name="lower_arm_left" fromto="0 -.01 .01 0 .17 .17" class="arm_lower"/>
           <body name="hand_left" pos="0 .18 .18" zaxis="0 1 1.5">
             <site name="hand_left" class="hand" />
