@@ -25,7 +25,7 @@ outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
-seed = 2
+seed = 1
 out_f_base = outdir/f'basic_movement_seed_{seed}'
 
 Tk = 1200
@@ -38,8 +38,8 @@ max_its = 200
 CTRL_STD = 0
 CTRL_RATE = 1
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 
 # render = False
 render = True
@@ -57,6 +57,7 @@ env = humanoid2d.Humanoid2dEnv(
     default_camera_config=DEFAULT_CAMERA_CONFIG,
     reset_noise_scale=0,
     # xml_file='./humanoid.xml',
+    xml_file = './humanoid_and_basic.xml',
     body_pos=body_pos,)
 model = env.model
 data = env.data
@@ -132,7 +133,7 @@ ctrls = lowest_losses.peekitem(0)[1][1]
 # plt.show()
 util.reset(model, data, burn_steps, body_pos)
 hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', render)
-# time.sleep(5)
+time.sleep(5)
 util.reset(model, data, burn_steps, body_pos)
 hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', render)
 util.reset(model, data, burn_steps, body_pos)
