@@ -11,6 +11,7 @@ import basic_movements as bm
 from matplotlib import pyplot as plt
 import gymnasium as gym
 import torch
+import time
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -24,7 +25,7 @@ outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
-seed = 1
+seed = 2
 out_f_base = outdir/f'basic_movement_seed_{seed}'
 
 Tk = 1200
@@ -37,11 +38,14 @@ max_its = 200
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
-# render_mode = 'human'
-render_mode = 'rgb_array'
+# render = False
+render = True
+
+render_mode = 'human'
+# render_mode = 'rgb_array'
 
 # body_pos = -0.3
 body_pos = 0
@@ -108,7 +112,7 @@ if rerun1 or not out_f.exists():
 else:
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)
-    ctrls = load_data['ctrls']
+    # ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
 tt = np.arange(0, (Tk-1)*model.opt.timestep, model.opt.timestep)
@@ -127,8 +131,12 @@ ctrls = lowest_losses.peekitem(0)[1][1]
 # ax.legend()
 # plt.show()
 util.reset(model, data, burn_steps, body_pos)
-arm_t.forward_to_contact(env, ctrls, True)
-breakpoint()
+hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', render)
+# time.sleep(5)
+util.reset(model, data, burn_steps, body_pos)
+hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', render)
+util.reset(model, data, burn_steps, body_pos)
+# arm_t.forward_to_contact(env, ctrls, True)
 
 util.reset(model, data, burn_steps, body_pos)
 
@@ -178,26 +186,31 @@ if rerun1 or not out_f.exists():
 else:
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)
-    ctrls = load_data['ctrls']
+    # ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-util.reset(model, data, burn_steps, body_pos)
-hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_left', True)
+# util.reset(model, data, burn_steps, body_pos)
+# hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_left', True)
 ctrls = lowest_losses.peekitem(0)[1][1]
-# fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-fig, ax = plt.subplots()
-target_traj = full_traj * targ_traj_mask.reshape(-1, 1)
-# ax = axs[0]
-ax.plot(tt, hxs1[:,1], color='blue', label='x')
-ax.plot(tt, target_traj[:,1], '--', color='blue')
-ax.plot(tt, hxs1[:,2], color='red', label='y')
-ax.plot(tt, target_traj[:,2], '--', color='red')
-ax.set_title('Right hand')
-ax.legend()
-plt.show()
+# # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+# fig, ax = plt.subplots()
+# target_traj = full_traj * targ_traj_mask.reshape(-1, 1)
+# # ax = axs[0]
+# ax.plot(tt, hxs1[:,1], color='blue', label='x')
+# ax.plot(tt, target_traj[:,1], '--', color='blue')
+# ax.plot(tt, hxs1[:,2], color='red', label='y')
+# ax.plot(tt, target_traj[:,2], '--', color='red')
+# ax.set_title('Right hand')
+# ax.legend()
+# plt.show()
 
+# util.reset(model, data, burn_steps, body_pos)
+# arm_t.forward_to_contact(env, ctrls, True)
 util.reset(model, data, burn_steps, body_pos)
-arm_t.forward_to_contact(env, ctrls, True)
+hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', render)
+time.sleep(5)
+util.reset(model, data, burn_steps, body_pos)
+hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', render)
 
 util.reset(model, data, burn_steps, body_pos)
 # print(data.site('hand_left').xpos, full_traj[0])
@@ -260,7 +273,15 @@ else:
     ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-ctrls_best = lowest_losses.peekitem(0)[1][1]
+# ctrls_best = lowest_losses.peekitem(0)[1][1]
+ctrls = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, burn_steps, body_pos)
-arm_t.forward_to_contact(env, ctrls_best, True)
+# arm_t.forward_to_contact(env, ctrls_best, True)
+util.reset(model, data, burn_steps, body_pos)
+hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', render)
+time.sleep(5)
+util.reset(model, data, burn_steps, body_pos)
+hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', render)
+
+util.reset(model, data, burn_steps, body_pos)
 
