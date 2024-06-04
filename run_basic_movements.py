@@ -24,7 +24,7 @@ outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
-seed = 4
+seed = 1
 out_f_base = outdir/f'basic_movement_seed_{seed}'
 
 Tk = 1200
@@ -60,6 +60,8 @@ data = env.data
 burn_steps = 100
 dt = model.opt.timestep
 
+num = seed
+
 util.reset(model, data, burn_steps, body_pos)
 
 np.random.seed(seed)
@@ -84,7 +86,8 @@ targ_traj_mask_type = 'progressive'
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-out_f = Path(str(out_f_base) + '_right.pkl')
+
+out_f = Path(str(out_f_base) + f'_right_{num}.pkl')
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
@@ -102,12 +105,6 @@ if rerun1 or not out_f.exists():
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses,
                   'ctrls_burn_in': np.zeros((burn_steps, model.nu))
                  }, f)
-    qs, vs = util.forward_sim(model, data, ctrls)
-    system_states = np.hstack((qs, vs))
-    ctrls_best = lowest_losses.peekitem(0)[1][1]
-    np.save(str(out_f_base) + '_right_ctrls.npy', ctrls_best)
-    np.save(str(out_f_base) + '_right_states.npy', system_states)
-    # np.save(out_f, ctrls)
 else:
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)
@@ -117,7 +114,7 @@ else:
 tt = np.arange(0, (Tk-1)*model.opt.timestep, model.opt.timestep)
 ctrls = lowest_losses.peekitem(0)[1][1]
 util.reset(model, data, burn_steps, body_pos)
-hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', False)
+hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', True)
 # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
 fig, ax = plt.subplots()
 target_traj = full_traj * targ_traj_mask.reshape(-1, 1)
@@ -152,7 +149,7 @@ targ_traj_mask_type = 'progressive'
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-out_f = Path(str(out_f_base) + '_left.pkl')
+out_f = Path(str(out_f_base) + f'_left_{num}.pkl')
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
@@ -171,11 +168,11 @@ if rerun1 or not out_f.exists():
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses,
                   'ctrls_burn_in': np.zeros((burn_steps, model.nu))
                  }, f)
-    qs, vs = util.forward_sim(model, data, ctrls)
-    system_states = np.hstack((qs, vs))
-    ctrls_best = lowest_losses.peekitem(0)[1][1]
-    np.save(str(out_f_base) + '_left_ctrls.npy', ctrls_best)
-    np.save(str(out_f_base) + '_left_states.npy', system_states)
+    # qs, vs = util.forward_sim(model, data, ctrls)
+    # system_states = np.hstack((qs, vs))
+    # ctrls_best = lowest_losses.peekitem(0)[1][1]
+    # np.save(str(out_f_base) + '_left_ctrls.npy', ctrls_best)
+    # np.save(str(out_f_base) + '_left_states.npy', system_states)
     # np.save(out_f, ctrls)
 else:
     with open(out_f, 'rb') as f:
@@ -184,7 +181,7 @@ else:
     lowest_losses = load_data['lowest_losses']
 
 util.reset(model, data, burn_steps, body_pos)
-hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_left', False)
+hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_left', True)
 ctrls = lowest_losses.peekitem(0)[1][1]
 # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
 fig, ax = plt.subplots()
@@ -232,7 +229,7 @@ noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
 lr = .1/Tk
 
-out_f = Path(str(out_f_base) + '_both.pkl')
+out_f = Path(str(out_f_base) + f'_both_{num}.pkl')
 
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
@@ -251,11 +248,11 @@ if rerun1 or not out_f.exists():
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses,
                   'ctrls_burn_in': np.zeros((burn_steps, model.nu))
                  }, f)
-    qs, vs = util.forward_sim(model, data, ctrls)
-    system_states = np.hstack((qs, vs))
-    ctrls_best = lowest_losses.peekitem(0)[1][1]
-    np.save(str(out_f_base) + '_both_ctrls.npy', ctrls_best)
-    np.save(str(out_f_base) + '_both_states.npy', system_states)
+    # qs, vs = util.forward_sim(model, data, ctrls)
+    # system_states = np.hstack((qs, vs))
+    # ctrls_best = lowest_losses.peekitem(0)[1][1]
+    # np.save(str(out_f_base) + f'_both_ctrls_{num}.npy', ctrls_best)
+    # np.save(str(out_f_base) + f'_both_states_{num}.npy', system_states)
 else:
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)
