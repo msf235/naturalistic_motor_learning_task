@@ -23,7 +23,8 @@ outdir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
 seed = 2
-out_f = outdir/'tennis_ctrl.pkl'
+# out_f = outdir/'tennis_ctrl.pkl'
+out_f = outdir/'tennis_ctrl_working2.pkl'
 # out_f = outdir/'tennis_ctrl_smaller_lr.pkl'
 # out_f = outdir/'tennis_ctrl_larger_lr.pkl'
 # out_f = outdir/'tennis_ctrl_sgd.pkl'
@@ -39,8 +40,8 @@ Tf = 1.8
 CTRL_STD = 0
 CTRL_RATE = 1
 
-# rerun1 = False
-rerun1 = True
+rerun1 = False
+# rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'
@@ -109,7 +110,6 @@ ball_traj_mask[time_dict['t_left_3']:] = 0
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
-
 bodyj = joints['body']['body_dofs']
 
 sites = ['hand_right', 'hand_left', 'racket_handle_top', 'ball']
@@ -131,8 +131,6 @@ site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                   tennis_idxs['right_arm_without_adh']]
 stabilize_jnt_idx = tennis_idxs['not_arm_j']
 stabilize_act_idx = tennis_idxs['not_arm_a']
-
-breakpoint()
 
 # tmp = util.get_contact_pairs(model, data)
 
