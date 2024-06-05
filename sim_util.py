@@ -114,10 +114,13 @@ def forward_sim(model, data, ctrls):
     qs[0] = data.qpos.copy()
     vs = np.zeros((Tk+1, model.nq))
     vs[0] = data.qvel.copy()
+    ss = np.zeros((Tk+1, len(data.sensordata)))
+    ss[0] = data.sensordata.copy()
     for k in range(Tk):
         mj.mj_step1(model, data)
         data.ctrl[:] = ctrls[k]
         mj.mj_step2(model, data)
         qs[k+1] = data.qpos.copy()
         vs[k+1] = data.qvel.copy()
-    return qs, vs
+        ss[k+1] = data.sensordata.copy()
+    return qs, vs, ss
