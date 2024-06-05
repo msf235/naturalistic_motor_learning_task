@@ -236,21 +236,25 @@ else:
     lowest_losses = load_data['lowest_losses']
 
 ctrls = lowest_losses.peekitem(0)[1][1]
-hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
-qs_wr = qs[:, joints['all']['wrist_left']]
-q_targs_wr = q_targ[:, joints['all']['wrist_left']]
-grads = np.nan*np.ones((len(sites),) + ctrls.shape)
-fig, axs = plt.subplots(3, n, figsize=(5*n, 5))
+Te = 2
+Tke = int(Te/dt)
+ctrls_end = np.zeros((Tke, model.nu))
+ctrls = np.vstack((ctrls, ctrls_end))
+# hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
+# qs_wr = qs[:, joints['all']['wrist_left']]
+# q_targs_wr = q_targ[:, joints['all']['wrist_left']]
+# grads = np.nan*np.ones((len(sites),) + ctrls.shape)
+# fig, axs = plt.subplots(3, n, figsize=(5*n, 5))
 while True:
-    arm_t.show_plot(hxs, full_trajs, masks,
-                    # qs_wr, q_targs_wr,
-                    sites, site_grad_idxs, ctrls, axs,
-                    grads, tt)
+    # arm_t.show_plot(hxs, full_trajs, masks,
+                    # # qs_wr, q_targs_wr,
+                    # sites, site_grad_idxs, ctrls, axs,
+                    # grads, tt)
     # plt.show()
-    fig.show()
-    plt.pause(1)
+    # fig.show()
+    # plt.pause(1)
     reset()
-    hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=True)
+    arm_t.forward_with_sites(env, ctrls, sites, render=True)
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     # reset()
 
