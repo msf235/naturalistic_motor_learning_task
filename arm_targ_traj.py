@@ -70,6 +70,138 @@ def sigmoid(x, a):
     # return .5 * (np.tanh(x-.5) + 1)
     return .5*np.tanh(a*(x-.5)) + .5
 
+def tennis_grab_traj(model, data, Tk):
+    shouldxr = data.site('shoulder1_right').xpos
+    shouldxl = data.site('shoulder1_left').xpos
+    elbowx = data.site('elbow_right').xpos
+    handxr = data.site('hand_right').xpos
+    handxl = data.site('hand_left').xpos
+    r1 = np.sum((shouldxr - elbowx)**2)**.5
+    r2 = np.sum((elbowx - handxr)**2)**.5
+    r = r1 + r2
+    Tk_right_1 = int(Tk / 4) # Time to grab with right hand (1)
+    Tk_right_2 = int(Tk / 12) # Time to grab with right hand (2)
+    t_right_1 = Tk_right_1 + Tk_right_2
+    Tk_right_3 = Tk - t_right_1
+
+    Tk_left_1 = int(Tk / 3) # Duration to grab with left hand (1)
+    Tk_left_2 = int(Tk / 8) # Duration to grab with left hand (2)
+    t_left_1 = Tk_left_1 + Tk_left_2 # Time up to end of grab
+    Tk_left_3 = Tk - t_left_1 # Duration to set up
+
+    # Tk4 = int((Tk+Tk2)/2)
+
+    # fig, ax = plt.subplots()
+    # tt = np.linspace(0, 1, Tk)
+
+    # Right arm
+
+    # grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
+    grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0.03])
+    # grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0])
+    sx = np.linspace(0, 1, Tk_right_1)
+    s = sigmoid(sx, 5)
+    s = np.tile(s, (3, 1)).T
+    s = np.concatenate((s, np.ones((Tk_right_2, 3))), axis=0)
+    grab_traj = handxr + s*(grab_targ - handxr)
+
+    arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+                                  np.pi/6, 10, density_fn='')
+
+    s = np.linspace(0, 1, Tk_right_3)
+    s = sigmoid(s, 5)
+    s = np.stack((s, s, s)).T
+    setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
+
+    right_arm_traj = np.concatenate((grab_traj, setup_traj),
+                                    axis=0)
+
+    t_fin = Tk * model.opt.timestep
+    tt = np.linspace(0, t_fin, Tk)
+
+    # fig, ax = plt.subplots()
+    # ax.plot(tt[:t_right_1], grab_traj[:, 2], c='blue')
+    # ax.plot(tt[t_right_1:t_right_2], setup_traj[:, 2], c='red')
+    # ax.plot(tt[t_right_2:], arc_traj_vs[:, 2], c='blue')
+    # plt.show()
+
+    # Tk4 = int((Tk+Tk2)/2)
+
+    # Left arm
+    # grab_targ = data.site('ball').xpos + np.array([0, 0, 0.04])
+    grab_targ = data.site('ball_top').xpos + np.array([0, 0, .03])
+    s = sigmoid(np.linspace(0, 1, Tk_left_1), 5)
+    s = np.tile(s, (3, 1)).T
+    s = np.concatenate((s, np.ones((Tk_left_2, 3))), axis=0)
+    grab_traj = handxl + s*(grab_targ - handxl)
+
+    arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
+                            np.pi/5, np.pi/2, 10, density_fn='')
+    xs = arc_traj_vs[:, 1].copy()
+    x0 = xs[0]
+    recenter_scale_xs = .8*(xs - x0)
+    arc_traj_vs[:,1] = recenter_scale_xs + x0
+    # arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
+                            # .9*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
+    # arc_traj_vs2 = arc_traj_vs[:-Tk_left_5:-1]
+    # breakpoint()
+    arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
+                            .9*np.pi/2, .7*np.pi/2, 10, density_fn='')
+
+    setup_traj = np.zeros((Tk_left_3, 3))
+    s = np.linspace(0, 1, Tk_left_3)
+    s = sigmoid(s, 5)
+    # s = 2*sigmoid(.5*s, 5)
+    s = np.stack((s, s, s)).T
+    setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
+
+    left_arm_traj = np.concatenate((grab_traj, setup_traj), axis=0)
+    # dim=2
+    # ax.plot(tt[:t_left_1], grab_traj[:, dim], c='blue', linestyle='--')
+    # ax.plot(tt[t_left_1:t_left_2], setup_traj[:, dim], c='red', linestyle='--')
+    # ax.plot(tt[t_left_2:t_left_3], arc_traj_vs[:, dim], c='blue', linestyle='--')
+    # ax.plot(tt[t_left_3:], arc_traj_vs2[:, dim], c='red', linestyle='--')
+    # plt.show()
+
+    # fig, ax = plt.subplots()
+    # dim = 1
+    # # ax.plot(tt[:t_left_1], grab_traj[:, dim], c='blue', linestyle='--')
+    # # ax.plot(tt[t_left_1:t_left_2], setup_traj[:, dim], c='red', linestyle='--')
+    # # ax.plot(tt[t_left_2:t_left_3], arc_traj_vs[:, dim], c='blue', linestyle='--')
+    # # ax.plot(tt[t_left_2:t_left_3], xs, c='cyan', linestyle='-.')
+    # ax.plot(arc_traj_vs[:, 1], arc_traj_vs[:, 2], c='blue', linestyle='--')
+    # ax.plot(xs, arc_traj_vs[:, 2], c='cyan', linestyle='-.')
+    # # ax.plot(tt[t_left_3:], arc_traj_vs2[:, dim], c='red', linestyle='--')
+    # plt.show()
+
+    # Ball trajectory
+    # arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
+                            # 0, .9*np.pi/2, Tk_left_4, density_fn='')
+    # arc_traj_ball = arc_traj(data.site('shoulder1_left').xpos, r, 0,
+                             # 1.1*np.pi/2, Tk_left_4, density_fn='')
+
+    # ball_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
+    ball_traj = left_arm_traj.copy()
+
+    # ax.plot(tt[:t_left_1], grab_traj[:, 2], c='blue', linestyle='-')
+    # ax.plot(tt[t_left_1:t_left_2], setup_traj[:, 2], c='red', linestyle='-')
+    # ax.plot(tt[t_left_2:t_left_3], arc_traj_vs[:, 2], c='blue', linestyle='-')
+    # ax.plot(tt[t_left_3:], arc_traj_vs2[:, 2], c='red', linestyle='--')
+    # plt.show()
+
+    time_dict = dict(
+        Tk_right_1=Tk_right_1,
+        Tk_right_2=Tk_right_2,
+        Tk_right_3=Tk_right_3,
+        Tk_left_1=Tk_left_1,
+        Tk_left_2=Tk_left_2,
+        Tk_left_3=Tk_left_3,
+        t_right_1=t_right_1,
+        t_left_1=t_left_1,
+    )
+
+    return right_arm_traj, left_arm_traj, ball_traj, time_dict
+
 def tennis_traj(model, data, Tk):
     shouldxr = data.site('shoulder1_right').xpos
     shouldxl = data.site('shoulder1_left').xpos
