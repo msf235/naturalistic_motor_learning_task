@@ -25,11 +25,10 @@ keyframe = 'wide'
 outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
 savedir = Path('data/phase_1')
+only_save_states = True
 # savedir = Path('data/phase_2')
-only_save_states = False
+# only_save_states = False
 savedir.mkdir(parents=True, exist_ok=True)
-
-num = 3
 
 for num in range(1, 4):
     ### Set things up
@@ -63,9 +62,10 @@ for num in range(1, 4):
     reset()
     qs, vs, ss = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
-    np.save(savedir/f'states_ball_grab_{num}.npy', system_states)
+    fn = f'ball_grab_{num}_'
+    np.save(savedir/ (fn + 'states.npy'), system_states)
     if not only_save_states:
-        np.save(savedir/f'ctrls_ball_grab_{num}.npy', ctrls)
+        np.save(savedir/(fn + 'ctrls.npy'), ctrls)
     # reset()
     # arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
     # mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
