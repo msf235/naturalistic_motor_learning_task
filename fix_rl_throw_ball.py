@@ -65,10 +65,13 @@ for num in range(1, 4):
     qs = qs.astype(np.float32)
     vs = vs.astype(np.float32)
     system_states = np.hstack((qs, vs))
-    np.save(savedir/f'ball_throw_system_states_{num}.npy', system_states)
+    fn = f'ball_throw_{num}_'
+    np.save(savedir/(fn + 'states.npy'), system_states)
     # np.savetxt(savedir/f'ball_throw_system_states_{num}.csv', system_states,
                # delimiter=',')
-    np.save(savedir/f'ball_throw_ctrls_{num}.npy', ctrls)
+    # if not save_only_states:
+        # np.save(savedir/(fn + 'ctrls.npy', ctrls)
+    # np.save(savedir/f'ball_throw_ctrls_{num}.npy', ctrls)
     # np.savetxt(savedir/f'ball_throw_ctrls_{num}.csv', ctrls, delimiter=',')
     # reset()
     # arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
