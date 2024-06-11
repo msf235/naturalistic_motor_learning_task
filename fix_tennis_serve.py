@@ -3,6 +3,7 @@ import opt_utils
 import numpy as np
 import sim_util as util
 import sys
+import shutil
 from pathlib import Path
 import pickle as pkl
 import arm_targ_traj as arm_t
@@ -39,6 +40,10 @@ env = humanoid2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
+shutil.copy('humanoid.xml', savedir)
+shutil.copy('humanoid_and_tennis.xml', savedir)
+shutil.copy('tennis_serve_scene.xml', savedir)
+
 num = 1
 
 for num in range(1, 4):
@@ -72,12 +77,9 @@ for num in range(1, 4):
     # hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
     qs, vs = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
-    fn = 'tennis_serve_{num}_'
+    fn = f'tennis_serve_{num}_'
     np.save(savedir/(fn + 'ctrls.npy'), ctrls)
     np.save(savedir/(fn + 'states.npy'), system_states)
-    np.save(savedir/'humanoid.xml', system_states)
-    np.save(savedir/'humanoid_and_tennis.xml', system_states)
-    np.save(savedir/'tennis_serve_scene.xml', system_states)
     # np.save(save_str + '_sensors.npy', )
     # tt = np.arange(0, hxs[0].shape[0], dt)
     # qs_wr = qs[:, joints['all']['wrist_left']]
