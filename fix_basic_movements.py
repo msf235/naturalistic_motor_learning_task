@@ -23,7 +23,9 @@ DEFAULT_CAMERA_CONFIG = {
 
 outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
-savedir = Path('data/phase_1')
+# savedir = Path('data/phase_1')
+savedir = Path('data/phase_2')
+only_save_state = True
 savedir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
@@ -65,8 +67,9 @@ for num in range(1, 4):
     qs, vs = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
     ctrls_best = lowest_losses.peekitem(0)[1][1]
-    np.save(str(savedir) + '/' + fn + f'ctrls_right_{num}.npy', ctrls_best)
     np.save(str(savedir) + '/' + fn + f'states_right_{num}.npy', system_states)
+    if not only_save_state:
+        np.save(str(savedir) + '/' + fn + f'ctrls_right_{num}.npy', ctrls_best)
 
 
     out_f = Path(str(out_f_base) + f'_left_{num}.pkl')
@@ -79,8 +82,9 @@ for num in range(1, 4):
     qs, vs = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
     ctrls_best = lowest_losses.peekitem(0)[1][1]
-    np.save(str(savedir) + '/' + fn + f'ctrls_left_{num}.npy', ctrls_best)
     np.save(str(savedir) + '/' + fn + f'states_left_{num}.npy', system_states)
+    if not only_save_state:
+        np.save(str(savedir) + '/' + fn + f'ctrls_left_{num}.npy', ctrls_best)
 
     out_f = Path(str(out_f_base) + f'_both_{num}.pkl')
     with open(out_f, 'rb') as f:
@@ -92,5 +96,6 @@ for num in range(1, 4):
     qs, vs = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
     ctrls_best = lowest_losses.peekitem(0)[1][1]
-    np.save(str(savedir) + '/' + fn + f'ctrls_both_{num}.npy', ctrls_best)
     np.save(str(savedir) + '/' + fn + f'states_both_{num}.npy', system_states)
+    if not only_save_state:
+        np.save(str(savedir) + '/' + fn + f'ctrls_both_{num}.npy', ctrls_best)
