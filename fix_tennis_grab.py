@@ -40,9 +40,9 @@ data = env.data
 outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
 # savedir = Path('data/phase_1')
+# save_only_state = False
 savedir = Path('data/phase_2')
-save_only_state = False
-# save_only_state = True
+save_only_state = True
 savedir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
@@ -63,7 +63,7 @@ for num in range(1, 4):
     ctrls = lowest_losses.peekitem(0)[1][1]
     qs, vs = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
-    save_str = str(savedir) + '/' + f'tennis_grab_{num}'
-    np.save(save_str + '_states.npy', system_states)
+    fn = f'tennis_grab_{num}'
+    np.save(savedir / (fn + '_states.npy'), system_states)
     if save_only_state:
-        np.save(save_str + '_ctrls.npy', ctrls)
+        np.save(savedir / (fn + '_ctrls.npy'), ctrls)
