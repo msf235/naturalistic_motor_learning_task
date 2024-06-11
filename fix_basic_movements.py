@@ -68,9 +68,9 @@ for num in range(1, 4):
     system_states = np.hstack((qs, vs))
     ctrls_best = lowest_losses.peekitem(0)[1][1]
     fn = f'basic_movement_right_{num}_'
-    np.save(str(savedir) + '/' + fn + f'states.npy', system_states)
+    np.save(str(savedir) + '/' + fn + 'states.npy', system_states)
     if not only_save_state:
-        np.save(str(savedir) + '/' + fn + f'ctrls.npy', ctrls_best)
+        np.save(str(savedir) + '/' + fn + 'ctrls.npy', ctrls_best)
 
     out_f = Path(str(out_f_base) + f'_left_{num}.pkl')
     with open(out_f, 'rb') as f:
@@ -83,9 +83,9 @@ for num in range(1, 4):
     system_states = np.hstack((qs, vs))
     ctrls_best = lowest_losses.peekitem(0)[1][1]
     fn = f'basic_movement_left_{num}_'
-    np.save(str(savedir) + '/' + fn + f'states.npy', system_states)
+    np.save(str(savedir) + '/' + fn + 'states.npy', system_states)
     if not only_save_state:
-        np.save(str(savedir) + '/' + fn + f'ctrls.npy', ctrls_best)
+        np.save(str(savedir) + '/' + fn + 'ctrls.npy', ctrls_best)
 
     out_f = Path(str(out_f_base) + f'_both_{num}.pkl')
     with open(out_f, 'rb') as f:
@@ -98,6 +98,6 @@ for num in range(1, 4):
     system_states = np.hstack((qs, vs))
     ctrls_best = lowest_losses.peekitem(0)[1][1]
     fn = f'basic_movement_both_{num}_'
-    np.save(str(savedir) + '/' + fn + f'states.npy', system_states)
+    np.save(str(savedir) + '/' + fn + 'states.npy', system_states)
     if not only_save_state:
-        np.save(str(savedir) + '/' + fn + f'ctrls.npy', ctrls_best)
+        np.save(str(savedir) + '/' + fn + 'ctrls.npy', ctrls_best)
