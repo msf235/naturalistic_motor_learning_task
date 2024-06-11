@@ -75,6 +75,9 @@ for num in range(1, 4):
     fn = 'tennis_serve_{num}_'
     np.save(savedir/(fn + 'ctrls.npy'), ctrls)
     np.save(savedir/(fn + 'states.npy'), system_states)
+    np.save(savedir/'humanoid.xml', system_states)
+    np.save(savedir/'humanoid_and_tennis.xml', system_states)
+    np.save(savedir/'tennis_serve_scene.xml', system_states)
     # np.save(save_str + '_sensors.npy', )
     # tt = np.arange(0, hxs[0].shape[0], dt)
     # qs_wr = qs[:, joints['all']['wrist_left']]
