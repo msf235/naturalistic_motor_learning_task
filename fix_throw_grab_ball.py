@@ -24,47 +24,49 @@ keyframe = 'wide'
 
 outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
-savedir = Path('data')
+savedir = Path('data/phase_1')
+# savedir = Path('data/phase_2')
+only_save_states = False
 savedir.mkdir(parents=True, exist_ok=True)
 
 num = 3
 
-### Set things up
-seed = 2
-out_f = outdir/f'ball_grab_ctrl_seed_{seed}_{num}.pkl'
+for num in range(1, 4):
+    ### Set things up
+    seed = 2
+    out_f = outdir/f'ball_grab_ctrl_seed_{seed}_{num}.pkl'
 
-env = humanoid2d.Humanoid2dEnv(
-    render_mode=render_mode,
-    frame_skip=1,
-    default_camera_config=DEFAULT_CAMERA_CONFIG,
-    reset_noise_scale=0,
-    xml_file='./humanoid_and_baseball.xml',
-    keyframe_name='wide',)
-model = env.model
-data = env.data
+    env = humanoid2d.Humanoid2dEnv(
+        render_mode=render_mode,
+        frame_skip=1,
+        default_camera_config=DEFAULT_CAMERA_CONFIG,
+        reset_noise_scale=0,
+        xml_file='./humanoid_and_baseball.xml',
+        keyframe_name='wide',)
+    model = env.model
+    data = env.data
 
-dt = model.opt.timestep
-burn_step = int(.1 / dt)
-# reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
-reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+    dt = model.opt.timestep
+    burn_step = int(.1 / dt)
+    # reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+    reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
 
-with open(out_f, 'rb') as f:
-    load_data = pkl.load(f)
-ctrls = load_data['ctrls']
-ctrls_burn_in = load_data['ctrls_burn_in']
-lowest_losses = load_data['lowest_losses']
+    with open(out_f, 'rb') as f:
+        load_data = pkl.load(f)
+    ctrls = load_data['ctrls']
+    ctrls_burn_in = load_data['ctrls_burn_in']
+    lowest_losses = load_data['lowest_losses']
 
-reset()
-ctrls = lowest_losses.peekitem(0)[1][1]
-arm_t.forward_with_sites(env, ctrls, ['hand_right'], render=True)
-breakpoint()
-reset()
-qs, vs, ss = util.forward_sim(model, data, ctrls)
-breakpoint()
-system_states = np.hstack((qs, vs))
-np.save(savedir/f'ball_grab_system_states_{num}.npy', system_states)
-np.save(savedir/f'ball_grab_ctrls_{num}.npy', ctrls)
-# reset()
-# arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
-# mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
-# util.forward_sim(model, data, ctrls_full)
+    # reset()
+    ctrls = lowest_losses.peekitem(0)[1][1]
+    # arm_t.forward_with_sites(env, ctrls, ['hand_right'], render=True)
+    reset()
+    qs, vs, ss = util.forward_sim(model, data, ctrls)
+    system_states = np.hstack((qs, vs))
+    np.save(savedir/f'states_ball_grab_{num}.npy', system_states)
+    if not only_save_states:
+        np.save(savedir/f'ctrls_ball_grab_{num}.npy', ctrls)
+    # reset()
+    # arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
+    # mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
+    # util.forward_sim(model, data, ctrls_full)
