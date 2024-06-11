@@ -20,7 +20,7 @@ DEFAULT_CAMERA_CONFIG = {
 }
 
 outdir = Path('output')
-savedir = Path('data')
+savedir = Path('data/phase_5')
 outdir.mkdir(parents=True, exist_ok=True)
 savedir.mkdir(parents=True, exist_ok=True)
 
@@ -39,53 +39,57 @@ env = humanoid2d.Humanoid2dEnv(
 model = env.model
 data = env.data
 
-out_f = outdir/'tennis_ctrl_working2.pkl'
-save_str = str(savedir/'tennis_working2')
-dt = model.opt.timestep
-Ta = 2
-Tk = int(Ta / dt)
+num = 1
 
-joints = opt_utils.get_joint_ids(model)
-acts = opt_utils.get_act_ids(model)
-out = arm_t.tennis_traj(model, data, Tk)
-right_hand_traj, left_hand_traj, ball_traj, time_dict = out
+for num in range(1, 4):
+    out_f = outdir/f'tennis_ctrl_working{num}.pkl'
+    # save_str = str(savedir/f'tennis_working_{num}')
+    dt = model.opt.timestep
+    Ta = 2
+    Tk = int(Ta / dt)
 
-burn_step = int(.1 / dt)
-# reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
-reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+    joints = opt_utils.get_joint_ids(model)
+    acts = opt_utils.get_act_ids(model)
+    out = arm_t.tennis_traj(model, data, Tk)
+    right_hand_traj, left_hand_traj, ball_traj, time_dict = out
 
-with open(out_f, 'rb') as f:
-    load_data = pkl.load(f)
-ctrls = load_data['ctrls']
-lowest_losses = load_data['lowest_losses']
+    burn_step = int(.1 / dt)
+    # reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+    reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
 
-ctrls = lowest_losses.peekitem(0)[1][1]
-# ctrls[time_dict['t_left_1']:, 0] = .4
-ctrls = np.vstack((ctrls, np.zeros((Tk, model.nu))))
+    with open(out_f, 'rb') as f:
+        load_data = pkl.load(f)
+    ctrls = load_data['ctrls']
+    lowest_losses = load_data['lowest_losses']
 
-# sites = ['hand_right', 'hand_left']
-sites = ['hand_right']
-# reset()
-# hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
-qs, vs = util.forward_sim(model, data, ctrls)
-system_states = np.hstack((qs, vs))
-np.save(save_str + '_ctrls.npy', ctrls)
-np.save(save_str + '_states.npy', system_states)
-# np.save(save_str + '_sensors.npy', )
-# tt = np.arange(0, hxs[0].shape[0], dt)
-# qs_wr = qs[:, joints['all']['wrist_left']]
-# q_targs_wr = q_targ[:, joints['all']['wrist_left']]
-# grads = np.nan*np.ones((len(sites),) + ctrls.shape)
-# fig, axs = plt.subplots(3, n, figsize=(5*n, 5))
-while True:
-    # arm_t.show_plot(hxs, full_trajs, masks,
-                    # # qs_wr, q_targs_wr,
-                    # sites, site_grad_idxs, ctrls, axs,
-                    # grads, tt)
-    # # plt.show()
-    # fig.show()
-    # plt.pause(1)
-    reset()
-    arm_t.forward_with_sites(env, ctrls, sites, render=True)
-    print('waiting')
-    time.sleep(20)
+    ctrls = lowest_losses.peekitem(0)[1][1]
+    # ctrls[time_dict['t_left_1']:, 0] = .4
+    ctrls = np.vstack((ctrls, np.zeros((Tk, model.nu))))
+
+    # sites = ['hand_right', 'hand_left']
+    sites = ['hand_right']
+    # reset()
+    # hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
+    qs, vs = util.forward_sim(model, data, ctrls)
+    system_states = np.hstack((qs, vs))
+    fn = 'tennis_serve_{num}_'
+    np.save(savedir/(fn + 'ctrls.npy'), ctrls)
+    np.save(savedir/(fn + 'states.npy'), system_states)
+    # np.save(save_str + '_sensors.npy', )
+    # tt = np.arange(0, hxs[0].shape[0], dt)
+    # qs_wr = qs[:, joints['all']['wrist_left']]
+    # q_targs_wr = q_targ[:, joints['all']['wrist_left']]
+    # grads = np.nan*np.ones((len(sites),) + ctrls.shape)
+    # fig, axs = plt.subplots(3, n, figsize=(5*n, 5))
+    # while True:
+        # # arm_t.show_plot(hxs, full_trajs, masks,
+                        # # # qs_wr, q_targs_wr,
+                        # # sites, site_grad_idxs, ctrls, axs,
+                        # # grads, tt)
+        # # # plt.show()
+        # # fig.show()
+        # # plt.pause(1)
+        # reset()
+        # arm_t.forward_with_sites(env, ctrls, sites, render=True)
+        # print('waiting')
+        # time.sleep(20)
