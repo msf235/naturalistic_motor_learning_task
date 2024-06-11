@@ -3,6 +3,7 @@ import opt_utils
 import numpy as np
 import sim_util as util
 import sys
+import shutil
 from pathlib import Path
 import pickle as pkl
 import arm_targ_traj as arm_t
@@ -26,6 +27,10 @@ outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
 savedir = Path('data/phase_3')
 savedir.mkdir(parents=True, exist_ok=True)
+
+shutil.copy('humanoid.xml', savedir)
+shutil.copy('humanoid_and_baseball.xml', savedir)
+shutil.copy('baseball_pitch_scene.xml', savedir)
 
 # num = 2
 
