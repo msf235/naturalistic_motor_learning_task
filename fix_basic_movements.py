@@ -5,6 +5,7 @@ import numpy as np
 import sim_util as util
 import mujoco as mj
 import sys
+import shutil
 from pathlib import Path
 import pickle as pkl
 import arm_targ_traj as arm_t
@@ -28,6 +29,10 @@ only_save_state = False
 # savedir = Path('data/phase_2')
 # only_save_state = True
 savedir.mkdir(parents=True, exist_ok=True)
+
+shutil.copy('humanoid.xml', savedir)
+shutil.copy('humanoid_and_basic.xml', savedir)
+shutil.copy('basic_scene.xml', savedir)
 
 ### Set things up
 # seed = 2
