@@ -52,7 +52,7 @@
       <default class="hand">
         <!--<geom type="sphere" size=".04"/>-->
         <geom type="capsule" margin=".003" gap=".003"  size=".03 .025"/>
-        <site size=".01" pos="0 0 0" rgba="1 1 .5 .7"/>
+        <site size=".01" pos="0 0 0" rgba="1 1 .5 0"/>
       </default>
 
       <!-- joints -->
@@ -132,6 +132,7 @@
               <joint name="knee_right" class="knee"/>
               <geom name="shin_right" class="shin"/>
               <body name="foot_right" pos="0 0 -.39">
+                <site name="foot_right" pos="0 0 0" size="0.1" rgba="1 1 1 0"/>
                 <!--<joint name="ankle_y_right" class="ankle_y"/>-->
                 <!--<joint name="ankle_x_right" class="ankle_x" axis="1 0 .5"/>-->
                 <geom name="foot1_right" class="foot1"/>
@@ -151,7 +152,7 @@
                 <!--<joint name="ankle_y_left" class="ankle_y"/>-->
                 <!--<joint name="ankle_x_left" class="ankle_x" axis="-1 0 -.5"/>-->
                 <geom name="foot1_left" class="foot1"/>
-                <site name="foot_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
+                <site name="foot_left" size="0.1" pos="0 0 0" rgba="1 1 .5 0"/>
                 <geom name="foot2_left" class="foot2"/>
               </body>
             </body>
@@ -171,9 +172,9 @@
             <site name="hand_right" class="hand"/>
             <!--<geom name="hand_right" zaxis="0 -1 1.5" class="hand" />-->
             <geom name="hand_right1" type="capsule" pos="0 0 -.025" class="hand"/>
-            <site name="hand_right1" class="hand" pos="0 0 -.025"/> <!--Check size.-->
+            <site name="hand_right1" class="hand" pos="0 0 -.025" size="0.1"/> <!--Check size.-->
             <geom name="hand_right2"  type="capsule" pos="0 0 .025" class="hand"/>
-            <site name="hand_right2" class="hand" pos="0 0 .025"/> <!--Check size.-->
+            <site name="hand_right2" class="hand" pos="0 0 .025" size="0.1"/> <!--Check size.-->
             <joint name="wrist_right" axis="1 0 0" class="wrist" stiffness="0"/>
               <!--friction="1 0.005 0.03"-->
           </body>
@@ -192,10 +193,10 @@
             <site name="hand_left" class="hand" />
             <!--<geom name="hand_left" zaxis="0 1 2" class="hand"/>-->
             <geom name="hand_left1" type="capsule" class="hand" pos="0 0 -.025"/>
-            <site name="hand_left1" class="hand" pos="0 0 -.025"/>
+            <site name="hand_left1" class="hand" pos="0 0 -.025" size="0.1"/>
             <geom name="hand_left2" type="capsule" class="hand"
               pos="0 0 .025"/>
-            <site name="hand_left2" class="hand" pos="0 0 .025"/>
+            <site name="hand_left2" class="hand" pos="0 0 .025" size="0.1"/>
             <joint name="wrist_left" axis="-1 0 0" class="wrist" stiffness="0"/>
           </body>
         </body>
@@ -255,6 +256,8 @@
     <touch name="hand_right2" site="hand_right2"/>
     <touch name="hand_left1" site="hand_left1"/>
     <touch name="hand_left2" site="hand_left2"/>
+    <touch name="foot_left" site="foot_left"/>
+    <touch name="foot_right" site="foot_right"/>
   </sensor>
 
   <!--<keyframe>-->
