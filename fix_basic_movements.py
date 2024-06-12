@@ -69,13 +69,14 @@ for num in range(1, 4):
     ctrls = lowest_losses.peekitem(0)[1][1]
 
     util.reset(model, data, burn_steps, body_pos)
-    qs, vs = util.forward_sim(model, data, ctrls)
+    qs, vs, ss = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
     ctrls_best = lowest_losses.peekitem(0)[1][1]
     fn = f'basic_movement_right_{num}_'
     np.save(str(savedir) + '/' + fn + 'states.npy', system_states)
     if not only_save_state:
         np.save(str(savedir) + '/' + fn + 'ctrls.npy', ctrls_best)
+        np.save(str(savedir) + '/' + fn + 'contact.npy', ss)
 
     out_f = Path(str(out_f_base) + f'_left_{num}.pkl')
     with open(out_f, 'rb') as f:
@@ -84,13 +85,14 @@ for num in range(1, 4):
     ctrls = lowest_losses.peekitem(0)[1][1]
 
     util.reset(model, data, burn_steps, body_pos)
-    qs, vs = util.forward_sim(model, data, ctrls)
+    qs, vs, ss = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
     ctrls_best = lowest_losses.peekitem(0)[1][1]
     fn = f'basic_movement_left_{num}_'
     np.save(str(savedir) + '/' + fn + 'states.npy', system_states)
     if not only_save_state:
         np.save(str(savedir) + '/' + fn + 'ctrls.npy', ctrls_best)
+        np.save(str(savedir) + '/' + fn + 'contact.npy', ss)
 
     out_f = Path(str(out_f_base) + f'_both_{num}.pkl')
     with open(out_f, 'rb') as f:
@@ -99,10 +101,11 @@ for num in range(1, 4):
     ctrls = lowest_losses.peekitem(0)[1][1]
 
     util.reset(model, data, burn_steps, body_pos)
-    qs, vs = util.forward_sim(model, data, ctrls)
+    qs, vs, ss = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
     ctrls_best = lowest_losses.peekitem(0)[1][1]
     fn = f'basic_movement_both_{num}_'
     np.save(str(savedir) + '/' + fn + 'states.npy', system_states)
     if not only_save_state:
         np.save(str(savedir) + '/' + fn + 'ctrls.npy', ctrls_best)
+        np.save(str(savedir) + '/' + fn + 'contact.npy', ss)
