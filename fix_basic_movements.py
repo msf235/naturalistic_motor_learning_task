@@ -24,10 +24,10 @@ DEFAULT_CAMERA_CONFIG = {
 
 outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
-savedir = Path('data/phase_1')
-only_save_state = False
-# savedir = Path('data/phase_2')
-# only_save_state = True
+# savedir = Path('data/phase_1/basic')
+# only_save_state = False
+savedir = Path('data/phase_2/basic')
+only_save_state = True
 savedir.mkdir(parents=True, exist_ok=True)
 
 shutil.copy('humanoid.xml', savedir)
