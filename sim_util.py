@@ -122,5 +122,5 @@ def forward_sim(model, data, ctrls):
         mj.mj_step2(model, data)
         qs[k+1] = data.qpos.copy()
         vs[k+1] = data.qvel.copy()
-        ss[k+1] = data.sensordata.copy()
+        ss[k+1] = data.sensordata[:].copy()
     return qs, vs, ss

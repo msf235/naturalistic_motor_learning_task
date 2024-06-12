@@ -60,7 +60,7 @@ Tke = int(3 / dt)
 ctrls_end = np.zeros((Tke, model.nu))
 ctrls_full = np.vstack((ctrls, ctrls_end))
 sites = ['hand_right']
-qs, vs = util.forward_sim(model, data, ctrls_full)
+qs, vs, ss = util.forward_sim(model, data, ctrls_full)
 system_states = np.hstack((qs, vs))
 np.save(savedir/f'ball_throw_system_states_{num}.npy', system_states)
 np.save(savedir/f'ball_throw_ctrls_{num}.npy', ctrls)

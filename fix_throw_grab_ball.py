@@ -25,10 +25,10 @@ keyframe = 'wide'
 
 outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
-savedir = Path('data/phase_1')
-only_save_states = True
-# savedir = Path('data/phase_2')
+# savedir = Path('data/phase_1')
 # only_save_states = False
+savedir = Path('data/phase_2')
+only_save_states = True
 savedir.mkdir(parents=True, exist_ok=True)
 
 shutil.copy('humanoid.xml', savedir)
@@ -71,6 +71,7 @@ for num in range(1, 4):
     np.save(savedir/ (fn + 'states.npy'), system_states)
     if not only_save_states:
         np.save(savedir/(fn + 'ctrls.npy'), ctrls)
+        np.save(savedir/(fn + 'contact.npy'), ss)
     # reset()
     # arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
     # mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
