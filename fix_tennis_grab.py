@@ -40,13 +40,13 @@ data = env.data
 
 outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
-savedir = Path('data/phase_1')
-save_only_state = False
-# savedir = Path('data/phase_2')
-# save_only_state = True
+# savedir = Path('data/phase_1/tennis_grab')
+# save_only_state = False
+savedir = Path('data/phase_2/tennis_grab')
+save_only_state = True
 savedir.mkdir(parents=True, exist_ok=True)
 
-shutil.copy('humanoid.xml', savedir)
+shutil.copy('humanoid.xml', savedir/'humanoid_tennis.xml')
 shutil.copy('humanoid_and_tennis.xml', savedir)
 shutil.copy('tennis_serve_scene.xml', savedir)
 
