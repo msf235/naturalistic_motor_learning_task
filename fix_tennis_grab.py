@@ -40,10 +40,10 @@ data = env.data
 
 outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
-# savedir = Path('data/phase_1')
-# save_only_state = False
-savedir = Path('data/phase_2')
-save_only_state = True
+savedir = Path('data/phase_1')
+save_only_state = False
+# savedir = Path('data/phase_2')
+# save_only_state = True
 savedir.mkdir(parents=True, exist_ok=True)
 
 shutil.copy('humanoid.xml', savedir)
@@ -66,9 +66,10 @@ for num in range(1, 4):
         lowest_losses = load_data['lowest_losses']
 
     ctrls = lowest_losses.peekitem(0)[1][1]
-    qs, vs = util.forward_sim(model, data, ctrls)
+    qs, vs, ss = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
     fn = f'tennis_grab_{num}'
     np.save(savedir / (fn + '_states.npy'), system_states)
     if save_only_state:
         np.save(savedir / (fn + '_ctrls.npy'), ctrls)
+        np.save(savedir / (fn + '_contact.npy'), ss)
