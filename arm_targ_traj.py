@@ -281,7 +281,7 @@ def forward_with_sites(env, ctrls, site_names, render=False):
     return site_xvs, model_qs
 
 def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=None,
-                       let_go_ids=None,
+                       let_go_ids=None, n_steps_adh=10,
                        contact_check_list=None, adh_ids=None,
                       ):
     model = env.model
@@ -291,8 +291,8 @@ def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=None,
     Tk = ctrls.shape[0]
     contact_cnt = 0
     contact = False
-    adh_ctrl = opt_utils.AdhCtrl(let_go_times, let_go_ids, contact_check_list,
-                                 adh_ids)
+    adh_ctrl = opt_utils.AdhCtrl(let_go_times, let_go_ids, n_steps_adh,
+                                 contact_check_list, adh_ids)
     if noisev is None:
         noisev = np.zeros((Tk, model.nu))
     contacts = np.zeros((Tk, 2))
@@ -440,8 +440,10 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     grab_phase_it=0, grab_phase_tk=0, phase_2_it=None,
                     update_plot_every=1, optimizer='adam',
                     contact_check_list=None, adh_ids=None,
+                    balance_cost=1000, joint_cost=100,
                     let_go_times=None,
                     let_go_ids=None,
+                    n_steps_adh=10,
                     grab_time=None,
                    ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
@@ -628,6 +630,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     grab_time=grab_time,
                     let_go_times=let_go_times,
                     let_go_ids=let_go_ids,
+                    n_steps_adh=n_steps_adh,
                     contact_check_list=contact_check_list,
                     adh_ids=adh_ids
                 )
@@ -659,8 +662,10 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                 ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                     model, data, Tk, noisev, qpos0, stabilize_act_idx,
                     stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
-                    K_update_interv=500, let_go_times=let_go_times,
-                    let_go_ids = let_go_ids
+                    K_update_interv=500, balance_cost=balance_cost, 
+                    joint_cost=joint_cost, let_go_times=let_go_times,
+                    let_go_ids = let_go_ids,
+                    n_steps_adh=n_steps_adh,
                 )
             except np.linalg.LinAlgError:
                 print("LinAlgError in get_stabilized_ctrls")

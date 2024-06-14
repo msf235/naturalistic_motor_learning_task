@@ -246,7 +246,7 @@
     <motor name="wrist_left"      gear="40"  joint="wrist_left"/>
     <adhesion name="hand_right_adh" body="hand_right" gain="1000"
       ctrlrange="0 1"/>
-    <adhesion name="hand_left_adh" body="hand_left" gain="700"
+    <adhesion name="hand_left_adh" body="hand_left" gain="1000"
       ctrlrange="0 1"/>
   </actuator>
 

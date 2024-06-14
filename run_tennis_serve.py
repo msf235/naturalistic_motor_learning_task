@@ -24,7 +24,8 @@ outdir.mkdir(parents=True, exist_ok=True)
 ### Set things up
 seed = 2
 # out_f = outdir/'tennis_ctrl.pkl'
-out_f = outdir/'tennis_ctrl_working2.pkl'
+# out_f = outdir/'tennis_ctrl_working2.pkl'
+out_f = outdir/'tennis_ctrl_working4.pkl'
 # out_f = outdir/'tennis_ctrl_smaller_lr.pkl'
 # out_f = outdir/'tennis_ctrl_larger_lr.pkl'
 # out_f = outdir/'tennis_ctrl_sgd.pkl'
@@ -181,6 +182,9 @@ grad_trunc_tk = int(t_grad/(grad_update_every*dt))
 grab_phase_it=40
 # grab_phase_it=0
 
+t_adh = .01
+n_steps_adh = int(t_adh/dt)
+
 contact_check_list = [['racket_handle', 'hand_right1'], ['racket_handle', 'hand_right2'],
                       ['ball', 'hand_left1'], ['ball', 'hand_left2']]
 adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0],
@@ -192,6 +196,9 @@ let_go_times = [time_dict['t_left_3']]
 
 grab_time = int(max(time_dict['t_right_1'], time_dict['t_left_1']) * .9)
 
+balance_cost = 1000
+joint_cost = 500
+
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
@@ -200,6 +207,7 @@ if rerun1 or not out_f.exists():
         bodyj,
         # free_ctrls=np.ones((Tk, len(acts['adh'])))
         free_ctrls=np.zeros((Tk, len(acts['adh']))),
+        balance_cost=balance_cost, joint_cost=joint_cost,
         let_go_times=let_go_times,
         let_go_ids=let_go_ids,
         contact_check_list=contact_check_list,
@@ -223,8 +231,10 @@ if rerun1 or not out_f.exists():
         phase_2_it=max_its+1, optimizer=opt,
         contact_check_list=contact_check_list,
         adh_ids=adh_ids,
+        balance_cost=balance_cost, joint_cost=joint_cost,
         let_go_times=let_go_times,
         let_go_ids=let_go_ids,
+        n_steps_adh=n_steps_adh,
         grab_time=grab_time
     )
     with open(out_f, 'wb') as f:

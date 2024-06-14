@@ -156,12 +156,12 @@ def get_act_names_left_or_right(model, data=None, left_or_right='right'):
     return acts
 
 class AdhCtrl:
-    def __init__(self, t_zero_thrs, t_zero_ids, contact_check_list=None,
-                 adh_ids=None):
+    def __init__(self, t_zero_thrs, t_zero_ids, n_steps=10,
+                 contact_check_list=None, adh_ids=None):
         self.tk = 0
         self.t_zero_thrs = t_zero_thrs
         self.t_zero_ids = t_zero_ids
-        self.n_steps = 10
+        self.n_steps = n_steps
         self.contact_check_list = contact_check_list
         self.adh_ids = adh_ids
         self.ks = {k: 1 for k in adh_ids}
@@ -224,15 +224,17 @@ def get_Q_joint(model, data=None, excluded_acts=[]):
     Qjoint[excluded_acts, excluded_acts] *= 0
     return Qjoint
 
-def get_Q_matrix(model, data, excluded_state_inds=[]):
+def get_Q_matrix(model, data, excluded_state_inds=[], balance_cost=1000,
+                 joint_cost=100):
     # Cost coefficients.
-    balance_cost        = 1000  # Balancing.
+    # balance_cost        = 1000  # Balancing.
 
     Qbalance = get_Q_balance(model, data)
     Qjoint = get_Q_joint(model, data, excluded_state_inds)
     # Construct the Q matrix for position DoFs.
-    Qpos = balance_cost * Qbalance + Qjoint
-    Qpos = balance_cost * Qbalance + 500*Qjoint
+    # Qpos = balance_cost * Qbalance + Qjoint
+    # Qpos = balance_cost * Qbalance + 500*Qjoint
+    Qpos = balance_cost * Qbalance + joint_cost*Qjoint
     # Qpos = 1000*Qjoint
 
     # No explicit penalty for velocities.
@@ -265,14 +267,15 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
     return K
 
 def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
-                             active_ctrl_ids):
+                             active_ctrl_ids, balance_cost=1000, joint_cost=100):
     # What about data.qpos, data.qvel, data.qacc?
     # data = copy.deepcopy(data)
     data.ctrl[active_ctrl_ids] = ctrl0
     nq = model.nq
     nu = model.nu
     R = np.eye(len(active_ctrl_ids))
-    Q = get_Q_matrix(model, data)
+    Q = get_Q_matrix(model, data, balance_cost=balance_cost,
+                     joint_cost=joint_cost)
     K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
                                          active_ctrl_ids)
     return K
@@ -288,7 +291,9 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
 def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                          stable_jnt_ids, free_ctrls=None,
                          K_update_interv=None, free_ctrl_fn=None,
+                         balance_cost=1000, joint_cost=100,
                          let_go_times=None, let_go_ids=None,
+                         n_steps_adh=20,
                          contact_check_list=None, adh_ids=None):
     """Get stabilized controls.
 
@@ -309,7 +314,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         """
 
     if contact_check_list is not None:
-        adh_ctrl = AdhCtrl(let_go_times, let_go_ids, contact_check_list, adh_ids)
+        adh_ctrl = AdhCtrl(let_go_times, let_go_ids, n_steps, contact_check_list, adh_ids)
 
     data0 = copy.deepcopy(data)
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
@@ -332,7 +337,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                               ctrl_act_ids)
             util.reset_state(model, data, datak0)
             K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
-                                         ctrl_act_ids)
+                                         ctrl_act_ids, balance_cost, joint_cost)
             util.reset_state(model, data, datak0)
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
                                    stable_jnt_ids)
@@ -371,7 +376,7 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
                    q_targs, q_targ_masks,
                    grad_trunc_tk, deriv_sites, deriv_id_lists,
                    update_every=1, update_phase=0, grad_filter=True,
-                   grab_time=None, let_go_time=None):
+                   grab_time=None, let_go_time=None, n_steps_adh=10):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
@@ -393,7 +398,7 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
     dldqs = np.zeros((n, Tk, 2*model.nv))
     lams = np.zeros((n, Tk, 2*model.nv))
 
-    adh_ctrl = AdhCtrl(let_go_time, contact_check_list, adh_ids)
+    adh_ctrl = AdhCtrl(let_go_time, contact_check_list, adh_ids, n_steps_adh)
 
     # q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
     targ_traj_mask_any = np.any(np.stack(targ_traj_masks), axis=0)
@@ -490,7 +495,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
                    update_every=1, update_phase=0, grad_filter=True,
                    grab_time=None, let_go_times=None,
-                   let_go_ids=None,
+                   let_go_ids=None, n_steps_adh=10,
                    contact_check_list=None, adh_ids=None
                   ):
     """deriv_inds specifies the indices of the actuators that will be
@@ -513,7 +518,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     hxs = np.zeros((Tk, 3))
 
-    adh_ctrl = AdhCtrl(let_go_times, let_go_ids, contact_check_list, adh_ids)
+    adh_ctrl = AdhCtrl(let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids)
 
     q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
 
