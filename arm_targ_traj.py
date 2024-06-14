@@ -395,7 +395,7 @@ class WindowedIdx:
 def show_plot(hxs, target_trajs, targ_traj_mask_currs,
               # qs, qs_targs,
               site_names,
-              site_grad_idxs, ctrls, axs, grads, tt):
+              site_grad_idxs, ctrls, axs, grads, tt, show=True, save=False):
     fig = axs[0, 0].figure
     n = len(site_names)
     nr = range(n)
@@ -427,8 +427,11 @@ def show_plot(hxs, target_trajs, targ_traj_mask_currs,
     axs[1,0].plot(tt[:-1], ctrls[:, -2])
     # axs[1,1].plot(tt[:-1], ctrls[:, -1])
     fig.tight_layout()
-    plt.show(block=False)
-    plt.pause(.05)
+    if show:
+        plt.show(block=False)
+        plt.pause(.05)
+    if save:
+        fig.savefig('fig.pdf')
 
 def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     stabilize_act_idx, target_trajs, targ_traj_masks,
@@ -593,7 +596,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
             util.reset_state(model, data, data0)
             k, ctrls, contacts = forward_to_contact(
                 env, ctrls, noisev, False, let_go_times, let_go_ids,
-                contact_check_list, adh_ids)
+                n_steps_adh, contact_check_list, adh_ids)
             contact_bool = np.sum(contacts[:, 0]) * np.sum(contacts[:, 1]) > 0
             # if ball_contact:
                 # breakpoint()
@@ -698,7 +701,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                           # qs_wr,
                           # q_targs_wr,
                           site_names, site_grad_idxs, ctrls, axs,
-                          grads, tt)
+                          grads, tt, show=False, save=True)
             # util.reset_state(model, data, data0)
             # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
                 # breakpoint()

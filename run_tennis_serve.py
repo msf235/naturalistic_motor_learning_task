@@ -8,7 +8,10 @@ import pickle as pkl
 import arm_targ_traj as arm_t
 import basic_movements as bm
 from matplotlib import pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
 import torch
+
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -44,8 +47,8 @@ CTRL_RATE = 1
 rerun1 = False
 # rerun1 = True
 
-render_mode = 'human'
-# render_mode = 'rgb_array'
+# render_mode = 'human'
+render_mode = 'rgb_array'
 
 keyframe = 'wide_tennis_pos'
 
