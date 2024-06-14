@@ -306,6 +306,7 @@ class WindowViewer(BaseRender):
         self._last_mouse_x = 0
         self._last_mouse_y = 0
         self._paused = False
+        self._no_render = False
         self._transparent = False
         self._contacts = False
         self._render_every_frame = True
@@ -375,7 +376,8 @@ class WindowViewer(BaseRender):
             self._create_overlay()
 
             render_start = time.time()
-            if self.window is None:
+            if self.window is None or self._no_render:
+                glfw.poll_events()
                 return
             elif glfw.window_should_close(self.window):
                 glfw.destroy_window(self.window)
@@ -461,6 +463,9 @@ class WindowViewer(BaseRender):
         elif key == glfw.KEY_RIGHT and self._paused is not None:
             self._advance_by_one_step = True
             self._paused = True
+        elif key == glfw.KEY_K:
+            self._no_render = not self._no_render
+            print("_no_render: ", self._no_render)
         # Slows down simulation
         elif key == glfw.KEY_S:
             self._run_speed /= 2.0

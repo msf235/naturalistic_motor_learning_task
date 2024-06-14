@@ -10,10 +10,10 @@ import copy
 import sim_util
 import optimizers as opts
 
-epsilon = 1e-6
+epsilon_grad = 5e-9
 
 class AdamOptim():
-    def __init__(self, eta=0.01, beta1=0.9, beta2=0.999, epsilon=1e-6):
+    def __init__(self, eta=0.01, beta1=0.9, beta2=0.999, epsilon=1e-8):
         self.m_dw, self.v_dw = 0, 0
         self.m_db, self.v_db = 0, 0
         self.beta1 = beta1
@@ -114,6 +114,7 @@ def get_joint_ids(model, data=None):
     jntn = lambda k: model.joint(k).name
     joints = {}
     joints['joint_names'] = [jntn(k) for k in range(model.njnt)]
+    joints['all'] = {jntn(k): k for k in range(model.njnt)}
     joints['body'] = get_body_joints(model, data)
     joints['ball'] = [
         k for k in range(model.nq) if 'ball' in jntn(k)
@@ -154,6 +155,43 @@ def get_act_names_left_or_right(model, data=None, left_or_right='right'):
     ]
     return acts
 
+class AdhCtrl:
+    def __init__(self, t_zero_thrs, t_zero_ids, contact_check_list=None,
+                 adh_ids=None):
+        self.tk = 0
+        self.t_zero_thrs = t_zero_thrs
+        self.t_zero_ids = t_zero_ids
+        self.n_steps = 10
+        self.contact_check_list = contact_check_list
+        self.adh_ids = adh_ids
+        self.ks = {k: 1 for k in adh_ids}
+
+    def get_ctrl(self, model, data, ctrl):
+        ctrl = ctrl.copy()
+        ccl = self.contact_check_list
+        adh_ids = self.adh_ids
+        act = get_act_ids(model)
+        contact_pairs = util.get_contact_pairs(model, data)
+        adh_contact_ids = []
+        for cp in contact_pairs:
+            for k in range(len(ccl)):
+                if ccl[k][0] in cp and ccl[k][1] in cp:
+                    adh_id = adh_ids[k] 
+                    if adh_id not in adh_contact_ids:
+                        adh_contact_ids.append(adh_id)
+                        ctrl[adh_id] = 1/self.n_steps * self.ks[adh_id]
+                        if self.ks[adh_id] < self.n_steps:
+                            self.ks[adh_id] += 1
+        for k in range(len(self.t_zero_thrs)):
+            if self.t_zero_thrs[k] is not None and self.tk >= self.t_zero_thrs[k]:
+                ctrl[self.t_zero_ids[k]] = 0
+            self.tk += 1
+        return ctrl, None, None
+
+    def reset(self):
+        self.k_right = 0
+        self.k_left = 0
+
 def get_Q_balance(model, data):
     nq = model.nq
     jac_com = np.zeros((3, nq))
@@ -171,12 +209,16 @@ def get_Q_balance(model, data):
     return Qbalance
 
 def get_Q_joint(model, data=None, excluded_acts=[]):
-    balance_joint_cost  = 30     # Joints required for balancing.
+    balance_joint_cost  = 3     # Joints required for balancing.
     other_joint_cost    = .3    # Other joints.
-    joints = get_joint_ids(model)['body']
+    joint_ids = get_joint_ids(model)
+    joints = joint_ids['body']
+    # z_joint = joint_ids['all']['human_z_root']
     # Construct the Qjoint matrix.
     Qjoint = np.eye(model.nq)
-    Qjoint[joints['root_dofs'], joints['root_dofs']] *= 0  # Don't penalize free joint directly.
+    # Qjoint[joints['root_dofs'], joints['root_dofs']] *= 0  # Don't penalize free joint directly.
+    Qjoint[joints['root_dofs'], joints['root_dofs']] *= 3
+    # Qjoint[z_joint, z_joint] = 100
     Qjoint[joints['balance_dofs'], joints['balance_dofs']] *= balance_joint_cost
     Qjoint[joints['other_dofs'], joints['other_dofs']] *= other_joint_cost
     Qjoint[excluded_acts, excluded_acts] *= 0
@@ -190,6 +232,8 @@ def get_Q_matrix(model, data, excluded_state_inds=[]):
     Qjoint = get_Q_joint(model, data, excluded_state_inds)
     # Construct the Q matrix for position DoFs.
     Qpos = balance_cost * Qbalance + Qjoint
+    Qpos = balance_cost * Qbalance + 500*Qjoint
+    # Qpos = 1000*Qjoint
 
     # No explicit penalty for velocities.
     nq = model.nq
@@ -207,7 +251,7 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
     A = np.zeros((2*nq, 2*nq))
     B = np.zeros((2*nq, model.nu))
     flg_centered = True
-    mj.mjd_transitionFD(model, data, epsilon, flg_centered, A, B,
+    mj.mjd_transitionFD(model, data, epsilon_grad, flg_centered, A, B,
                         None, None)
     stable_ids = stable_jnt_ids + [i+nq for i in stable_jnt_ids]
     A = A[stable_ids][:, stable_ids]
@@ -243,7 +287,9 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
 
 def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                          stable_jnt_ids, free_ctrls=None,
-                         K_update_interv=None,):
+                         K_update_interv=None, free_ctrl_fn=None,
+                         let_go_times=None, let_go_ids=None,
+                         contact_check_list=None, adh_ids=None):
     """Get stabilized controls.
 
     Args:
@@ -261,6 +307,9 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         free_ctrls: Free controls.
         K_update_interv: Update interval for K.
         """
+
+    if contact_check_list is not None:
+        adh_ctrl = AdhCtrl(let_go_times, let_go_ids, contact_check_list, adh_ids)
 
     data0 = copy.deepcopy(data)
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
@@ -288,7 +337,13 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
                                    stable_jnt_ids)
         ctrls[k][ctrl_act_ids] = ctrl
+        # if free_ctrl_fn is not None:
+            # ctrls[k][free_act_ids] = free_ctrl_fn(model, data, free_ctrls[k])
+        # else:
+            # ctrls[k][free_act_ids] = free_ctrls[k]
         ctrls[k][free_act_ids] = free_ctrls[k]
+        if contact_check_list is not None:
+            ctrls[k], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[k])
         mj.mj_step1(model, data)
         data.ctrl[:] = ctrls[k] + noisev[k]
         mj.mj_step2(model, data)
@@ -296,10 +351,148 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         qvels[k+1] = data.qvel.copy()
     return ctrls, K, qs, qvels
 
+def cum_mat_prod(tuple_of_mat):
+    t = np.eye(tuple_of_mat[0].shape[0])
+    rs = []
+    for m in tuple_of_mat:
+        t = t @ m
+        rs.append(t)
+    return rs
+
+def cum_sum(tuple_of_mat):
+    t = np.zeros(tuple_of_mat[0].shape[0])
+    rs = []
+    for m in tuple_of_mat:
+        t = t + m
+        rs.append(t)
+    return rs
+
+def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
+                   q_targs, q_targ_masks,
+                   grad_trunc_tk, deriv_sites, deriv_id_lists,
+                   update_every=1, update_phase=0, grad_filter=True,
+                   grab_time=None, let_go_time=None):
+    """deriv_inds specifies the indices of the actuators that will be
+    updated (for instance, the actuators related to the right arm)."""
+    # data = copy.deepcopy(data)
+    assert update_phase < update_every
+    n = len(deriv_sites)
+    Tk = ctrls.shape[0]+1
+    grad_range = range(update_phase, Tk, update_every)
+    Tkn = grad_range[-1]
+    Bs = []
+    fixed_act_id_list = []
+    for k in range(n):
+        nuderiv = len(deriv_id_lists[k])
+        Bs.append(np.zeros((Tk-1, 2*model.nv, nuderiv)))
+        fixed_act_id_list.append([i for i in range(model.nu) if i not in
+                                  deriv_id_lists[k]])
+    As = np.zeros((Tk-1, 2*model.nv, 2*model.nv))
+    B = np.zeros((2*model.nv, model.nu))
+    C = np.zeros((3, model.nv))
+    dldqs = np.zeros((n, Tk, 2*model.nv))
+    lams = np.zeros((n, Tk, 2*model.nv))
+
+    adh_ctrl = AdhCtrl(let_go_time, contact_check_list, adh_ids)
+
+    # q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
+    targ_traj_mask_any = np.any(np.stack(targ_traj_masks), axis=0)
+
+    for tk in range(Tk):
+        mj.mj_forward(model, data)
+        if tk in grad_range and targ_traj_mask_any[tk]:
+            if tk < Tk-1:
+                mj.mjd_transitionFD(
+                    model, data, epsilon_grad, True, As[tk], B, None, None
+                )
+        for k, deriv_site in enumerate(deriv_sites):
+            if tk in grad_range and targ_traj_masks[k][tk]:
+                mj.mj_jacSite(
+                    model, data, C, None, site=data.site(deriv_site).id)
+                site_xpos = data.site(deriv_site).xpos
+                dlds = site_xpos - targ_trajs[k][tk]
+                dldq = C.T @ dlds
+                dldqs[k, tk, :model.nv] = dldq
+                Bs[k][tk] = np.delete(B, fixed_act_id_list[k], axis=1)
+        # if tk in grad_range and q_targ_mask_flat[tk]:
+        if tk in grad_range:
+            qnow = np.concatenate((data.qpos[:], data.qvel[:]))
+            for k in range(n):
+                q_targ_mask = q_targ_masks[k]
+                dldq = qnow - q_targs[k][tk]
+                dldqs[k, tk] += dldq * q_targ_mask[tk]
+        if tk < Tk-1:
+            ctrls[tk] = adh_ctrl.get_ctrl(model, data, ctrls[tk])[0]
+            sim_util.step(model, data, ctrls[tk])
+    # print(As[1630])
+    # print(Bs[0][1630])
+    # print(dldqs[0, 1630])
+    # breakpoint()
+    grads = np.zeros((n, Tk-1, nuderiv))
+    loss_us = []
+    for k in range(n):
+        loss_us.append(np.delete(ctrls, fixed_act_id_list[k], axis=1))
+        lams[k, tk] = dldqs[k, tk]
+    
+    tau_loss_factor = 1e-9
+    for tk in reversed(grad_range[1:]):
+        tks = tk - update_every # Shifted by one update
+        term_lists = [[]]*n
+        for k in range(n):
+            terms = term_lists[k]
+            terms.insert(0, dldqs[k, tk])
+            while len(terms) > grad_trunc_tk:
+                terms.pop()
+            At = As[tks].T
+            terms = [At @ term for term in terms]
+            if grad_filter:
+                if targ_traj_masks[k][tk]:
+                    grads[k, tks] = tau_loss_factor*loss_us[k][tks] \
+                        + Bs[k][tks].T @ lams[k, tk]
+            else:
+                grads[k, tks] = tau_loss_factor*loss_us[k][tks] \
+                    + Bs[k][tks].T @ lams[k, tk]
+        # if np.sum(np.abs(lams[k, tks])) > 0:
+            # breakpoint()
+    # breakpoint()
+    # fig, ax = plt.subplots()
+    # nrms = np.linalg.norm(grads, axis=1)
+    # ax.plot(nrms)
+    # plt.show()
+
+    mat_block = np.zeros((update_every, update_every+1))
+    dk = 1/update_every
+    v = np.arange(dk, 1+dk, dk)
+    mat_block[:, 0] = v[::-1]
+    mat_block[1:, update_every] = v[:-1]
+    # if update_phase > 0:
+    n_complete_blocks = (Tk-1) // update_every + 1
+    last_block_size = (Tk-1) % update_every - update_phase
+    first_block_size = update_phase
+    # As = n_complete_blocks * update_every + last_block_size + first_block_size
+    An = Tk-1
+    A = np.zeros((An, An))
+    A[:update_phase, update_phase] = 1
+    for k in range(0, An-update_every-update_phase, update_every):
+        ks = k + update_phase
+        A[ks:ks+update_every, ks:ks+update_every+1] = mat_block
+    A[ks+update_every:, ks+update_every] = 1
+
+    grads_interp = np.zeros((n, Tk-1, nuderiv))
+    for k in range(n):
+        grads_interp[k] = A @ grads[k]
+
+    return grads_interp
+
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
-               grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
-                  update_every=1, update_phase=0):
+                   q_targ, q_targ_mask,
+                   grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
+                   update_every=1, update_phase=0, grad_filter=True,
+                   grab_time=None, let_go_times=None,
+                   let_go_ids=None,
+                   contact_check_list=None, adh_ids=None
+                  ):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
@@ -315,11 +508,17 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     dldqs = np.zeros((Tk, 2*model.nv))
     dldss = np.zeros((Tk, 3))
     lams = np.zeros((Tk, 2*model.nv))
+    lams2 = np.zeros((Tk, 2*model.nv))
+    lams3 = np.zeros((Tk, 2*model.nv))
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     hxs = np.zeros((Tk, 3))
 
+    adh_ctrl = AdhCtrl(let_go_times, let_go_ids, contact_check_list, adh_ids)
+
+    q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
+
     for tk in range(Tk):
-        if tk in grad_range:
+        if tk in grad_range and targ_traj_mask[tk]:
             mj.mj_forward(model, data)
             mj.mj_jacSite(
                 model, data, C, None, site=data.site(f'{deriv_site}').id)
@@ -331,29 +530,75 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
             dldqs[tk, :model.nv] = dldq
             if tk < Tk-1:
                 mj.mjd_transitionFD(
-                    model, data, epsilon, True, As[tk], B, None, None
+                    model, data, epsilon_grad, True, As[tk], B, None, None
                 )
-                # if np.max(np.abs(As[tk])) > 40:
-                    # breakpoint()
                 Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
+        if tk in grad_range and q_targ_mask_flat[tk]:
+            qnow = np.concatenate((data.qpos[:], data.qvel[:]))
+            dldq = qnow - q_targ[tk]
+            dldqs[tk] += dldq * q_targ_mask[tk]
         
         if tk < Tk-1:
+            ctrls[tk], __, __ = adh_ctrl.get_ctrl(
+                model, data, ctrls[tk],
+            )
             sim_util.step(model, data, ctrls[tk])
-
-    print(np.max(np.abs(As)))
-    ttm = targ_traj_mask.reshape(-1, 1)
-    dldqs = dldqs * ttm
+    # print(As[1630])
+    # print(Bs[1630])
+    # print(dldqs[1630])
+    # Ast = [A.T for A in As]
+    # Aprods = cum_mat_prod(As)
+    # Aprods.insert(0, np.eye(As[0].shape[0]))
+    # terms = [Aprods[k]@dldqs[k] for k in range(Tk)]
+    # lams2 = cum_sum(terms)
+    # n = 1*(len(deriv_site) < 5)
+    # print(deriv_site + '\t\t' + '\t'*n + str(np.max(np.abs(As))))
+    # ttm = targ_traj_mask.reshape(-1, 1)
+    # dldqs = dldqs * ttm
     # lams[-1] = dldqs[-1]
     lams[tk] = dldqs[tk]
+    # lams2[tk] = dldqs[tk]
+    # lams3[tk] = dldqs[tk]
     grads = np.zeros((Tk-1, nuderiv))
-    # tau_loss_factor = 1e-9
-    tau_loss_factor = 0
+    tau_loss_factor = 1e-9
+    # tau_loss_factor = 0
     loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
-
+    
+    # time.tic()
+    # terms = [dldqs[tk]]
+    # terms2 = [dldqs[tk]]
+    # from matplotlib import pyplot as plt
+    # plt.close('all')
+    # fig, ax = plt.subplots()
+    # fig.show()
+    terms = []
     for tk in reversed(grad_range[1:]):
         tks = tk - update_every # Shifted by one update
-        lams[tks] = dldqs[tks] + As[tks].T @ lams[tk]
-        grads[tks] = tau_loss_factor*loss_u[tks] + Bs[tks].T @ lams[tk]
+        # lams[tks] = dldqs[tks] + As[tks].T @ lams[tk]
+        terms.insert(0, dldqs[tk])
+        while len(terms) > grad_trunc_tk:
+            terms.pop()
+        At = As[tks].T
+        terms = [At @ term for term in terms]
+        # print(np.linalg.norm(terms[0]), np.linalg.norm(terms[-1]))
+        # nrm_terms = np.linalg.norm(terms, axis=1)
+        # ax.cla()
+        # ax.plot(nrm_terms)
+        # plt.pause(1)
+        # mprods = cum_mat_prod(Ast[tks:])
+        # terms = [mat@lam for mat, lam in zip(mprods, dldqs[tk:])]
+        # lams2[tks] = dldqs[tks] + np.sum(terms, axis=0)
+        lams[tks] = dldqs[tks] + np.sum(terms, axis=0)
+        # print(np.linalg.norm(lams[tks]))
+        if grad_filter and targ_traj_mask[tk]:
+            grads[tks] = tau_loss_factor*loss_u[tks] + Bs[tks].T @ lams[tk]
+        # if np.sum(np.abs(grads[tks])) > 0:
+            # breakpoint()
+    # breakpoint()
+    # fig, ax = plt.subplots()
+    # nrms = np.linalg.norm(grads, axis=1)
+    # ax.plot(nrms)
+    # plt.show()
 
     mat_block = np.zeros((update_every, update_every+1))
     dk = 1/update_every
@@ -379,67 +624,6 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     return grads_interp
     # return grads, hxs, dldss
 
-### Gradient descent
-def traj_deriv(model, data, ctrls, targ_traj, targ_traj_mask,
-               grad_trunc_tk, deriv_ids=[], deriv_site='hand_right'):
-    """deriv_inds specifies the indices of the actuators that will be
-    updated (for instance, the actuators related to the right arm)."""
-    # data = copy.deepcopy(data)
-    nuderiv = len(deriv_ids)
-    Tk = ctrls.shape[0]
-    As = np.zeros((Tk, 2*model.nv, 2*model.nv))
-    Bs = np.zeros((Tk, 2*model.nv, nuderiv))
-    B = np.zeros((2*model.nv, model.nu))
-    C = np.zeros((3, model.nv))
-    dldqs = np.zeros((Tk, 2*model.nv))
-    dldss = np.zeros((Tk, 3))
-    lams = np.zeros((Tk, 2*model.nv))
-    fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
-    hxs = np.zeros((Tk, 3))
-
-    for tk in range(Tk):
-        mj.mj_forward(model, data)
-        mj.mjd_transitionFD(model, data, epsilon, True, As[tk], B, None, None)
-        Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
-        mj.mj_jacSite(
-            model, data, C, None, site=data.site(f'{deriv_site}').id)
-        site_xpos = data.site(f'{deriv_site}').xpos
-        dlds = site_xpos - targ_traj[tk]
-        dldss[tk] = dlds
-        hxs[tk] = site_xpos
-        dldq = C.T @ dlds
-        dldqs[tk, :model.nv] = dldq
-        
-        if tk < Tk-1:
-            sim_util.step(model, data, ctrls[tk])
-
-    ttm = targ_traj_mask.reshape(-1, 1)
-    dldqs = dldqs * ttm
-    lams[-1] = dldqs[-1]
-    grads = np.zeros((Tk, nuderiv))
-    # tau_loss_factor = 1e-9
-    tau_loss_factor = 0
-    loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
-
-    # Todo: fix indexing
-    for tk in range(2, Tk): # Go backwards in time
-        lams[Tk-tk] = dldqs[Tk-tk] + As[Tk-tk].T @ lams[Tk-tk+1]
-        # grads[Tk-tk] = (tau_loss_factor/tk**.5)*loss_u[Tk-tk] \
-        grads[Tk-tk] = tau_loss_factor*loss_u[Tk-tk] \
-                + Bs[Tk-tk].T @ lams[Tk-tk+1]
-    return grads, hxs, dldss
-
-def get_final_loss(model, data, xpos1, xpos2):
-    # I could put a forward sim here for safety (but less efficient)
-    dlds = xpos1 - xpos2
-    C = np.zeros((3, model.nv))
-    mj.mj_jacSite(model, data, C, None, site=data.site('hand_right').id)
-    dldq = C.T @ dlds
-    lams_fin = dldq # 11 and 12 are currently right shoulder and elbow
-    loss = .5*np.mean(dlds**2)
-    print(f'loss: {loss}', f'xpos1: {xpos1}', f'xpos2: {xpos2}')
-    return loss, lams_fin
-
 def reset(model, data, nsteps1, nsteps2, keyframe_name=None):
     if keyframe_name is not None:
         keyframe_id = model.keyframe(keyframe_name).id
@@ -453,8 +637,7 @@ def reset(model, data, nsteps1, nsteps2, keyframe_name=None):
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
     bodyj = joints['body']['body_dofs']
-    ctrls = get_stabilized_ctrls(
+    get_stabilized_ctrls(
         model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
         bodyj, free_ctrls=np.ones((nsteps2, len(acts['adh'])))
     )[0]
-

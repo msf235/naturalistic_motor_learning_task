@@ -30,7 +30,7 @@ class ProgressBar:
         self.it = 0
         self.final_it = final_it
 
-    def update(self):
+    def update(self, extra_str=""):
         tic = time.time()
         if tic - self.latest_time > self.update_every:
             elapsed = tic - self.first_time
@@ -40,6 +40,7 @@ class ProgressBar:
             pstring = "[%-15s] %d%%" % ('='*int(15*frac), 100*frac,)
             pstring += "  Est. time remaining: " \
                         + format_time(est_time_remaining)
+            pstring += extra_str
             # Pad with whitespace
             if len(pstring) < 90:
                 pstring += ' '*(90-len(pstring))
@@ -58,19 +59,6 @@ class ProgressBar:
     # for k in range(nsteps):
         # mj.mj_step(model, data)
 
-def reset(model, data, nsteps1, nsteps2, keyframe_name=None):
-    if keyframe_name is not None:
-        keyframe_id = model.keyframe(keyframe_name).id
-        mj.mj_resetDataKeyframe(model, data, keyframe_id)
-    else:
-        mj.mj_resetData(model, data)
-    mj.mj_forward(model, data)
-    for k in range(nsteps1):
-        mj.mj_step(model, data)
-    ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        bodyj, free_ctrls=np.ones((Tk, len(acts['adh'])))
-    )[:2]
 
 def reset_state(model, data_to, data_from):
     """Resets the state of `data_to` to that of `data_from`."""

@@ -13,15 +13,15 @@
      limitations under the License.
 -->
 
+    <!--timestep="0.00125"-->
+    <!--integrator="implicitfast"/>-->
 <mujoco model="Humanoid">
-  <option timestep="0.0025"/>
-  <include file="humanoid.xml"/>
+  <option timestep="0.0005" integrator="implicitfast"/>
+      <!-- geoms -->
   <default>
-    <geom solimp=".8 .9 .01" solref=".05 1" friction="1 0.005 0.0001"
-      margin=".001" gap=".001"/>
+    <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/>
   </default>
-  <!--<geom type="capsule" condim="1" friction=".7" solimp=".9 .99 .005"-->
-    <!--solref=".015 1" material="body" group="1"/>-->
+  <include file="humanoid.xml"/>
   <include file="tennis_serve_scene.xml"/>
   <visual>
     <map force="0.1" zfar="30"/>
@@ -35,7 +35,6 @@
   </visual>
   <keyframe>
     <key name="tennis_pos" qpos="0 -.4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"/>
-    <key name="wide_tennis_pos" qpos="-.01 -.4 0 0 -.28 -.2 -.28 .2 0 0 0 0 0 0 0 0 0 0 0 0"/>
-    <key name="test" qpos="-.01 -.4 0 0 -.28 -.2 -.28 .2 0 0 0 0 0 0 0 0 0 0 -.5 0"/>
+    <key name="wide_tennis_pos" qpos="0 -.4 0 0 -.2 -.1 -.2 .1 0 0 0 0 0 0 0 0 0 0 0 0"/>
   </keyframe>
 </mujoco>

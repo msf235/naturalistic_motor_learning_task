@@ -64,9 +64,10 @@
     <body name="ball" pos="0 0.2 1.05">
       <geom name="ball" size=".05 .05 .05" pos="0 0 0" type="sphere"
         material="obj" condim="3" friction="1 0.005 0.0001"
-        rgba=".7 0 0 1"/>
-      <site name="ball_base" pos="0 0 -.05" size=".01"/>
+        rgba=".7 0 0 1" mass=".057"/>
+      <site name="ball_base" pos="0 0 -.05" size=".01" rgba=".7 .7 .2 0"/>
       <site name="ball" pos="0 0 0"/>
+      <site name="ball_top" pos="0 0 0.05" rgba=".7 .7 .2 0"/>
       <joint name="ball_z_root" type="slide" axis="0 0 1" range="-100 100"/>
       <joint name="ball_x_root" type="slide" axis="0 1 0" range="-100 100"/>
       <joint name="ball_hinge_root" type="hinge" axis="1 0 0" range="-1000 1000"/>
@@ -74,17 +75,18 @@
 
     <geom name="racketstand" size=".1 .1 .5" pos="0 -1.1 .5" type="box"
       material="obj" condim="3"/>
-    <body name="racket" pos="0 -1.01 1.01">
+    <body name="racket" pos="0 -1.04 1.01">
       <geom name="racket_handle" type="cylinder" size=".02 .15" pos="0 .06 0" 
         material="obj" condim="3" rgba=".7 0 0 1"
-        zaxis="0 1 0" friction="1 0.005 .0001" density="700"/>
-      <site name="racket_handle" pos="0 .09 0" size=".05" rgba=".7 .7 .2 1"/>
+        zaxis="0 1 0" friction="1 0.005 .0001" density="500"/>
+      <site name="racket_handle" pos="0 .09 0" size=".05" rgba=".7 .7 .2 0"/>
+      <site name="racket_handle_top" pos="0 .09 .02" size=".05" rgba=".7 .7 .2 0"/>
       <geom name="racket_handle_ball" type="sphere" size=".02" pos="0 .2 0" 
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 1"
-        density="7000"/>
+        density="2000"/>
       <geom name="racket_net" type="box" size=".08 .14 .008" pos="0 -.21 0" 
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 1"
-        density="400"/>
+        density="200"/>
       <site name="racket" pos="0 0 0"/>
       <joint name="racket_z_root" type="slide" axis="0 0 1" range="-100 100"/>
       <joint name="racket_x_root" type="slide" axis="0 1 0" range="-100 100"/>
@@ -92,10 +94,10 @@
         range="-1000 1000"/>
     </body>
 
-    <body name="target" pos="0 2 .5">
+    <body name="target" pos="0 2 1.0">
       <geom name="target" type="cylinder" pos="0 0 0" size="1 .05"
         zaxis="0 1 0"/>
-      <site name="bullseye" pos="0 -.05 0" size="0.06" rgba="1 1 1 1"/>
+      <site name="bullseye" pos="0 -.05 0" size="0.06" rgba="1 1 1 0"/>
     </body>
 
     <!--<site name="target2" pos="0 -.85 1.5" size=".06" rgba="1 1 0 .5"/>-->
