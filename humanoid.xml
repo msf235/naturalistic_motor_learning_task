@@ -137,6 +137,7 @@
                 <!--<joint name="ankle_x_right" class="ankle_x" axis="1 0 .5"/>-->
                 <geom name="foot1_right" class="foot1"/>
                 <geom name="foot2_right" class="foot2"/>
+                <site name="foot_right" size="0.2" pos="0 0 0" rgba="1 1 .5 0"/>
               </body>
             </body>
           </body>
@@ -169,7 +170,8 @@
           <site name="elbow_right" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
           <geom name="lower_arm_right" fromto="0 .01 .01 0 -.17 .17" class="arm_lower"/>
           <body name="hand_right" pos="0 -.18 .18" zaxis="0 -1 1.5">
-            <site name="hand_right" class="hand"/>
+            <site name="hand_right" class="hand" size="0.5" rgba="1 1 .5 0"
+              pos="0 0 0"/>
             <!--<geom name="hand_right" zaxis="0 -1 1.5" class="hand" />-->
             <geom name="hand_right1" type="capsule" pos="0 0 -.025" class="hand"/>
             <site name="hand_right1" class="hand" pos="0 0 -.025" size="0.1"/> <!--Check size.-->
@@ -190,7 +192,7 @@
           <site name="elbow_left" size="0.05" pos="0 0 0" rgba="1 1 .5 0"/>
           <geom name="lower_arm_left" fromto="0 -.01 .01 0 .17 .17" class="arm_lower"/>
           <body name="hand_left" pos="0 .18 .18" zaxis="0 1 1.5">
-            <site name="hand_left" class="hand" />
+            <site name="hand_left" class="hand" size="0.2" pos="0 0 0" rgba="1 1 .5 0"/>
             <!--<geom name="hand_left" zaxis="0 1 2" class="hand"/>-->
             <geom name="hand_left1" type="capsule" class="hand" pos="0 0 -.025"/>
             <site name="hand_left1" class="hand" pos="0 0 -.025" size="0.1"/>
@@ -245,7 +247,7 @@
     <!--<motor name="shoulder2_left"  gear="20"  joint="shoulder2_left"/>-->
     <motor name="elbow_left"      gear="100"  joint="elbow_left"/>
     <motor name="wrist_left"      gear="40"  joint="wrist_left"/>
-    <adhesion name="hand_right_adh" body="hand_right" gain="1000"
+    <adhesion name="hand_right_adh" body="hand_right" gain="700"
       ctrlrange="0 1"/>
     <adhesion name="hand_left_adh" body="hand_left" gain="1000"
       ctrlrange="0 1"/>

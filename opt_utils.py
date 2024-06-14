@@ -12,39 +12,6 @@ import optimizers as opts
 
 epsilon_grad = 5e-9
 
-class AdamOptim():
-    def __init__(self, eta=0.01, beta1=0.9, beta2=0.999, epsilon=1e-8):
-        self.m_dw, self.v_dw = 0, 0
-        self.m_db, self.v_db = 0, 0
-        self.beta1 = beta1
-        self.beta2 = beta2
-        self.epsilon = epsilon
-        self.eta = eta
-    def update(self, t, w, b, dw, db):
-        ## dw, db are from current minibatch
-        ## momentum beta 1
-        # *** weights *** #
-        self.m_dw = self.beta1*self.m_dw + (1-self.beta1)*dw
-        # *** biases *** #
-        self.m_db = self.beta1*self.m_db + (1-self.beta1)*db
-
-        ## rms beta 2
-        # *** weights *** #
-        self.v_dw = self.beta2*self.v_dw + (1-self.beta2)*(dw**2)
-        # *** biases *** #
-        self.v_db = self.beta2*self.v_db + (1-self.beta2)*(db)
-
-        ## bias correction
-        m_dw_corr = self.m_dw/(1-self.beta1**t)
-        m_db_corr = self.m_db/(1-self.beta1**t)
-        v_dw_corr = self.v_dw/(1-self.beta2**t)
-        v_db_corr = self.v_db/(1-self.beta2**t)
-
-        ## update weights and biases
-        w = w - self.eta*(m_dw_corr/(np.sqrt(v_dw_corr)+self.epsilon))
-        b = b - self.eta*(m_db_corr/(np.sqrt(v_db_corr)+self.epsilon))
-        return w, b
-
 ### LQR
 def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     # data = copy.deepcopy(data)
@@ -289,7 +256,8 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
     return ctrl0 - K @ dx
 
 def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
-                         stable_jnt_ids, free_ctrls=None,
+                         stable_jnt_ids,
+                         free_ctrls=None,
                          K_update_interv=None, free_ctrl_fn=None,
                          balance_cost=1000, joint_cost=100,
                          let_go_times=None, let_go_ids=None,
@@ -428,7 +396,8 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
                 dldq = qnow - q_targs[k][tk]
                 dldqs[k, tk] += dldq * q_targ_mask[tk]
         if tk < Tk-1:
-            ctrls[tk] = adh_ctrl.get_ctrl(model, data, ctrls[tk])[0]
+            ctrls[tk] = adh_ctrl.get_ctrl(model, data, ctrls[tk],
+                                          contact_check_list, act_ids)[0]
             sim_util.step(model, data, ctrls[tk])
     # print(As[1630])
     # print(Bs[0][1630])
@@ -493,7 +462,8 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    q_targ, q_targ_mask,
-                   grad_trunc_tk, deriv_ids=[], deriv_site='hand_right',
+                   grad_trunc_tk,
+                   deriv_ids=[], deriv_site='hand_right',
                    update_every=1, update_phase=0, grad_filter=True,
                    grab_time=None, let_go_times=None,
                    let_go_ids=None, n_steps_adh=10,
@@ -522,6 +492,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     adh_ctrl = AdhCtrl(let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids)
 
     q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
+    vel_penalty_factor = 1e-6
 
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
@@ -543,11 +514,14 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
             qnow = np.concatenate((data.qpos[:], data.qvel[:]))
             dldq = qnow - q_targ[tk]
             dldqs[tk] += dldq * q_targ_mask[tk]
+        if tk in grad_range:
+            dldqs[tk, model.nv:] *= vel_penalty_factor
         
         if tk < Tk-1:
-            ctrls[tk], __, __ = adh_ctrl.get_ctrl(
-                model, data, ctrls[tk],
-            )
+            if contact_check_list is not None:
+                ctrls[tk], __, __ = adh_ctrl.get_ctrl(
+                    model, data, ctrls[tk],
+                )
             sim_util.step(model, data, ctrls[tk])
     # print(As[1630])
     # print(Bs[1630])
@@ -566,7 +540,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     # lams2[tk] = dldqs[tk]
     # lams3[tk] = dldqs[tk]
     grads = np.zeros((Tk-1, nuderiv))
-    tau_loss_factor = 1e-9
+    tau_loss_factor = 1e-7
     # tau_loss_factor = 0
     loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
     
@@ -643,7 +617,9 @@ def reset(model, data, nsteps1, nsteps2, keyframe_name=None):
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
     bodyj = joints['body']['body_dofs']
-    get_stabilized_ctrls(
+    ctrls = get_stabilized_ctrls(
         model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
         bodyj, free_ctrls=np.ones((nsteps2, len(acts['adh'])))
     )[0]
+    ctrls = np.vstack((np.zeros((nsteps1, model.nu)), ctrls))
+    return ctrls

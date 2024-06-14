@@ -27,11 +27,11 @@ savedir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
 seed = 2
-out_f = outdir/f'ball_throw_ctrl_seed_{seed}_3.pkl'
+out_f = outdir/f'ball_grab_ctrl_seed_{seed}_1.pkl'
 
 max_its = 300
 
-Tf = .6
+Tf = .9
 
 CTRL_STD = 0
 CTRL_RATE = 1
@@ -97,7 +97,7 @@ targ_traj_mask = np.ones((Tk,))
 targ_traj_mask_type = 'double_sided_progressive'
 # targ_traj_mask_type = 'const'
 # out = arm_t.tennis_traj(model, data, Tk)
-out = arm_t.throw_traj(model, data, Tk)
+out = arm_t.throw_grab_traj(model, data, Tk)
 # right_hand_traj, left_hand_traj, ball_traj, time_dict = out
 full_traj, time_dict = out
 # ball_traj_mask = np.ones((Tk,))
@@ -198,8 +198,10 @@ contact_check_list = [['ball', 'hand_right1'], ['ball', 'hand_right2']]
            # acts['adh_left_hand'][0], acts['adh_left_hand'][0]]
 adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
 # let_go_ids = [acts['adh_left_hand'][0]]
-let_go_ids = [acts['adh_right_hand'][0]]
-let_go_times = [Tk]
+# let_go_ids = [acts['adh_right_hand'][0]]
+let_go_ids = []
+# let_go_times = [Tk]
+let_go_times = []
 
 # grab_time = int(max(time_dict['t_1']*.9, time_dict['t_left_1']) * .9)
 grab_time = int(time_dict['t_1'] * .9)
@@ -245,15 +247,15 @@ if rerun1 or not out_f.exists():
 else:
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)
-    ctrls = load_data['ctrls']
+    # ctrls = load_data['ctrls']
     ctrls_burn_in = load_data['ctrls_burn_in']
     lowest_losses = load_data['lowest_losses']
 
 ctrls = lowest_losses.peekitem(0)[1][1]
-Te = 3
-Tke = int(3 / dt)
-ctrls_end = np.zeros((Tke, model.nu))
-ctrls_full = np.vstack((ctrls, ctrls_end))
+# Te = 3
+# Tke = int(3 / dt)
+# ctrls_end = np.zeros((Tke, model.nu))
+# ctrls_full = np.vstack((ctrls, ctrls_end))
 # mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
 # util.forward_sim(model, data, ctrls_burn_in)
 # reset()
@@ -278,8 +280,8 @@ while True:
     # mj.mj_resetDataKeyframe(model, data, model.key(keyframe).id)
     # util.forward_sim(model, data, ctrls_burn_in)
     reset()
-    arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
-    time.sleep(10)
+    arm_t.forward_with_sites(env, ctrls, sites, render=True)
+    time.sleep(5)
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     # reset()
 

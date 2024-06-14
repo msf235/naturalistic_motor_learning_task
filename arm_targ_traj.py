@@ -31,6 +31,42 @@ def arc_traj(x0, r, theta0, theta1, n, density_fn='uniform'):
     x = x0 + r*np.array([0*theta, np.cos(theta), np.sin(theta)]).T
     return x
 
+def throw_grab_traj(model, data, Tk):
+    shouldx = data.site('shoulder1_right').xpos
+    elbowx = data.site('elbow_right').xpos
+    handx = data.site('hand_right').xpos
+    r1 = np.sum((shouldx - elbowx)**2)**.5
+    r2 = np.sum((elbowx - handx)**2)**.5
+    r = r1 + r2
+    Tk1 = int(Tk / 3)
+    # Tk2 = int(2*Tk/3)
+    Tk2 = Tk - Tk1
+    Tk3 = int((Tk+Tk2)/2)
+    arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+                                  np.pi/2.2, Tk-Tk2, density_fn='')
+    grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
+    s = sigmoid(np.linspace(0, 1, Tk1), 5)
+    s = np.tile(s, (3, 1)).T
+    grab_traj = handx + s*(grab_targ - handx)
+    # grab_traj[-1] = grab_targ
+
+    setup_traj = np.zeros((Tk2, 3))
+    s = np.linspace(0, 1, Tk2)
+    s = np.stack((s, s, s)).T
+    setup_traj = grab_traj[-1] + s*(arc_traj_vs[0] - grab_traj[-1])
+    full_traj = np.concatenate((grab_traj, setup_traj), axis=0)
+
+    time_dict = {
+        't_1': Tk1,
+        't_2': Tk2,
+        't_3': Tk3,
+        'Tk1': Tk1,
+        'Tk2': Tk2-Tk1,
+        'Tk3': Tk3-Tk2
+    }
+    
+    return full_traj, time_dict
+
 def throw_traj(model, data, Tk):
     shouldx = data.site('shoulder1_right').xpos
     elbowx = data.site('elbow_right').xpos
@@ -39,10 +75,10 @@ def throw_traj(model, data, Tk):
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
     Tk1 = int(Tk / 3)
-    Tk2 = int(2*Tk/4)
+    Tk2 = int(2*Tk/3)
     Tk3 = int((Tk+Tk2)/2)
     arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
-                                  np.pi/2.5, Tk-Tk2, density_fn='')
+                                  np.pi/2.2, Tk-Tk2, density_fn='')
     grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
     s = sigmoid(np.linspace(0, 1, Tk1), 5)
     s = np.tile(s, (3, 1)).T
@@ -103,7 +139,7 @@ def tennis_traj(model, data, Tk):
     # Right arm
 
     # grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
-    grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0.03])
+    grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0.02])
     # grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0])
     sx = np.linspace(0, 1, Tk_right_1)
     s = sigmoid(sx, 5)
@@ -297,8 +333,9 @@ def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=None,
         noisev = np.zeros((Tk, model.nu))
     contacts = np.zeros((Tk, 2))
     for k in range(Tk):
-        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
-        contacts[k] = [cont_k1, cont_k2]
+        if contact_check_list is not None:
+            ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
+            contacts[k] = [cont_k1, cont_k2]
         util.step(model, data, ctrls[k] + noisev[k])
         if render:
             env.render()
@@ -630,7 +667,6 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     grad_trunc_tk,
                     deriv_ids=site_grad_idxs[k], deriv_site=site_names[k],
                     update_every=grad_update_every, update_phase=update_phase,
-                    grab_time=grab_time,
                     let_go_times=let_go_times,
                     let_go_ids=let_go_ids,
                     n_steps_adh=n_steps_adh,

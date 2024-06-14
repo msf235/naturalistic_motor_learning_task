@@ -96,7 +96,7 @@ def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     return noisev
 
 def random_arcs(shouldx, handx, elbowx, n_steps, initial_xpos,
-                theta_lims, smoothing_sigma, step_std):
+                theta_lims, smoothing_sigma=20, step_std=0.02):
     r1 = np.sum((shouldx - elbowx)**2)**.5
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
@@ -118,19 +118,23 @@ def random_arcs(shouldx, handx, elbowx, n_steps, initial_xpos,
     # Random walk for angles
     positions, smoothed_positions = reflective_random_walk(
         n_steps=n_steps, initial_position=th0, step_std=step_std,
-        smoothing_sigma=smoothing_sigma, lower_lim=theta_lims[0], upper_lim=theta_lims[1]
+        smoothing_sigma=smoothing_sigma, lower_lim=theta_lims[0],
+        upper_lim=theta_lims[1]
     )
     thetas = smoothed_positions - smoothed_positions[0] + th0
 
     return rs, thetas
 
-def random_arcs_right_arm(model, data, n_steps, initial_xpos, smoothing_sigma,
-                         step_std):
+def random_arcs_right_arm(model, data, n_steps, initial_xpos,
+                          smoothing_sigma=20, step_std=0.02):
     shouldx = data.site('shoulder1_right').xpos
     elbowx = data.site('elbow_right').xpos
     handx = data.site('hand_right').xpos
     theta_max = 1.2*np.pi
     theta_min = np.pi/2.5
+    if smoothing_sigma is None:
+        t_sm = .1
+        smoothing_sigma = int(t_sm / model.opt.timestep)
 
     rs, thetas = random_arcs(shouldx, handx, elbowx, n_steps, initial_xpos,
                              (theta_min, theta_max), smoothing_sigma, step_std)
@@ -143,15 +147,24 @@ def random_arcs_right_arm(model, data, n_steps, initial_xpos, smoothing_sigma,
     # plt.axis('equal')
     # plt.show()
 
-    return rs, thetas
+    # Random walk for wrist
+    positions, wrist_qs = reflective_random_walk(
+        n_steps=n_steps, initial_position=0, step_std=0.02,
+        smoothing_sigma=20, lower_lim=-2.44, upper_lim=1.48
+    )
 
-def random_arcs_left_arm(model, data, n_steps, initial_xpos, smoothing_sigma,
-                         step_std):
+    return rs, thetas, wrist_qs
+
+def random_arcs_left_arm(model, data, n_steps, initial_xpos,
+                         smoothing_time=None, step_std=0.02):
     shouldx = data.site('shoulder1_left').xpos
     elbowx = data.site('elbow_left').xpos
     handx = data.site('hand_left').xpos
     theta_min = -np.pi/4
     theta_max = np.pi/2.5 + np.pi/2
+    if smoothing_time is None:
+        smoothing_time = .1
+    smoothing_sigma = int(smoothing_time / model.opt.timestep)
     
     rs, thetas = random_arcs(shouldx, handx, elbowx, n_steps, initial_xpos,
                              (theta_min, theta_max), smoothing_sigma, step_std)
@@ -164,6 +177,11 @@ def random_arcs_left_arm(model, data, n_steps, initial_xpos, smoothing_sigma,
     # plt.axis('equal')
     # plt.show()
 
-    return rs, thetas
+    positions, wrist_qs = reflective_random_walk(
+        n_steps=n_steps, initial_position=0, step_std=0.02,
+        smoothing_sigma=20, lower_lim=-2.44, upper_lim=1.48
+    )
+
+    return rs, thetas, wrist_qs
 
 
