@@ -1,4 +1,4 @@
-__credits__ = ["Kallinteris-Andreas"]
+__credits__ = ["Kallinteris-Andreas", "Matthew Farrell"]
 
 from typing import Dict, Tuple, Union, Optional
 
@@ -36,10 +36,9 @@ DEFAULT_CAMERA_CONFIG = {
 class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
     r"""
     ## Description
-    This environment builds on the [hopper](https://gymnasium.farama.org/environments/mujoco/hopper/) environment by adding another set of legs that allow the robot to walk forward instead of hop.
-    Like other MuJoCo environments, this environment aims to increase the number of independent state and control variables compared to classical control environments.
-    The walker is a two-dimensional bipedal robot consisting of seven main body parts - a single torso at the top (with the two legs splitting after the torso), two thighs in the middle below the torso, two legs below the thighs, and two feet attached to the legs on which the entire body rests.
-    The goal is to walk in the forward (right) direction by applying torque to the six hinges connecting the seven body parts.
+    This environment is slightly modified from the Gymnasium 
+    environment
+    [humanoid](https://gymnasium.farama.org/environments/mujoco/humanoid/).
 
 
     ## Action Space

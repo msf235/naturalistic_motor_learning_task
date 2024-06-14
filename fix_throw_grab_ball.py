@@ -25,9 +25,9 @@ keyframe = 'wide'
 
 outdir = Path('output')
 outdir.mkdir(parents=True, exist_ok=True)
-# savedir = Path('data/phase_1')
+# savedir = Path('data/phase_1/ball_grab')
 # only_save_states = False
-savedir = Path('data/phase_2')
+savedir = Path('data/phase_2/ball_grab')
 only_save_states = True
 savedir.mkdir(parents=True, exist_ok=True)
 

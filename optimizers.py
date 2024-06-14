@@ -1,3 +1,7 @@
+"""This code is taken from numpy-ml at
+https://github.com/ddbourgin/numpy-ml, which is offered under the
+GPL General Public License v3.0."""
+
 from copy import deepcopy
 from abc import ABC, abstractmethod
 import schedulers as sched
