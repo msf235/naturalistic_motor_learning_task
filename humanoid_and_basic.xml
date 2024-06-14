@@ -1,0 +1,40 @@
+<!-- Copyright 2021 DeepMind Technologies Limited
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+    <!--timestep="0.00125"-->
+    <!--integrator="implicitfast"/>-->
+<mujoco model="Humanoid and basic">
+  <option timestep="0.0005" integrator="implicitfast"/>
+      <!-- geoms -->
+  <default>
+    <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/>
+  </default>
+  <include file="humanoid.xml"/>
+  <include file="basic_scene.xml"/>
+  <visual>
+    <map force="0.1" zfar="30"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+      <!--offwidth="2560" offheight="1440"-->
+    <global
+      elevation="20"
+      azimuth="10"
+      />
+    <headlight ambient=".8 .8 .8" specular=".8 .8 .8"/>
+  </visual>
+  <keyframe>
+    <!--<key name="basic" qpos="0 -.4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"/>-->
+    <key name="wide" qpos="0 0 0 0 -.2 -.1 -.2 .1 0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>
