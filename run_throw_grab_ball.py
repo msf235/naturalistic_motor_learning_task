@@ -26,7 +26,7 @@ savedir = Path('data')
 savedir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
-seed = 2
+seed = 4
 out_f = outdir/f'ball_grab_ctrl_seed_{seed}_1.pkl'
 
 max_its = 300
