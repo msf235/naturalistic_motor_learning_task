@@ -25,6 +25,7 @@ outdir.mkdir(parents=True, exist_ok=True)
 seed = 2
 # out_f = outdir/'tennis_ctrl.pkl'
 out_f = outdir/'tennis_ctrl_working2.pkl'
+out_f = outdir/'tennis_ctrl_working5.pkl'
 # out_f = outdir/'tennis_ctrl_smaller_lr.pkl'
 # out_f = outdir/'tennis_ctrl_larger_lr.pkl'
 # out_f = outdir/'tennis_ctrl_sgd.pkl'
@@ -43,7 +44,8 @@ CTRL_RATE = 1
 rerun1 = False
 # rerun1 = True
 
-render_mode = 'human'
+# render_mode = 'human'
+render_mode = 'None'
 # render_mode = 'rgb_array'
 
 keyframe = 'wide_tennis_pos'

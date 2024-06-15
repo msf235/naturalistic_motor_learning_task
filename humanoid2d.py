@@ -184,6 +184,7 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
             "human",
             "rgb_array",
             "depth_array",
+            "None",
         ],
     }
 
@@ -260,6 +261,7 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
                 "human",
                 "rgb_array",
                 "depth_array",
+                "None",
             ],
             "render_fps": int(np.round(1.0 / self.dt)),
         }
