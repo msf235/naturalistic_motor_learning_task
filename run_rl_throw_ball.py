@@ -27,7 +27,8 @@ savedir.mkdir(parents=True, exist_ok=True)
 
 ### Set things up
 seed = 2
-out_f = outdir/f'ball_throw_ctrl_seed_{seed}_1.pkl'
+# out_f = outdir/f'ball_throw_ctrl_seed_{seed}_1.pkl'
+out_f = outdir/f'ball_throw_ctrl_seed_{seed}_4.pkl'
 
 max_its = 300
 
