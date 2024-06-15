@@ -659,7 +659,7 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
 
     noisev = make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
-    qs, qvels = util.forward_sim(model, data, ctrls + noisev)
+    qs, qvels, ss = util.forward_sim(model, data, ctrls + noisev)
     util.reset_state(model, data, data0)
 
     ### Gradient descent

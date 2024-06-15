@@ -9,7 +9,9 @@ import arm_targ_traj as arm_t
 import basic_movements as bm
 from matplotlib import pyplot as plt
 import matplotlib
-matplotlib.use('Agg')
+import os
+if os.name == 'posix' and "DISPLAY" not in os.environ:
+    matplotlib.use('Agg')
 import torch
 
 
@@ -28,7 +30,8 @@ outdir.mkdir(parents=True, exist_ok=True)
 seed = 2
 # out_f = outdir/'tennis_ctrl.pkl'
 # out_f = outdir/'tennis_ctrl_working2.pkl'
-out_f = outdir/'tennis_ctrl_working4.pkl'
+# out_f = outdir/'tennis_ctrl_working4.pkl'
+out_f = outdir/'tennis_ctrl_working5.pkl'
 # out_f = outdir/'tennis_ctrl_smaller_lr.pkl'
 # out_f = outdir/'tennis_ctrl_larger_lr.pkl'
 # out_f = outdir/'tennis_ctrl_sgd.pkl'
