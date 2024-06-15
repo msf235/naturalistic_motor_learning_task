@@ -271,7 +271,7 @@ def tennis_traj(model, data, Tk):
     # Right arm
 
     # grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
-    grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0.02])
+    grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0.03])
     # grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0])
     sx = np.linspace(0, 1, Tk_right_1)
     s = sigmoid(sx, 5)
