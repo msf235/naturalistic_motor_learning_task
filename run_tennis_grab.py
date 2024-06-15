@@ -25,7 +25,8 @@ outdir.mkdir(parents=True, exist_ok=True)
 ### Set things up
 seed = 2
 # out_f = outdir/'tennis_ctrl.pkl'
-out_f = outdir/'tennis_ctrl_grab_1.pkl'
+# out_f = outdir/'tennis_ctrl_grab_1.pkl'
+out_f = outdir/'tennis_ctrl_grab_4.pkl'
 # out_f = outdir/'tennis_ctrl_smaller_lr.pkl'
 # out_f = outdir/'tennis_ctrl_larger_lr.pkl'
 # out_f = outdir/'tennis_ctrl_sgd.pkl'
@@ -42,8 +43,8 @@ Tf = 1.8
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
 render_mode = 'human'
 # render_mode = 'rgb_array'

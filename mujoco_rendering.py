@@ -524,7 +524,7 @@ class WindowViewer(BaseRender):
         elif key == glfw.KEY_RIGHT and self._paused is not None:
             self._advance_by_one_step = True
             self._paused = True
-        elif key == glfw.KEY_K:
+        elif key == glfw.KEY_P:
             self._no_render = not self._no_render
             print("_no_render: ", self._no_render)
         # Slows down simulation
@@ -665,6 +665,7 @@ class WindowViewer(BaseRender):
                 self.add_overlay(
                     topleft, "Advance simulation by one step", "[right arrow]"
                 )
+        self.add_overlay(topleft, "[P]ause/un[p]ause rendering", "")
         self.add_overlay(
             topleft, "Referenc[e] frames", "On" if self.vopt.frame == 1 else "Off"
         )
