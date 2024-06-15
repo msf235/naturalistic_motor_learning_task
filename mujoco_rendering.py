@@ -136,6 +136,67 @@ class BaseRender:
         """
         raise NotImplementedError
 
+class NullViewer(BaseRender):
+    """Null rendering class that does nothing."""
+
+    def __init__(
+        self,
+        model: "mujoco.MjMujoco" = None,
+        data: "mujoco.MjData" = None,
+        width: int = 0,
+        height: int = 0,
+        max_geom: int = 0,
+    ):
+        pass
+        # We must make GLContext before MjrContext
+        # self._get_opengl_backend(width, height)
+        # self.cam = mujoco.MjvCamera()
+        # self.viewport = mujoco.MjrRect(0, 0, width, height)
+
+        # This goes to specific visualizer
+        # self.scn = mujoco.MjvScene(self.model, max_geom)
+        self.cam = mujoco.MjvCamera()
+        # self.vopt = mujoco.MjvOption()
+        # self.pert = mujoco.MjvPerturb()
+
+        # super().__init__(model, data, 10, 10, 10)
+
+        # self._init_camera()
+
+    def _init_camera(self):
+        # self.cam.type = None
+        # self.cam.fixedcamid = -1
+        # for i in range(3):
+            # self.cam.lookat[i] = 0
+        # self.cam.distance = 0
+        pass
+
+    def _get_opengl_backend(self, width: int, height: int):
+        pass
+
+    def _set_mujoco_buffer(self):
+        pass
+
+    def make_context_current(self):
+        pass
+
+    def free(self):
+        pass
+
+    def __del__(self):
+        pass
+
+    def render(
+        self,
+        render_mode: Optional[str] = None,
+        camera_id: Optional[int] = None,
+        segmentation: bool = False,
+    ):
+        pass
+
+    def close(self):
+        pass
+
 
 class OffScreenViewer(BaseRender):
     """Offscreen rendering class with opengl context."""
@@ -724,6 +785,10 @@ class MujocoRenderer:
                 self.viewer = OffScreenViewer(
                     self.model, self.data, self.width, self.height, self.max_geom
                 )
+            elif render_mode == "None":
+                self.viewer = NullViewer()
+                # self.viewer = BaseRender(self.model, self.data, self.width,
+                                         # self.height, self.max_geom)
             else:
                 raise AttributeError(
                     f"Unexpected mode: {render_mode}, expected modes: human, rgb_array, or depth_array"

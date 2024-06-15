@@ -48,7 +48,8 @@ rerun1 = False
 # rerun1 = True
 
 # render_mode = 'human'
-render_mode = 'rgb_array'
+render_mode = 'None'
+# render_mode = 'rgb_array'
 
 keyframe = 'wide_tennis_pos'
 
