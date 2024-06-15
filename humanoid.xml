@@ -137,7 +137,6 @@
                 <!--<joint name="ankle_x_right" class="ankle_x" axis="1 0 .5"/>-->
                 <geom name="foot1_right" class="foot1"/>
                 <geom name="foot2_right" class="foot2"/>
-                <site name="foot_right" size="0.2" pos="0 0 0" rgba="1 1 .5 0"/>
               </body>
             </body>
           </body>
@@ -154,7 +153,6 @@
                 <!--<joint name="ankle_y_left" class="ankle_y"/>-->
                 <!--<joint name="ankle_x_left" class="ankle_x" axis="-1 0 -.5"/>-->
                 <geom name="foot1_left" class="foot1"/>
-                <site name="foot_left" size="0.1" pos="0 0 0" rgba="1 1 .5 0"/>
                 <geom name="foot2_left" class="foot2"/>
               </body>
             </body>
