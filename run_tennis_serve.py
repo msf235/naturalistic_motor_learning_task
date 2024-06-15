@@ -47,11 +47,11 @@ Tf = 1.8
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
-# render_mode = 'human'
-render_mode = 'None'
+render_mode = 'human'
+# render_mode = 'None'
 # render_mode = 'rgb_array'
 
 keyframe = 'wide_tennis_pos'

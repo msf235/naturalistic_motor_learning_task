@@ -28,18 +28,19 @@ outdir.mkdir(parents=True, exist_ok=True)
 seed = 4
 out_f_base = outdir/f'basic_movement_seed_{seed}'
 
-Tk = 1200
-# Tk = 320
-lr = 1/Tk
-# max_its = 400
+Tf = 1.0
+
+opt = 'adam'
+lr = .001
+lr2 = .0005
 max_its = 200
-# max_its = 120
+phase_2_it = int(max_its*.8)
 
 CTRL_STD = 0
 CTRL_RATE = 1
 
-rerun1 = False
-# rerun1 = True
+# rerun1 = False
+rerun1 = True
 
 # render = False
 render = True
@@ -64,6 +65,8 @@ data = env.data
 burn_step = 100
 dt = model.opt.timestep
 
+Tk = int(Tf / dt)
+
 num = seed
 
 reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
@@ -79,19 +82,37 @@ acts = opt_utils.get_act_ids(model)
 smoothing_sigma = int(.1 / dt)
 arc_std = 0.2
 # Move right arm while keeping left arm fixed
-rs, thetas, wrist_qs = bm.random_arcs_right_arm(model, data, Tk-1,
+rs, thetas, wrist_qs = bm.random_arcs_right_arm(model, data, Tk,
                                       data.site('hand_right').xpos,
                                       smoothing_sigma, arc_std)
-traj1_xs = np.zeros((Tk-1, 3))
+traj1_xs = np.zeros((Tk, 3))
 traj1_xs[:,1] = rs * np.cos(thetas)
 traj1_xs[:,2] = rs * np.sin(thetas)
 traj1_xs += data.site('shoulder1_right').xpos
 full_traj = traj1_xs
-targ_traj_mask = np.ones((Tk-1,))
-targ_traj_mask_type = 'progressive'
+targ_traj_mask = np.ones((Tk,))
+targ_traj_mask_type = 'double_sided_progressive'
+
+sites = ['hand_right']
+# full_trajs = [right_hand_traj, left_hand_traj, right_hand_traj, ball_traj]
+# full_trajs = [right_hand_traj, left_hand_traj, right_hand_traj]
+full_trajs = [full_traj]
+# masks = [targ_traj_mask, targ_traj_mask, targ_traj_mask, ball_traj_mask]
+# masks = [targ_traj_mask, targ_traj_mask, targ_traj_mask]
+masks = [targ_traj_mask]
+# mask_types = [targ_traj_mask_type]*4
+# mask_types = [targ_traj_mask_type]*3
+mask_types = [targ_traj_mask_type]
+throw_idxs = arm_t.one_arm_idxs(model)
+site_grad_idxs = [throw_idxs['arm_a_without_adh']]
+stabilize_jnt_idx = throw_idxs['not_arm_j']
+stabilize_act_idx = throw_idxs['not_arm_a']
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
 
+q_targs = [np.zeros((Tk, model.nq))]
+q_targ_masks = [np.zeros((Tk, model.nq))]
+q_targ_mask_types = ['const']
 
 out_f = Path(str(out_f_base) + f'_right_{num}.pkl')
 
@@ -107,8 +128,12 @@ if rerun1 or not out_f.exists():
     reset()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env, sites, site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx,
-        full_trajs, masks, mask_types, ctrls, 30, seed, CTRL_RATE, CTRL_STD,
-        Tk, lr=lr, max_its=max_its, keep_top=10)
+        full_trajs, masks, mask_types, q_targs, q_targ_masks,
+        q_targ_mask_types, ctrls, 30, seed,
+        CTRL_RATE, CTRL_STD, Tk, lr=lr, lr2=lr2, phase_2_it=phase_2_it,
+        max_its=max_its, keep_top=10, incr_every=10, amnt_to_incr=50,
+        adh_ids=acts['adh'],
+        n_steps_adh=20)
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses,
                   'ctrls_burn_in': burn_ctrls,
@@ -119,7 +144,6 @@ else:
     # ctrls = load_data['ctrls']
     lowest_losses = load_data['lowest_losses']
 
-tt = np.arange(0, (Tk-1)*model.opt.timestep, model.opt.timestep)
 ctrls = lowest_losses.peekitem(0)[1][1]
 # util.reset(model, data, burn_steps, body_pos)
 # hxs1 = arm_t.forward_with_site(env, ctrls, 'hand_right', True)
@@ -150,15 +174,15 @@ reset()
 
 
 ## Move left arm while keeping right arm fixed
-rs, thetas, wrist_qs = bm.random_arcs_left_arm(model, data, Tk-1,
+rs, thetas, wrist_qs = bm.random_arcs_left_arm(model, data, Tk,
                                       data.site('hand_left').xpos,
                                      smoothing_sigma, .02)
-traj1_xs = np.zeros((Tk-1, 3))
+traj1_xs = np.zeros((Tk, 3))
 traj1_xs[:,1] = rs * np.cos(thetas)
 traj1_xs[:,2] = rs * np.sin(thetas)
 traj1_xs += data.site('shoulder1_left').xpos
 full_traj = traj1_xs
-targ_traj_mask = np.ones((Tk-1,))
+targ_traj_mask = np.ones((Tk,))
 targ_traj_mask_type = 'progressive'
 
 # print(data.site('hand_left').xpos, full_traj[0])
@@ -231,26 +255,26 @@ reset()
 
 
 ## Move both arms simultaneously
-rs, thetas = bm.random_arcs_right_arm(model, data, Tk-1,
+rs, thetas = bm.random_arcs_right_arm(model, data, Tk,
                                       data.site('hand_right').xpos,
                                       smoothing_sigma, .02)
-traj1_xs = np.zeros((Tk-1, 3))
+traj1_xs = np.zeros((Tk, 3))
 traj1_xs[:,1] = rs * np.cos(thetas)
 traj1_xs[:,2] = rs * np.sin(thetas)
 traj1_xs += data.site('shoulder1_right').xpos
 full_traj1 = traj1_xs
-targ_traj_mask1 = np.ones((Tk-1,))
+targ_traj_mask1 = np.ones((Tk,))
 targ_traj_mask_type1 = 'progressive'
 
-rs, thetas = bm.random_arcs_left_arm(model, data, Tk-1,
+rs, thetas = bm.random_arcs_left_arm(model, data, Tk,
                                       data.site('hand_left').xpos,
                                      smoothing_sigma, .02)
-traj2_xs = np.zeros((Tk-1, 3))
+traj2_xs = np.zeros((Tk, 3))
 traj2_xs[:,1] = rs * np.cos(thetas)
 traj2_xs[:,2] = rs * np.sin(thetas)
 traj2_xs += data.site('shoulder1_left').xpos
 full_traj2 = traj2_xs
-targ_traj_mask2 = np.ones((Tk-1,))
+targ_traj_mask2 = np.ones((Tk,))
 targ_traj_mask_type2 = 'progressive'
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)

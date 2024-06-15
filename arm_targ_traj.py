@@ -609,7 +609,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
                     CTRL_RATE, CTRL_STD, Tk, max_its=30, lr=10, lr2=10,
                     it_lr2=31, keep_top=1,
                     incr_every=5, amnt_to_incr=5, grad_update_every=1,
-                    grab_phase_it=0, grab_phase_tk=0, phase_2_it=None,
+                    grab_phase_it=0, grab_phase_tk=0,
+                    phase_2_it=None,
                     update_plot_every=1, optimizer='adam',
                     contact_check_list=None, adh_ids=None,
                     balance_cost=1000, joint_cost=100,
@@ -643,6 +644,8 @@ def arm_target_traj(env, site_names, site_grad_idxs, stabilize_jnt_idx,
         incr_every: number of gradient steps between increments
         amnt_to_incr: number of timesteps to increment the mask by each time
     """
+    if phase_2_it is None:
+        phase_2_it = max_its+1
     model = env.model
     data = env.data
 
