@@ -10,8 +10,8 @@ import basic_movements as bm
 from matplotlib import pyplot as plt
 import matplotlib
 import os
-# if os.name == 'posix' and "DISPLAY" not in os.environ:
-    # matplotlib.use('Agg')
+if os.name == 'posix' and "DISPLAY" not in os.environ:
+    matplotlib.use('Agg')
 import torch
 
 
@@ -50,8 +50,8 @@ CTRL_RATE = 1
 # rerun1 = False
 rerun1 = True
 
-render_mode = 'human'
-# render_mode = 'None'
+# render_mode = 'human'
+render_mode = 'None'
 # render_mode = 'rgb_array'
 
 keyframe = 'wide_tennis_pos'
