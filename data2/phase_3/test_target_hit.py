@@ -44,7 +44,7 @@ def test_target_hit(ctrls):
 
 if __name__ == '__main__':
     ctrls = np.load('ball_throw_1_ctrls.npy')
-    ctrls_end = np.zeros((10, ctrls.shape[1]))
+    ctrls_end = np.zeros((1000, ctrls.shape[1]))
     ctrls_full = np.vstack((ctrls, ctrls_end))
     hit = test_target_hit(ctrls_full)
     print(hit)
