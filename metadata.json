@@ -1,0 +1,817 @@
+{
+  "@context": {
+    "@language": "en",
+    "@vocab": "https://schema.org/",
+    "citeAs": "cr:citeAs",
+    "column": "cr:column",
+    "conformsTo": "dct:conformsTo",
+    "cr": "http://mlcommons.org/croissant/",
+    "rai": "http://mlcommons.org/croissant/RAI/",
+    "data": {
+      "@id": "cr:data",
+      "@type": "@json"
+    },
+    "dataType": {
+      "@id": "cr:dataType",
+      "@type": "@vocab"
+    },
+    "dct": "http://purl.org/dc/terms/",
+    "examples": {
+      "@id": "cr:examples",
+      "@type": "@json"
+    },
+    "extract": "cr:extract",
+    "field": "cr:field",
+    "fileProperty": "cr:fileProperty",
+    "fileObject": "cr:fileObject",
+    "fileSet": "cr:fileSet",
+    "format": "cr:format",
+    "includes": "cr:includes",
+    "isLiveDataset": "cr:isLiveDataset",
+    "jsonPath": "cr:jsonPath",
+    "key": "cr:key",
+    "md5": "cr:md5",
+    "parentField": "cr:parentField",
+    "path": "cr:path",
+    "recordSet": "cr:recordSet",
+    "references": "cr:references",
+    "regex": "cr:regex",
+    "repeated": "cr:repeated",
+    "replace": "cr:replace",
+    "sc": "https://schema.org/",
+    "separator": "cr:separator",
+    "source": "cr:source",
+    "subField": "cr:subField",
+    "transform": "cr:transform"
+  },
+  "@type": "sc:Dataset",
+  "name": "naturalistic-motor-learning",
+  "description": "Naturalistic motor learning is a dataset for motor learning in a naturalistic environment, as defined in the accompanying manuscript under review at NeurIPS Datasets and Benchmarks track.",
+  "conformsTo": "http://mlcommons.org/croissant/1.0",
+  "citeAs": "",
+  "license": "MIT",
+  "url": "https://github.com/anon-author700/naturalistic-motor-learning",
+  "version": "0.0.1",
+  "distribution": [
+    {
+      "@type": "cr:FileObject",
+      "@id": "amazon-repo",
+      "name": "amazon-repo",
+      "description": "This dataset is hosted on Amazon Cloud S3.",
+      "contentSize": "35.8 MB",
+      "contentUrl": "https://naturalistic-motor-learning.s3.amazonaws.com/data.zip",
+      "encodingFormat": "application/zip",
+      "sha256": "c4d6457a0b536da2165fe951bc1f268ebc4696804330ba48980d29bc2491e4ac"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "phase-1-csv",
+      "name": "phase-1-csv",
+      "description": "Phase 1 csv file.",
+      "containedIn": {
+        "@id": "amazon-repo"
+      },
+      "contentUrl": "data/phase_1/dataset.csv",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "phase-2-csv",
+      "name": "phase-2-csv",
+      "description": "Phase 2 csv file.",
+      "containedIn": {
+        "@id": "amazon-repo"
+      },
+      "contentUrl": "data/phase_2/dataset.csv",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "phase-3-csv",
+      "name": "phase-3-csv",
+      "description": "Phase 3 csv file.",
+      "containedIn": {
+        "@id": "amazon-repo"
+      },
+      "contentUrl": "data/phase_3/dataset.csv",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "phase-4-csv",
+      "name": "phase-4-csv",
+      "description": "Phase 4 csv file.",
+      "containedIn": {
+        "@id": "amazon-repo"
+      },
+      "contentUrl": "data/phase_4/dataset.csv",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "phase-5-csv",
+      "name": "phase-5-csv",
+      "description": "Phase 5 csv file.",
+      "containedIn": {
+        "@id": "amazon-repo"
+      },
+      "contentUrl": "data/phase_5/dataset.csv",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "phase-6-csv",
+      "name": "phase-6-csv",
+      "description": "Phase 6 csv file.",
+      "containedIn": {
+        "@id": "amazon-repo"
+      },
+      "contentUrl": "data/phase_6/dataset.csv",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "phase-7-csv",
+      "name": "phase-7-csv",
+      "description": "Phase 7 csv file.",
+      "containedIn": {
+        "@id": "amazon-repo"
+      },
+      "contentUrl": "data/phase_7/dataset.csv",
+      "encodingFormat": "text/csv"
+    }
+  ],
+  "recordSet": [
+    {
+      "@type": "cr:RecordSet",
+      "@id": "phase-1",
+      "name": "phase-1",
+      "description": "Phase 1.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "phase-1/base",
+          "name": "phase-1/base",
+          "description": "Phase 1 base filenames.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-1-csv"
+            },
+            "extract": {
+              "column": "base"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-1/type",
+          "name": "phase-1/type",
+          "description": "Phase 1 types of data (ctrls, state, or sensor).",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-1-csv"
+            },
+            "extract": {
+              "column": "type"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-1/k",
+          "name": "phase-1/k",
+          "description": "Phase 1 k indices.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-1-csv"
+            },
+            "extract": {
+              "column": "k"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-1/dir",
+          "name": "phase-1/dir",
+          "description": "Phase 1 directories.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-1-csv"
+            },
+            "extract": {
+              "column": "dir"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-1/filename",
+          "name": "phase-1/filename",
+          "description": "Phase 1 filenames.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-1-csv"
+            },
+            "extract": {
+              "column": "filename"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-1/scene_xml",
+          "name": "phase-1/scene_xml",
+          "description": "Phase 1 scene model files.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-1-csv"
+            },
+            "extract": {
+              "column": "scene_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-1/humanoid_xml",
+          "name": "phase-1/humanoid_xml",
+          "description": "Phase 1 humanoid model files.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-1-csv"
+            },
+            "extract": {
+              "column": "humanoid_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-1/combo_xml",
+          "name": "phase-1/combo_xml",
+          "description": "Phase 1 combined model files.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-1-csv"
+            },
+            "extract": {
+              "column": "combo_xml"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "phase-2",
+      "name": "phase-2",
+      "description": "Phase 2.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "phase-2/base",
+          "name": "phase-2/base",
+          "description": "Phase 2 filename base.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-2-csv"
+            },
+            "extract": {
+              "column": "base"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-2/type",
+          "name": "phase-2/type",
+          "description": "Phase 1 control signals.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-2-csv"
+            },
+            "extract": {
+              "column": "type"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-2/k",
+          "name": "phase-2/k",
+          "description": "Phase 2 type of data (ctrls, state, or sensor).",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-2-csv"
+            },
+            "extract": {
+              "column": "k"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-2/dir",
+          "name": "phase-2/dir",
+          "description": "Phase 2 directories.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-2-csv"
+            },
+            "extract": {
+              "column": "dir"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-2/filename",
+          "name": "phase-2/filename",
+          "description": "Phase 2 filenames.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-2-csv"
+            },
+            "extract": {
+              "column": "filename"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-2/scene_xml",
+          "name": "phase-2/scene_xml",
+          "description": "Phase 2 scene model files.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-2-csv"
+            },
+            "extract": {
+              "column": "scene_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-2/humanoid_xml",
+          "name": "phase-2/humanoid_xml",
+          "description": "Phase 2 humanoid model files.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-2-csv"
+            },
+            "extract": {
+              "column": "humanoid_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-2/combo_xml",
+          "name": "phase-2/combo_xml",
+          "description": "Phase 2 combo model files.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-2-csv"
+            },
+            "extract": {
+              "column": "combo_xml"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "phase-3",
+      "name": "phase-3",
+      "description": "Phase 3.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "phase-3/base",
+          "name": "phase-3/base",
+          "description": "Phase 3 filename base.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-3-csv"
+            },
+            "extract": {
+              "column": "base"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-3/type",
+          "name": "phase-3/type",
+          "description": "Phase 3 type of data (ctrls, state, or sensor).",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-3-csv"
+            },
+            "extract": {
+              "column": "type"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-3/k",
+          "name": "phase-3/k",
+          "description": "Phase 3 k indices.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-3-csv"
+            },
+            "extract": {
+              "column": "k"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-3/dir",
+          "name": "phase-3/dir",
+          "description": "Phase 3 directory.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-3-csv"
+            },
+            "extract": {
+              "column": "dir"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-3/filename",
+          "name": "phase-3/filename",
+          "description": "Phase 3 filenames.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-3-csv"
+            },
+            "extract": {
+              "column": "filename"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-3/scene_xml",
+          "name": "phase-3/scene_xml",
+          "description": "Phase 3 scene model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-3-csv"
+            },
+            "extract": {
+              "column": "scene_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-3/humanoid_xml",
+          "name": "phase-3/humanoid_xml",
+          "description": "Phase 3 humanoid model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-3-csv"
+            },
+            "extract": {
+              "column": "humanoid_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-3/combo_xml",
+          "name": "phase-3/combo_xml",
+          "description": "Phase 3 combo model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-3-csv"
+            },
+            "extract": {
+              "column": "combo_xml"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "phase-4",
+      "name": "phase-4",
+      "description": "Phase 4.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "phase-4/scene_xml",
+          "name": "phase-4/scene_xml",
+          "description": "Phase 4 scene model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-4-csv"
+            },
+            "extract": {
+              "column": "scene_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-4/humanoid_xml",
+          "name": "phase-4/humanoid_xml",
+          "description": "Phase 4 humanoid model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-4-csv"
+            },
+            "extract": {
+              "column": "humanoid_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-4/combo_xml",
+          "name": "phase-4/combo_xml",
+          "description": "Phase 4 combo model file..",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-4-csv"
+            },
+            "extract": {
+              "column": "combo_xml"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "phase-5",
+      "name": "phase-5",
+      "description": "Phase 5.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "phase-5/base",
+          "name": "phase-5/base",
+          "description": "Phase 5 filename base.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-5-csv"
+            },
+            "extract": {
+              "column": "base"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-5/type",
+          "name": "phase-5/type",
+          "description": "Phase 5 type of data (ctrls, state, or sensor).",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-5-csv"
+            },
+            "extract": {
+              "column": "type"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-5/k",
+          "name": "phase-5/k",
+          "description": "Phase 5 k indices.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-5-csv"
+            },
+            "extract": {
+              "column": "k"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-5/dir",
+          "name": "phase-5/dir",
+          "description": "Phase 5 directory.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-5-csv"
+            },
+            "extract": {
+              "column": "dir"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-5/filename",
+          "name": "phase-5/filename",
+          "description": "Phase 5 filenames.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-5-csv"
+            },
+            "extract": {
+              "column": "filename"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-5/scene_xml",
+          "name": "phase-5/scene_xml",
+          "description": "Phase 5 scene model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-5-csv"
+            },
+            "extract": {
+              "column": "scene_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-5/humanoid_xml",
+          "name": "phase-5/humanoid_xml",
+          "description": "Phase 5 humanoid model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-5-csv"
+            },
+            "extract": {
+              "column": "humanoid_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-5/combo_xml",
+          "name": "phase-5/combo_xml",
+          "description": "Phase 5 combo model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-5-csv"
+            },
+            "extract": {
+              "column": "combo_xml"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "phase-6",
+      "name": "phase-6",
+      "description": "Phase 6.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "phase-6/scene_xml",
+          "name": "phase-6/scene_xml",
+          "description": "Phase 6 scene model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-6-csv"
+            },
+            "extract": {
+              "column": "scene_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-6/humanoid_xml",
+          "name": "phase-6/humanoid_xml",
+          "description": "Phase 6 humanoid model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-6-csv"
+            },
+            "extract": {
+              "column": "humanoid_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-6/combo_xml",
+          "name": "phase-6/combo_xml",
+          "description": "Phase 6 combo model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-6-csv"
+            },
+            "extract": {
+              "column": "combo_xml"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "cr:RecordSet",
+      "@id": "phase-7",
+      "name": "phase-7",
+      "description": "Phase 7.",
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "phase-7/scene_xml",
+          "name": "phase-7/scene_xml",
+          "description": "Phase 7 scene model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-7-csv"
+            },
+            "extract": {
+              "column": "scene_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-7/humanoid_xml",
+          "name": "phase-7/humanoid_xml",
+          "description": "Phase 7 humanoid model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-7-csv"
+            },
+            "extract": {
+              "column": "humanoid_xml"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "phase-7/combo_xml",
+          "name": "phase-7/combo_xml",
+          "description": "Phase 7 combo model file.",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": {
+              "@id": "phase-7-csv"
+            },
+            "extract": {
+              "column": "combo_xml"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
