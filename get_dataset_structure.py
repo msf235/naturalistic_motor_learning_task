@@ -6,18 +6,21 @@ import csv
 dp = Path('./data/')
 for d in dp.iterdir(): # subdirectories 'phase_k'
     if d.is_dir():
-        print('dir: ', d)
         # initialize list for subdirectory. Each item is a dictionary
         # corresponding to a row in a pandas dataframe.
         dc_list = [] 
-        print(d.name)
         # Get all of the npy file root names
         base_names = set()
         all_npy_files = [f for f in d.glob('**/*') if f.suffix == '.npy']
         for f in all_npy_files:
             base_names.add('_'.join(f.name.split('_')[:-1]))
                 # print(base_names)
-        print(base_names)
+        python_scripts = dict(
+            phase_3='test_target_hit.py', phase_4='get_reward.py',
+            phase_5='test_target_hit.py', phase_6='get_reward.py',
+            phase_7='get_reward.py'
+        )
+        breakpoint()
         # Now find all files with a matching base_name and add them to dc_list
         for base_name in base_names:
             dc = {}
@@ -38,11 +41,20 @@ for d in dp.iterdir(): # subdirectories 'phase_k'
                         elif 'humanoid' in mf.name:
                             humanf = str(mf.name)
                     # Finally, append a dictionary to the list
-                    dc_list.append({'base': base, 'type': typev, 'k': kv,
-                                    'dir': str(f.parent),
-                                    'filename': f.name, 'scene_xml': scenef,
-                                    'humanoid_xml': humanf,
-                                    'combo_xml': combof})
+                    breakpoint()
+                    if d.name in python_scripts:
+                        dc_list.append({
+                            'base': base, 'type': typev, 'k': kv, 'dir':
+                            str(f.parent), 'filename': f.name, 'scene_xml': scenef,
+                            'humanoid_xml': humanf, 'combo_xml': combof,
+                            'python_rl_utility': python_scripts[d.name]
+                        })
+                    else:
+                        dc_list.append({
+                            'base': base, 'type': typev, 'k': kv, 'dir':
+                            str(f.parent), 'filename': f.name, 'scene_xml': scenef,
+                            'humanoid_xml': humanf, 'combo_xml': combof,
+                        })
         # Special case for if there are no .npy files. In this case, there are
         # only model files
         if len(base_names) == 0:
@@ -55,10 +67,20 @@ for d in dp.iterdir(): # subdirectories 'phase_k'
                     combof = str(mf.name)
                 elif 'humanoid' in mf.name:
                     humanf = str(mf.name)
-            dc_list.append({'dir': str(d),
-                    'scene_xml': scenef,
-                    'humanoid_xml': humanf,
-                    'combo_xml': combof})
+
+            if d.name in python_scripts:
+                dc_list.append({'dir': str(d),
+                        'scene_xml': scenef,
+                        'humanoid_xml': humanf,
+                        'combo_xml': combof,
+                        'python_rl_utility': python_scripts[d.name],
+                        })
+            else:
+                dc_list.append({'dir': str(d),
+                        'scene_xml': scenef,
+                        'humanoid_xml': humanf,
+                        'combo_xml': combof,
+                        })
         # Now export to csv, using pandas DataFrame
         # df = pd.DataFrame(dc_list)
         with open(d/'dataset.csv', 'w', newline='') as f:
