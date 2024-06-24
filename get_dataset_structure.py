@@ -20,7 +20,6 @@ for d in dp.iterdir(): # subdirectories 'phase_k'
             phase_5='test_target_hit.py', phase_6='get_reward.py',
             phase_7='get_reward.py'
         )
-        breakpoint()
         # Now find all files with a matching base_name and add them to dc_list
         for base_name in base_names:
             dc = {}
@@ -41,7 +40,6 @@ for d in dp.iterdir(): # subdirectories 'phase_k'
                         elif 'humanoid' in mf.name:
                             humanf = str(mf.name)
                     # Finally, append a dictionary to the list
-                    breakpoint()
                     if d.name in python_scripts:
                         dc_list.append({
                             'base': base, 'type': typev, 'k': kv, 'dir':

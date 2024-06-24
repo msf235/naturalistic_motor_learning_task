@@ -61,7 +61,7 @@
       "contentSize": "35.8 MB",
       "contentUrl": "https://naturalistic-motor-learning.s3.amazonaws.com/data.zip",
       "encodingFormat": "application/zip",
-      "sha256": "c4d6457a0b536da2165fe951bc1f268ebc4696804330ba48980d29bc2491e4ac"
+      "sha256": "604b637e50f0c47775c7d0b83a13733920a17fa42d15800ceb2e8786b50437e6"
     },
     {
       "@type": "cr:FileObject",

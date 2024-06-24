@@ -6,10 +6,10 @@ def get_contact_pairs(model, data):
     return contact_pairs
 
 def get_reward(ctrls, prev_dist=None):
-    model_file="./humanoid_and_baseball.xml"
+    model_file="./humanoid_and_tennis.xml"
     model = mj.MjModel.from_xml_path(model_file)
     data = mj.MjData(model)
-    keyframe="wide"
+    keyframe="wide_tennis_pos"
     key_id = model.keyframe(keyframe).id
     mj.mj_resetDataKeyframe(model, data, key_id)
 
