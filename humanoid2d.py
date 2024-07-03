@@ -317,9 +317,12 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         return observation
 
     def step(self, action, render=True):
-        x_position_before = self.data.qpos[0]
-        ball_x_pos_before = self.data.qpos[self.ball_joints[0]]
-        self.do_simulation(action, self.frame_skip)
+        self.do_simulation(action, self.frame_skip) # Does same as below
+        # mujoco.mj_step1(self.model, self.data)
+        # self.data.ctrl[:] = action
+        # mujoco.mj_step2(self.model, self.data)
+        # if n_frames > 1:
+            # mujoco.mj_step(self.model, self.data, nstep=self.n_frames-1)
         contacts = util.get_contact_pairs(self.model, self.data)
         for cp in contacts:
             if 'ball' in cp and 'target' in cp:
@@ -329,7 +332,6 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         ball_x_pos_after = self.data.qpos[self.ball_joints[0]]
         x_velocity = (x_position_after - x_position_before) / self.dt
         ball_x_velocity = (ball_x_pos_after - ball_x_pos_before) / self.dt
-        
 
         observation = self._get_obs()
         reward, reward_info = self._get_rew(ball_x_velocity, action)
@@ -424,8 +426,9 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
 
         self.terminated = False
       
+        zctrl = np.zeros(self.action_space.shape)
         for tk in range(n_steps):
-            self.step(np.zeros(self.action_space.shape), render)
+            self.do_simulation(zctrl, self.frame_skip)
 
         observation = self._get_obs()
 

@@ -66,7 +66,7 @@ data = env.data
 dt = model.opt.timestep
 burn_step = int(.1 / dt)
 # reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
-reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+reset = lambda : opt_utils.reset_with_lqr(model, data, burn_step, 2*burn_step, keyframe)
 
 reset()
 

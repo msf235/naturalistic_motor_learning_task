@@ -69,7 +69,7 @@ Tk = int(Tf / dt)
 
 num = seed
 
-reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+reset = lambda : opt_utils.reset_with_lqr(model, data, burn_step, 2*burn_step, keyframe)
 
 burn_ctrls = reset()
 

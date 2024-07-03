@@ -57,21 +57,16 @@ data = env.data
 
 dt = model.opt.timestep
 burn_step = int(.1 / dt)
-# reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
-reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+reset = lambda : opt_utils.reset_with_lqr(env, burn_step, 2*burn_step)
 
 ctrls_burn_in = reset()
 
 Tk = int(Tf / dt)
 
-# lr = .5/Tk
-
 # Adam
 opt = 'adam'
 lr = .001
 lr2 = .0005
-# lr = 1
-# lr2 = .5
 
 # SGD
 # opt = 'sgd'

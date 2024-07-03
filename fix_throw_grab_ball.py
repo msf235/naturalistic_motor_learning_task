@@ -53,7 +53,7 @@ for num in range(1, 4):
     dt = model.opt.timestep
     burn_step = int(.1 / dt)
     # reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
-    reset = lambda : opt_utils.reset(model, data, burn_step, 2*burn_step, keyframe)
+    reset = lambda : opt_utils.reset_with_lqr(model, data, burn_step, 2*burn_step, keyframe)
 
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)

@@ -599,20 +599,13 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     A[ks+update_every:, ks+update_every] = 1
 
     grads_interp = A @ grads
-    # breakpoint()
 
     return grads_interp
-    # return grads, hxs, dldss
 
-def reset(model, data, nsteps1, nsteps2, keyframe_name=None):
-    if keyframe_name is not None:
-        keyframe_id = model.keyframe(keyframe_name).id
-        mj.mj_resetDataKeyframe(model, data, keyframe_id)
-    else:
-        mj.mj_resetData(model, data)
-    mj.mj_forward(model, data)
-    for k in range(nsteps1):
-        mj.mj_step(model, data)
+def reset_with_lqr(env, nsteps1, nsteps2):
+    model = env.model
+    data = env.data
+    env.reset_model(nsteps1, False)
     noisev = np.zeros((nsteps2, model.nu))
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
