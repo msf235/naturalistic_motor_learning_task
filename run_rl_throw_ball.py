@@ -185,7 +185,6 @@ t_incr = Tf
 amnt_to_incr = int(t_incr/dt)
 # t_grad = 0.05
 # t_grad = Tf * .04
-t_grad = Tf * .1 #TODO: check if this is better in run_tennis_serve.py
 # grad_update_every = 10
 grad_update_every = 10
 grad_trunc_tk = int(t_grad/(grad_update_every*dt))
