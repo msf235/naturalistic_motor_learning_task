@@ -49,7 +49,7 @@ env = humanoid2d.Humanoid2dEnv(
     render_mode=render_mode,
     frame_skip=1,
     default_camera_config=DEFAULT_CAMERA_CONFIG,
-    reset_noise_scale=0,
+    reset_noise_scale=.01,
     xml_file='./humanoid_and_baseball.xml',
     keyframe_name='wide',)
 model = env.model
@@ -57,7 +57,7 @@ data = env.data
 
 dt = model.opt.timestep
 burn_step = int(.1 / dt)
-reset = lambda : opt_utils.reset_with_lqr(env, burn_step, 2*burn_step)
+reset = lambda : opt_utils.reset_with_lqr(env, seed, burn_step, 2*burn_step)
 
 ctrls_burn_in = reset()
 

@@ -602,10 +602,10 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
 
     return grads_interp
 
-def reset_with_lqr(env, nsteps1, nsteps2):
+def reset_with_lqr(env, seed, nsteps1, nsteps2):
+    env.reset(seed=seed, options={'n_steps': nsteps1, 'render': False})
     model = env.model
     data = env.data
-    env.reset_model(nsteps1, False)
     noisev = np.zeros((nsteps2, model.nu))
     joints = get_joint_ids(model)
     acts = get_act_ids(model)

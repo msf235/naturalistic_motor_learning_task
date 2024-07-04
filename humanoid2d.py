@@ -412,9 +412,20 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         return ob, info
 
     def reset_model(self, n_steps: int = 0, render=True):
+        # if self.reset_noise_scale > 0:
+            # noise_low = -self._reset_noise_scale
+            # noise_high = self._reset_noise_scale
+            # qpos = self.init_qpos + self.np_random.uniform(
+                # low=noise_low, high=noise_high, size=self.model.nq
+            # )
+            # qvel = self.init_qvel + self.np_random.uniform(
+                # low=noise_low, high=noise_high, size=self.model.nv
+            # )
+        # else:
+            # qpos = self.init_qpos
+            # qvel = self.init_qvel
         noise_low = -self._reset_noise_scale
         noise_high = self._reset_noise_scale
-
         qpos = self.init_qpos + self.np_random.uniform(
             low=noise_low, high=noise_high, size=self.model.nq
         )

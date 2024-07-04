@@ -8,6 +8,7 @@ import copy
 import sortedcontainers as sc
 from matplotlib import pyplot as plt
 import time
+import basic_movements
 
 def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     acts = opt_utils.get_act_ids(model)
@@ -30,6 +31,10 @@ def arc_traj(x0, r, theta0, theta1, n, density_fn='uniform'):
 
     x = x0 + r*np.array([0*theta, np.cos(theta), np.sin(theta)]).T
     return x
+
+def sigmoid(x, a):
+    # return .5 * (np.tanh(x-.5) + 1)
+    return .5*np.tanh(a*(x-.5)) + .5
 
 def throw_grab_traj(model, data, Tk):
     shouldx = data.site('shoulder1_right').xpos
@@ -102,9 +107,6 @@ def throw_traj(model, data, Tk):
     
     return full_traj, time_dict
 
-def sigmoid(x, a):
-    # return .5 * (np.tanh(x-.5) + 1)
-    return .5*np.tanh(a*(x-.5)) + .5
 
 def tennis_grab_traj(model, data, Tk):
     shouldxr = data.site('shoulder1_right').xpos
@@ -426,6 +428,81 @@ def one_arm_idxs(model, right_or_left='right'):
     one_arm_idx['not_arm_j'] = not_arm_j
     one_arm_idx['not_arm_a'] = not_arm_a
     return one_arm_idx
+
+def get_idx_sets(env, exp_name):
+    model = env.model
+    if exp_name == 'basic_movements_right':
+        throw_idxs = one_arm_idxs(model)
+        site_grad_idxs = [throw_idxs['arm_a_without_adh']]
+        stabilize_jnt_idx = throw_idxs['not_arm_j']
+        stabilize_act_idx = throw_idxs['not_arm_a']
+    elif exp_name == 'throw_ball':
+        throw_idxs = one_arm_idxs(model)
+        site_grad_idxs = [throw_idxs['arm_a_without_adh']]
+        stabilize_jnt_idx = throw_idxs['not_arm_j']
+        stabilize_act_idx = throw_idxs['not_arm_a']
+
+    return site_grad_idxs, stabilize_jnt_idx, stabilize_act_idx
+
+
+def make_traj_sets(env, exp_name, Tk):
+    model = env.model
+    data = env.data
+    if exp_name == 'basic_movements_right':
+        rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
+            model, data, Tk, data.site('hand_right').xpos, smoothing_sigma,
+            arc_std)
+        traj1_xs = np.zeros((Tk, 3))
+        traj1_xs[:,1] = rs * np.cos(thetas)
+        traj1_xs[:,2] = rs * np.sin(thetas)
+        traj1_xs += data.site('shoulder1_right').xpos
+        full_traj = traj1_xs
+        targ_traj_mask = np.ones((Tk,))
+        targ_traj_mask_type = 'double_sided_progressive'
+
+        sites = ['hand_right']
+        full_trajs = [full_traj]
+        masks = [targ_traj_mask]
+        mask_types = [targ_traj_mask_type]
+
+        q_targs = [np.zeros((Tk, model.nq))]
+        q_targ_masks = [np.zeros((Tk, model.nq))]
+        q_targ_mask_types = ['const']
+    elif exp_name == 'throw_ball':
+        targ_traj_mask = np.ones((Tk,))
+        targ_traj_mask_type = 'double_sided_progressive'
+        out = throw_traj(model, data, Tk)
+        full_traj, time_dict = out
+
+        joints = opt_utils.get_joint_ids(model)
+        acts = opt_utils.get_act_ids(model)
+
+        bodyj = joints['body']['body_dofs']
+
+        sites = ['hand_right']
+        targ_trajs = [full_traj]
+        masks = [targ_traj_mask]
+        mask_types = [targ_traj_mask_type]
+
+        q_targ = np.zeros((Tk, 2*model.nq))
+        q_targ_mask = np.zeros((Tk,2*model.nq))
+        q_targ_mask2 = np.zeros((Tk,2*model.nq))
+        q_targ_mask2[time_dict['t_1']:,
+                    joints['all']['wrist_left']] = 1
+        q_targ_nz = np.linspace(0, -2.44, time_dict['t_2']-time_dict['t_1'])
+        q_targ[time_dict['t_1']:time_dict['t_2'], 
+                joints['all']['wrist_left']] = q_targ_nz
+        q_targ[time_dict['t_2']:, joints['all']['wrist_left']] = -2.44
+        q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
+        q_targ_mask_types = ['const']
+        q_targs = [q_targ]
+    out_dict = dict(sites=sites, targ_trajs=targ_trajs, masks=masks,
+                    mask_types=mask_types, q_targs=q_targs,
+                    q_targ_masks=q_targ_masks,
+                    q_targ_mask_types=q_targ_mask_types,
+                    time_dict=time_dict)
+
+    return out_dict
 
 def show_forward_sim(env, ctrls):
     for k in range(ctrls.shape[0]-1):

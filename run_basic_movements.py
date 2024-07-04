@@ -82,37 +82,13 @@ acts = opt_utils.get_act_ids(model)
 smoothing_sigma = int(.1 / dt)
 arc_std = 0.2
 # Move right arm while keeping left arm fixed
-rs, thetas, wrist_qs = bm.random_arcs_right_arm(model, data, Tk,
-                                      data.site('hand_right').xpos,
-                                      smoothing_sigma, arc_std)
-traj1_xs = np.zeros((Tk, 3))
-traj1_xs[:,1] = rs * np.cos(thetas)
-traj1_xs[:,2] = rs * np.sin(thetas)
-traj1_xs += data.site('shoulder1_right').xpos
-full_traj = traj1_xs
-targ_traj_mask = np.ones((Tk,))
-targ_traj_mask_type = 'double_sided_progressive'
 
-sites = ['hand_right']
-# full_trajs = [right_hand_traj, left_hand_traj, right_hand_traj, ball_traj]
-# full_trajs = [right_hand_traj, left_hand_traj, right_hand_traj]
-full_trajs = [full_traj]
-# masks = [targ_traj_mask, targ_traj_mask, targ_traj_mask, ball_traj_mask]
-# masks = [targ_traj_mask, targ_traj_mask, targ_traj_mask]
-masks = [targ_traj_mask]
-# mask_types = [targ_traj_mask_type]*4
-# mask_types = [targ_traj_mask_type]*3
-mask_types = [targ_traj_mask_type]
 throw_idxs = arm_t.one_arm_idxs(model)
 site_grad_idxs = [throw_idxs['arm_a_without_adh']]
 stabilize_jnt_idx = throw_idxs['not_arm_j']
 stabilize_act_idx = throw_idxs['not_arm_a']
 
 noisev = arm_t.make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE)
-
-q_targs = [np.zeros((Tk, model.nq))]
-q_targ_masks = [np.zeros((Tk, model.nq))]
-q_targ_mask_types = ['const']
 
 out_f = Path(str(out_f_base) + f'_right_{num}.pkl')
 
