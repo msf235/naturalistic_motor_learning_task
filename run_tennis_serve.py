@@ -75,7 +75,6 @@ reset = lambda : opt_utils.reset_with_lqr(model, data, burn_step, 2*burn_step, k
 
 reset()
 
-
 Tk = int(Tf / dt)
 
 # lr = .5/Tk

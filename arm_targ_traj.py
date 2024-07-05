@@ -432,11 +432,25 @@ def one_arm_idxs(model, right_or_left='right'):
 def get_idx_sets(env, exp_name):
     model = env.model
     acts = opt_utils.get_act_ids(model)
+    contact_check_list = None
+    adh_ids = None
+    let_go_ids = None
     if exp_name == 'basic_movements_right':
         throw_idxs = one_arm_idxs(model)
         site_grad_idxs = [throw_idxs['arm_a_without_adh']]
         stabilize_jnt_idx = throw_idxs['not_arm_j']
         stabilize_act_idx = throw_idxs['not_arm_a']
+    elif exp_name == 'basic_movements_left':
+        throw_idxs = one_arm_idxs(model, 'left')
+        site_grad_idxs = [throw_idxs['arm_a_without_adh']]
+        stabilize_jnt_idx = throw_idxs['not_arm_j']
+        stabilize_act_idx = throw_idxs['not_arm_a']
+    elif exp_name == 'basic_movements_both':
+        tennis_idxs = two_arm_idxs(model)
+        site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
+                          tennis_idxs['left_arm_without_adh']]
+        stabilize_jnt_idx = tennis_idxs['not_arm_j']
+        stabilize_act_idx = tennis_idxs['not_arm_a']
     elif exp_name == 'throw_ball':
         throw_idxs = one_arm_idxs(model)
         site_grad_idxs = [throw_idxs['arm_a_without_adh']]
@@ -448,7 +462,6 @@ def get_idx_sets(env, exp_name):
     elif exp_name == 'grab_ball':
         contact_check_list = [['ball', 'hand_right1'], ['ball', 'hand_right2']]
         adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
-        # let_go_ids = [acts['adh_left_hand'][0]]
         let_go_ids = [acts['adh_right_hand'][0]]
 
     out_dict = dict(site_grad_idxs=site_grad_idxs, stabilize_jnt_idx=stabilize_jnt_idx,
@@ -461,6 +474,9 @@ def get_times(env, exp_name, Tf):
     data = env.data
     dt = model.opt.timestep
     Tk = int(Tf / dt)
+    time_dict = None
+    grab_tk = None
+    let_go_times = None
     if exp_name == 'basic_movements_right':
         pass
     elif exp_name == 'throw_ball':
@@ -482,6 +498,8 @@ def get_times(env, exp_name, Tf):
 def make_traj_sets(env, exp_name, Tk):
     model = env.model
     data = env.data
+    smoothing_sigma = int(.1 / model.opt.timestep)
+    arc_std = 0.2
     if exp_name == 'basic_movements_right':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site('hand_right').xpos, smoothing_sigma,
@@ -553,6 +571,10 @@ def make_traj_sets(env, exp_name, Tk):
         target_trajs += [full_traj]
         masks += [targ_traj_mask]
         mask_types = ['double_sided_progressive', 'double_sided_progressive']
+
+        q_targs = [np.zeros((Tk, model.nq)), np.zeros((Tk, model.nq))]
+        q_targ_masks = [np.zeros((Tk, model.nq)), np.zeros((Tk, model.nq))]
+        q_targ_mask_types = ['const', 'const']
     elif exp_name == 'throw_ball':
         targ_traj_mask = np.ones((Tk,))
         targ_traj_mask_type = 'double_sided_progressive'
@@ -631,7 +653,7 @@ def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=None,
     for k in range(Tk):
         if contact_check_list is not None:
             ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
-            contacts[k] = [cont_k1, cont_k2]
+            contacts[k] = [cont_k1, cont_k2] # TODO: address this
         util.step(model, data, ctrls[k] + noisev[k])
         if render:
             env.render()

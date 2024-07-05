@@ -125,6 +125,10 @@ def get_act_names_left_or_right(model, data=None, left_or_right='right'):
 class AdhCtrl:
     def __init__(self, t_zero_thrs, t_zero_ids, n_steps=10,
                  contact_check_list=None, adh_ids=None):
+        if adh_ids is None:
+            adh_ids = []
+        if contact_check_list is None:
+            contact_check_list = []
         self.tk = 0
         self.t_zero_thrs = t_zero_thrs
         self.t_zero_ids = t_zero_ids
@@ -134,6 +138,8 @@ class AdhCtrl:
         self.ks = {k: 1 for k in adh_ids}
 
     def get_ctrl(self, model, data, ctrl):
+        if len(adh_ids) == 0 or len(contact_check_list) == 0:
+            return ctrl, None, None
         ctrl = ctrl.copy()
         ccl = self.contact_check_list
         adh_ids = self.adh_ids

@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 import pickle as pkl
 import arm_targ_traj as arm_t
-import basic_movements as bm
 from matplotlib import pyplot as plt
 import torch
 import mujoco as mj
