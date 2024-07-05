@@ -1,0 +1,13 @@
+params:
+  name: tennis_serve
+  max_its: 1000
+  Tf: 1.8
+  opt: 'adam'
+  lr: .0005
+  lr2: .0005
+  it_lr2: 800
+  grad_update_every: 10
+  reset_noise_scale: .001
+  xml_file: './humanoid_and_tennis.xml'
+  balance_cost: 1000
+  joint_cost: 500

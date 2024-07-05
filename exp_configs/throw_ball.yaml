@@ -1,0 +1,17 @@
+params:
+  name: throw_ball
+  xml_file: './humanoid_and_baseball.xml'
+  max_its: 300
+  Tf: 0.6
+  optimizer: 'adam'
+  lr: .001
+  lr2: .0005
+  it_lr2: 250
+  grad_update_every: 10
+  reset_noise_scale: .001
+  incr_every: 50
+  t_incr: .06
+  grab_phase_it: 20
+  grad_window_t: .06
+  
+
