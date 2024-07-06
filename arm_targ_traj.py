@@ -460,9 +460,14 @@ def get_idx_sets(env, exp_name):
         adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
         let_go_ids = [acts['adh_right_hand'][0]]
     elif exp_name == 'grab_ball':
+        throw_idxs = one_arm_idxs(model)
+        site_grad_idxs = [throw_idxs['arm_a_without_adh']]
+        stabilize_jnt_idx = throw_idxs['not_arm_j']
+        stabilize_act_idx = throw_idxs['not_arm_a']
         contact_check_list = [['ball', 'hand_right1'], ['ball', 'hand_right2']]
         adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
-        let_go_ids = [acts['adh_right_hand'][0]]
+        let_go_ids = []
+        let_go_times = []
 
     out_dict = dict(site_grad_idxs=site_grad_idxs, stabilize_jnt_idx=stabilize_jnt_idx,
                     stabilize_act_idx=stabilize_act_idx, contact_check_list=contact_check_list,
@@ -485,7 +490,11 @@ def get_times(env, exp_name, Tf):
         grab_tk = int(grab_t/dt)
         let_go_times = [Tk]
     elif exp_name == 'grab_ball':
-        pass
+        out = arm_t.throw_grab_traj(model, data, Tk)
+        time_dict = out[1]
+        grab_time = int(time_dict['t_1'] * .9)
+        grab_t = Tf / 2.2
+        grab_tk = int(grab_t/dt)
     elif exp_name == 'tennis_serve':
         time_dict = tennis_traj(model, data, Tk)[-1]
         grab_t = Tf / 2.2
@@ -603,6 +612,38 @@ def make_traj_sets(env, exp_name, Tk):
         q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
         q_targ_mask_types = ['const']
         q_targs = [q_targ]
+    elif exp_name == "grab_ball":
+        out = arm_t.throw_grab_traj(model, data, Tk)
+        full_traj, time_dict = out
+        contact_check_list = [['ball', 'hand_right1'], ['ball', 'hand_right2']]
+        adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
+        let_go_ids = []
+        # let_go_times = [Tk]
+        let_go_times = []
+        sites = ['hand_right']
+        full_trajs = [full_traj]
+        masks = [targ_traj_mask]
+        mask_types = [targ_traj_mask_type]
+
+        throw_idxs = arm_t.one_arm_idxs(model)
+        site_grad_idxs = [throw_idxs['arm_a_without_adh']]
+        stabilize_jnt_idx = throw_idxs['not_arm_j']
+        stabilize_act_idx = throw_idxs['not_arm_a']
+
+        q_targ = np.zeros((Tk, 2*model.nq))
+        q_targ_mask = np.zeros((Tk,2*model.nq))
+        q_targ_mask2 = np.zeros((Tk,2*model.nq))
+        q_targ_mask2[time_dict['t_1']:,
+                    joints['all']['wrist_left']] = 1
+        q_targ_nz = np.linspace(0, -2.44, time_dict['t_2']-time_dict['t_1'])
+        q_targ[time_dict['t_1']:time_dict['t_2'], 
+                joints['all']['wrist_left']] = q_targ_nz
+        q_targ[time_dict['t_2']:, joints['all']['wrist_left']] = -2.44
+        q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
+        q_targ_mask_types = ['const']
+        q_targs = [q_targ]
+
+
     out_dict = dict(sites=sites, target_trajs=target_trajs,
                     targ_traj_masks=masks,
                     targ_traj_mask_types=mask_types, q_targs=q_targs,
