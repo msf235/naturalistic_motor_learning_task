@@ -481,7 +481,7 @@ def get_times(env, exp_name, Tf):
     Tk = int(Tf / dt)
     time_dict = None
     grab_tk = None
-    let_go_times = None
+    let_go_times = []
     if exp_name == 'basic_movements_right':
         pass
     elif exp_name == 'throw_ball':
@@ -490,7 +490,7 @@ def get_times(env, exp_name, Tf):
         grab_tk = int(grab_t/dt)
         let_go_times = [Tk]
     elif exp_name == 'grab_ball':
-        out = arm_t.throw_grab_traj(model, data, Tk)
+        out = throw_grab_traj(model, data, Tk)
         time_dict = out[1]
         grab_time = int(time_dict['t_1'] * .9)
         grab_t = Tf / 2.2
@@ -509,6 +509,8 @@ def make_traj_sets(env, exp_name, Tk):
     data = env.data
     smoothing_sigma = int(.1 / model.opt.timestep)
     arc_std = 0.2
+    joints = opt_utils.get_joint_ids(model)
+    acts = opt_utils.get_act_ids(model)
     if exp_name == 'basic_movements_right':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site('hand_right').xpos, smoothing_sigma,
@@ -590,8 +592,6 @@ def make_traj_sets(env, exp_name, Tk):
         out = throw_traj(model, data, Tk)
         full_traj, time_dict = out
 
-        joints = opt_utils.get_joint_ids(model)
-        acts = opt_utils.get_act_ids(model)
 
         bodyj = joints['body']['body_dofs']
 
@@ -613,7 +613,10 @@ def make_traj_sets(env, exp_name, Tk):
         q_targ_mask_types = ['const']
         q_targs = [q_targ]
     elif exp_name == "grab_ball":
-        out = arm_t.throw_grab_traj(model, data, Tk)
+        targ_traj_mask = np.ones((Tk,))
+        # targ_traj_mask_type = 'progressive'
+        targ_traj_mask_type = 'double_sided_progressive'
+        out = throw_grab_traj(model, data, Tk)
         full_traj, time_dict = out
         contact_check_list = [['ball', 'hand_right1'], ['ball', 'hand_right2']]
         adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
@@ -621,11 +624,11 @@ def make_traj_sets(env, exp_name, Tk):
         # let_go_times = [Tk]
         let_go_times = []
         sites = ['hand_right']
-        full_trajs = [full_traj]
+        target_trajs = [full_traj]
         masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
-        throw_idxs = arm_t.one_arm_idxs(model)
+        throw_idxs = one_arm_idxs(model)
         site_grad_idxs = [throw_idxs['arm_a_without_adh']]
         stabilize_jnt_idx = throw_idxs['not_arm_j']
         stabilize_act_idx = throw_idxs['not_arm_a']
@@ -675,9 +678,9 @@ def forward_with_sites(env, ctrls, site_names, render=False):
             env.render()
     return site_xvs, model_qs
 
-def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=None,
-                       let_go_ids=None, n_steps_adh=10,
-                       contact_check_list=None, adh_ids=None,
+def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=[],
+                       let_go_ids=[], n_steps_adh=10,
+                       contact_check_list=[], adh_ids=[],
                       ):
     model = env.model
     act = opt_utils.get_act_ids(model)
@@ -692,9 +695,8 @@ def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=None,
         noisev = np.zeros((Tk, model.nu))
     contacts = np.zeros((Tk, 2))
     for k in range(Tk):
-        if contact_check_list is not None:
-            ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
-            contacts[k] = [cont_k1, cont_k2] # TODO: address this
+        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
+        contacts[k] = [cont_k1, cont_k2] # TODO: address this
         util.step(model, data, ctrls[k] + noisev[k])
         if render:
             env.render()
@@ -839,10 +841,10 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     grab_phase_it=0, grab_phase_tk=0,
                     phase_2_it=None,
                     update_plot_every=1, optimizer='adam',
-                    contact_check_list=None, adh_ids=None,
+                    contact_check_list=[], adh_ids=[],
                     balance_cost=1000, joint_cost=100,
-                    let_go_times=None,
-                    let_go_ids=None,
+                    let_go_times=[],
+                    let_go_ids=[],
                     n_steps_adh=10,
                    ):
     """Trains the right arm to follow the target trajectory (targ_traj). This

@@ -10,5 +10,6 @@ params:
   grad_update_every: 10
   reset_noise_scale: .001
   t_incr: .9
+  incr_every: 50
   grab_phase_it: 20
   grad_window_t: 0.1
