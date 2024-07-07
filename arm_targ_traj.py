@@ -182,7 +182,6 @@ def tennis_grab_traj(model, data, Tk):
     # arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
                             # .9*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
     # arc_traj_vs2 = arc_traj_vs[:-Tk_left_5:-1]
-    # breakpoint()
     arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
                             .9*np.pi/2, .7*np.pi/2, 10, density_fn='')
 
@@ -320,7 +319,6 @@ def tennis_traj(model, data, Tk):
     # arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
                             # .9*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
     # arc_traj_vs2 = arc_traj_vs[:-Tk_left_5:-1]
-    # breakpoint()
     arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
                             .9*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
 
@@ -432,9 +430,9 @@ def one_arm_idxs(model, right_or_left='right'):
 def get_idx_sets(env, exp_name):
     model = env.model
     acts = opt_utils.get_act_ids(model)
-    contact_check_list = None
-    adh_ids = None
-    let_go_ids = None
+    contact_check_list = []
+    adh_ids = []
+    let_go_ids = []
     if exp_name == 'basic_movements_right':
         throw_idxs = one_arm_idxs(model)
         site_grad_idxs = [throw_idxs['arm_a_without_adh']]
@@ -480,7 +478,7 @@ def get_times(env, exp_name, Tf):
     dt = model.opt.timestep
     Tk = int(Tf / dt)
     time_dict = None
-    grab_tk = None
+    grab_tk = 0
     let_go_times = []
     if exp_name == 'basic_movements_right':
         pass
@@ -954,7 +952,6 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             if k0 >= it_lr2:
                 lr = lr2
             if k0 % incr_every == 0:
-                # breakpoint()
                 for k in range(n_sites):
                     optms[k] = get_opt(lr)
             progbar.update(' ' + str(k0))
@@ -977,16 +974,13 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                 # show_plot(hxs, target_trajs, targ_traj_mask_currs, site_names,
                           # site_grad_idxs, ctrls, axs, grads, tt)
                 # util.reset_state(model, data, data0)
-                # breakpoint()
             # if k0 % incr_every == 0:
-                # breakpoint()
                 
                 # if targ_traj_progs[k] and k0 % incr_every == 0:
                     # idx = slice(amnt_to_incr*incr_cnts[k],
                                 # amnt_to_incr*(incr_cnts[k]+1))
                     # targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
                     # incr_cnts[k] += 1
-                    # breakpoint()
 
             util.reset_state(model, data, data0)
             k, ctrls, contacts = forward_to_contact(
@@ -994,7 +988,6 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                 n_steps_adh, contact_check_list, adh_ids)
             contact_bool = np.sum(contacts[:, 0]) * np.sum(contacts[:, 1]) > 0
             # if ball_contact:
-                # breakpoint()
             util.reset_state(model, data, data0)
             grads = [0] * n_sites
             hxs = [0] * n_sites
@@ -1004,7 +997,6 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             update_phase = k0 % grad_update_every
             tic = time.time()
             # if k0 == 160:
-                # breakpoint()
             # grads = opt_utils.traj_deriv_new2(
                 # model, data, ctrls + noisev, target_trajs,
                 # targ_traj_mask_currs,
@@ -1032,14 +1024,12 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     adh_ids=adh_ids
                 )
                 util.reset_state(model, data, data0)
-            # breakpoint()
             # grads[0][:, :grab_time] *= 4
             # if np.max(np.abs(grads)) > 5:
                 # print('big_grad', np.max(np.abs(grads)))
                 # for k in range(n_sites):
                     # ctrls[:, site_grad_idxs[k]] += 1e-6*np.random.randn(
                         # Tk-1, len(site_grad_idxs[k]))
-                # # breakpoint()
             # else:
                 # for k in range(n_sites):
                     # # ctrls[:, right_arm_without_adh] = optm.update(
@@ -1098,10 +1088,8 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                           grads, tt, show=False, save=True)
             # util.reset_state(model, data, data0)
             # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
-                # breakpoint()
                     # plt.show()
                     # if k0 > phase_2_it:
-                        # breakpoint()
 
             # util.reset_state(model, data, data0)
             # hx = forward_with_site(env, ctrls, site_names[0], True)

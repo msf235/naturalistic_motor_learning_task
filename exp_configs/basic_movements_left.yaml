@@ -11,5 +11,5 @@ params:
   reset_noise_scale: .001
   incr_every: 50
   t_incr: 1.0
-  grab_phase_it: 20
+  grab_phase_it: 0
   grad_window_t: 0.1

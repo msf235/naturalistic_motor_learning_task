@@ -103,7 +103,6 @@ if rerun1 or not out_f.exists():
     reset()
     # arm_t.forward_to_contact(env, ctrls, render=True)
     # reset()
-    # breakpoint()
 
     arm_targ_params = {k: params[k] for k in
                        ['max_its', 'optimizer', 'lr', 'lr2', 'it_lr2',
