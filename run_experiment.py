@@ -90,15 +90,14 @@ grad_trunc_tk = int(params['grad_window_t']/(grad_update_every*dt))
 if rerun1 or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
-    stab_ctrls_idx = {k: out_idx[k] for k in
-                      ['let_go_ids', 'contact_check_list',
-                       'adh_ids']}
-    stab_ctrls_idx.update({'let_go_times': out_time['let_go_times']})
+    # stab_ctrls_idx = {k: out_idx[k] for k in
+                      # ['let_go_ids', 'contact_check_list',
+                       # 'adh_ids']}
+    # stab_ctrls_idx.update({'let_go_times': out_time['let_go_times']})
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
         bodyj,
         free_ctrls=np.zeros((Tk, len(acts['adh']))),
-        **stab_ctrls_idx,
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     reset()

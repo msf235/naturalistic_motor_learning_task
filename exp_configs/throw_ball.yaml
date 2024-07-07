@@ -9,8 +9,8 @@ params:
   it_lr2: 250
   grad_update_every: 10
   reset_noise_scale: .001
-  incr_every: 50
   t_incr: .06
+  incr_every: 50
   grab_phase_it: 20
   grad_window_t: .06
   

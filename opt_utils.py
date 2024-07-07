@@ -123,12 +123,9 @@ def get_act_names_left_or_right(model, data=None, left_or_right='right'):
     return acts
 
 class AdhCtrl:
-    def __init__(self, t_zero_thrs, t_zero_ids, n_steps=10,
-                 contact_check_list=None, adh_ids=None):
-        if adh_ids is None:
-            adh_ids = []
-        if contact_check_list is None:
-            contact_check_list = []
+    def __init__(self, t_zero_thrs=[], t_zero_ids=[], n_steps=10,
+                 contact_check_list=[], adh_ids=[]):
+        self.t_zero_thrs = t_zero_thrs
         self.tk = 0
         self.t_zero_thrs = t_zero_thrs
         self.t_zero_ids = t_zero_ids
@@ -138,7 +135,7 @@ class AdhCtrl:
         self.ks = {k: 1 for k in adh_ids}
 
     def get_ctrl(self, model, data, ctrl):
-        if len(adh_ids) == 0 or len(contact_check_list) == 0:
+        if len(self.adh_ids) == 0 or len(self.contact_check_list) == 0:
             return ctrl, None, None
         ctrl = ctrl.copy()
         ccl = self.contact_check_list
@@ -266,9 +263,9 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                          free_ctrls=None,
                          K_update_interv=None, free_ctrl_fn=None,
                          balance_cost=1000, joint_cost=100,
-                         let_go_times=None, let_go_ids=None,
+                         let_go_times=[], let_go_ids=[],
                          n_steps_adh=20,
-                         contact_check_list=None, adh_ids=None):
+                         contact_check_list=[], adh_ids=[]):
     """Get stabilized controls.
 
     Args:
@@ -287,9 +284,8 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         K_update_interv: Update interval for K.
         """
 
-    if contact_check_list is not None:
-        adh_ctrl = AdhCtrl(let_go_times, let_go_ids, n_steps_adh,
-                           contact_check_list, adh_ids)
+    adh_ctrl = AdhCtrl(let_go_times, let_go_ids, n_steps_adh,
+                       contact_check_list, adh_ids)
 
     data0 = copy.deepcopy(data)
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
@@ -322,8 +318,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         # else:
             # ctrls[k][free_act_ids] = free_ctrls[k]
         ctrls[k][free_act_ids] = free_ctrls[k]
-        if contact_check_list is not None:
-            ctrls[k], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[k])
+        ctrls[k], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[k])
         mj.mj_step1(model, data)
         data.ctrl[:] = ctrls[k] + noisev[k]
         mj.mj_step2(model, data)
