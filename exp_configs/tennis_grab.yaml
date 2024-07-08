@@ -1,11 +1,15 @@
 params:
   name: tennis_grab
+  xml_file: './humanoid_and_tennis.xml'
   max_its: 180
   Tf: 1.8
-  opt: 'adam'
+  optimizer: 'adam'
   lr: .001
   lr2: .0005
   it_lr2: 150
   grad_update_every: 10
   reset_noise_scale: .001
-  xml_file: './humanoid_and_tennis.xml'
+  t_incr: 1.8
+  incr_every: 50
+  grab_phase_it: 0
+  grad_window_t: 0.1

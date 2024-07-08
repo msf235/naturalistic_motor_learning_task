@@ -51,7 +51,7 @@ env = humanoid2d.Humanoid2dEnv(
     default_camera_config=DEFAULT_CAMERA_CONFIG,
     reset_noise_scale=params['reset_noise_scale'],
     xml_file=params['xml_file'],
-    keyframe_name='wide',)
+    keyframe_name=keyframe,)
 model = env.model
 data = env.data
 

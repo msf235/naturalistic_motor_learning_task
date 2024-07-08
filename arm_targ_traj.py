@@ -429,6 +429,7 @@ def one_arm_idxs(model, right_or_left='right'):
 
 def get_idx_sets(env, exp_name):
     model = env.model
+    data = env.data
     acts = opt_utils.get_act_ids(model)
     contact_check_list = []
     adh_ids = []
@@ -466,6 +467,43 @@ def get_idx_sets(env, exp_name):
         adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
         let_go_ids = []
         let_go_times = []
+    elif exp_name == 'tennis_serve':
+        tennis_idxs = two_arm_idxs(model)
+        site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
+                          tennis_idxs['left_arm_without_adh'],
+                          tennis_idxs['right_arm_without_adh'],
+                          tennis_idxs['left_arm_without_adh']]
+        site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
+                          tennis_idxs['left_arm_without_adh'],
+                          tennis_idxs['right_arm_without_adh']]
+        stabilize_jnt_idx = tennis_idxs['not_arm_j']
+        stabilize_act_idx = tennis_idxs['not_arm_a']
+        contact_check_list = [['racket_handle', 'hand_right1'], ['racket_handle', 'hand_right2'],
+                              ['ball', 'hand_left1'], ['ball', 'hand_left2']]
+        acts = opt_utils.get_act_ids(model)
+        adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0],
+                   acts['adh_left_hand'][0], acts['adh_left_hand'][0]]
+        act_ids = ['adh_right_hand', 'adh_right_hand', 'adh_left_hand',
+                     'adh_left_hand']
+        let_go_ids = [acts['adh_left_hand'][0]]
+    elif exp_name == 'tennis_grab':
+        tennis_idxs = two_arm_idxs(model)
+        site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
+                          tennis_idxs['left_arm_without_adh'],
+                          tennis_idxs['right_arm_without_adh']]
+        stabilize_jnt_idx = tennis_idxs['not_arm_j']
+        stabilize_act_idx = tennis_idxs['not_arm_a']
+
+        contact_check_list = [['racket_handle', 'hand_right1'],
+                              ['racket_handle', 'hand_right2'],
+                              ['ball', 'hand_left1'], ['ball', 'hand_left2']]
+        adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0],
+                   acts['adh_left_hand'][0], acts['adh_left_hand'][0]]
+        act_ids = ['adh_right_hand', 'adh_right_hand',
+                   'adh_left_hand', 'adh_left_hand']
+        let_go_ids = []
+        let_go_times = []
+        
 
     out_dict = dict(site_grad_idxs=site_grad_idxs, stabilize_jnt_idx=stabilize_jnt_idx,
                     stabilize_act_idx=stabilize_act_idx, contact_check_list=contact_check_list,
@@ -626,11 +664,6 @@ def make_traj_sets(env, exp_name, Tk):
         masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
-        throw_idxs = one_arm_idxs(model)
-        site_grad_idxs = [throw_idxs['arm_a_without_adh']]
-        stabilize_jnt_idx = throw_idxs['not_arm_j']
-        stabilize_act_idx = throw_idxs['not_arm_a']
-
         q_targ = np.zeros((Tk, 2*model.nq))
         q_targ_mask = np.zeros((Tk,2*model.nq))
         q_targ_mask2 = np.zeros((Tk,2*model.nq))
@@ -643,6 +676,52 @@ def make_traj_sets(env, exp_name, Tk):
         q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
         q_targ_mask_types = ['const']
         q_targs = [q_targ]
+    elif exp_name == "tennis_serve":
+        sites = ['hand_right', 'hand_left', 'racket_handle_top'] # Move
+        targ_traj_mask = np.ones((Tk,))
+        # targ_traj_mask_type = 'progressive'
+        targ_traj_mask_type = 'double_sided_progressive'
+        # targ_traj_mask_type = 'const'
+        out = tennis_traj(model, data, Tk)
+        right_hand_traj, left_hand_traj, ball_traj, time_dict = out
+        ball_traj_mask = np.ones((Tk,))
+        ball_traj_mask[time_dict['t_left_3']:] = 0
+        out = tennis_traj(model, data, Tk)
+        right_hand_traj, left_hand_traj, ball_traj, time_dict = out
+        target_trajs = [right_hand_traj, left_hand_traj, right_hand_traj]
+        masks = [targ_traj_mask, targ_traj_mask, targ_traj_mask]
+        mask_types = [targ_traj_mask_type]*3
+        q_targ = np.zeros((Tk, 2*model.nq))
+        q_targ_mask = np.zeros((Tk,2*model.nq))
+        q_targ_mask2 = np.zeros((Tk,2*model.nq))
+        q_targ_mask2[time_dict['t_left_1']:, joints['all']['wrist_left']] = 1
+        q_targ_nz = np.linspace(0, -2.44, time_dict['t_left_2']-time_dict['t_left_1'])
+        q_targ[time_dict['t_left_1']:time_dict['t_left_2'], 
+                joints['all']['wrist_left']] = q_targ_nz
+        q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = -2.44
+        q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
+        q_targ_mask_types = ['const']*3
+        q_targs = [q_targ]*3
+    elif exp_name == "tennis_grab":
+        targ_traj_mask = np.ones((Tk,))
+        targ_traj_mask_type = 'double_sided_progressive'
+        out = tennis_grab_traj(model, data, Tk)
+        right_hand_traj, left_hand_traj, ball_traj, time_dict = out
+        sites = ['hand_right', 'hand_left', 'racket_handle_top']
+        target_trajs = [right_hand_traj, left_hand_traj, right_hand_traj]
+        masks = [targ_traj_mask, targ_traj_mask, targ_traj_mask]
+        mask_types = [targ_traj_mask_type]*3
+        q_targ = np.zeros((Tk, 2*model.nq))
+        q_targ_mask = np.zeros((Tk,2*model.nq))
+        q_targ_mask2 = np.zeros((Tk,2*model.nq))
+        q_targ_mask2[time_dict['t_left_1']:,
+                    joints['all']['wrist_left']] = 1
+        q_targ_nz = np.linspace(0, -2.44, Tk-time_dict['t_left_1'])
+        q_targ[time_dict['t_left_1']:, 
+                joints['all']['wrist_left']] = q_targ_nz
+        q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
+        q_targ_mask_types = ['const']*3
+        q_targs = [q_targ]*3
 
 
     out_dict = dict(sites=sites, target_trajs=target_trajs,

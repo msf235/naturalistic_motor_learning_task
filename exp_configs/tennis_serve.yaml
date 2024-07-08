@@ -1,13 +1,18 @@
 params:
   name: tennis_serve
+  xml_file: './humanoid_and_tennis.xml'
   max_its: 1000
   Tf: 1.8
-  opt: 'adam'
+  optimizer: 'adam'
   lr: .0005
   lr2: .0005
   it_lr2: 800
   grad_update_every: 10
   reset_noise_scale: .001
-  xml_file: './humanoid_and_tennis.xml'
+  t_incr: 1.8
+  incr_every: 50
+  grab_phase_it: 40
+  grad_window_t: 0.1
   balance_cost: 1000
   joint_cost: 500
+
