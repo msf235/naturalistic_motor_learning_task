@@ -207,6 +207,10 @@ def get_arg_parser():
             help="Random seed.")
     parser.add_argument("--render", action="store_true",
             help="Render the agent.")
+    parser.add_argument("--plot_every", type=int,
+                        help="Update diagnostic plot every X iterations.")
+    parser.add_argument("--render_every", type=int,
+                        help="Render environment every X iterations.")
     return parser
 
 def get_config(config_file):
