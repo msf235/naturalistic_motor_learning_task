@@ -68,12 +68,9 @@ out_idx = arm_t.get_idx_sets(env, params['name'])
 sites = out_idx['sites']
 out_time = arm_t.get_times(env, params['name'], Tf)
 
-out_traj = arm_t.make_traj_sets(env, params['name'], Tk)
+out_traj = arm_t.make_traj_sets(env, params['name'], Tk, seed=args.seed)
 targ_trajs = out_traj['targ_trajs']
-# plt.plot(tt, targ_trajs[0][:,1])
-# # plt.plot(tt, targ_trajs[1][:,1])
-# plt.show()
-# sys.exit()
+# plt.plot(tt, targ_trajs[0][:,1]); plt.show()
 
 noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 

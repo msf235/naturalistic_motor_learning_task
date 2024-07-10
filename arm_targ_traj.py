@@ -548,17 +548,19 @@ def get_times(env, exp_name, Tf):
     return out_dict
 
 
-def make_traj_sets(env, exp_name, Tk):
+def make_traj_sets(env, exp_name, Tk, seed=2):
     model = env.model
     data = env.data
     # smoothing_sigma = int(.1 / model.opt.timestep)
+    arc_std = 0.0001 / model.opt.timestep
     arc_std = 0.2
     joints = opt_utils.get_joint_ids(model)
     acts = opt_utils.get_act_ids(model)
+    # q_targ = np.zeros((Tk, 2*model.nq))
     if exp_name == 'basic_movements_right':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site('hand_right').xpos, .1,
-            arc_std)
+            arc_std, seed)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
         traj1_xs[:,2] = rs * np.sin(thetas)
@@ -577,7 +579,7 @@ def make_traj_sets(env, exp_name, Tk):
     elif exp_name == 'basic_movements_left':
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
             model, data, Tk, data.site('hand_left').xpos, .1,
-            arc_std)
+            arc_std, seed)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
         traj1_xs[:,2] = rs * np.sin(thetas)
@@ -598,7 +600,7 @@ def make_traj_sets(env, exp_name, Tk):
         q_targ_mask_types = ['const']
     elif exp_name == 'basic_movements_both':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
-            model, data, Tk, data.site('hand_right').xpos, smoothing_sigma,
+            model, data, Tk, data.site('hand_right').xpos, .1,
             arc_std)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
@@ -613,7 +615,7 @@ def make_traj_sets(env, exp_name, Tk):
         mask_types = [targ_traj_mask_type]
 
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
-            model, data, Tk, data.site('hand_left').xpos, smoothing_sigma,
+            model, data, Tk, data.site('hand_left').xpos, .1,
             arc_std)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
@@ -622,8 +624,8 @@ def make_traj_sets(env, exp_name, Tk):
         full_traj = traj1_xs
         targ_traj_mask = np.ones((Tk,))
         targ_traj_mask_type = 'double_sided_progressive'
-        plt.plot(full_traj[:,1])
-        plt.show()
+        # plt.plot(full_traj[:,1])
+        # plt.show()
 
         targ_trajs += [full_traj]
         masks += [targ_traj_mask]
@@ -928,6 +930,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     let_go_times=[],
                     let_go_ids=[],
                     n_steps_adh=10,
+                    joint_penalty_factor=None
                    ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
@@ -1033,7 +1036,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             if k0 % incr_every == 0:
                 for k in range(n_sites):
                     optms[k] = get_opt(lr)
-            progbar.update(' ' + str(k0))
+            progbar.update(' it: ' + str(k0))
             for k in range(n_sites):
                 targ_traj_mask_currs[k] = np.zeros((Tk,))
                 idx = idxs[k].update()
@@ -1070,7 +1073,8 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     let_go_ids=let_go_ids,
                     n_steps_adh=n_steps_adh,
                     contact_check_list=contact_check_list,
-                    adh_ids=adh_ids
+                    adh_ids=adh_ids,
+                    joint_penalty_factor=joint_penalty_factor
                 )
                 util.reset_state(model, data, data0)
             for k in range(n_sites):
@@ -1094,8 +1098,6 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             ctrls = np.clip(ctrls, -1, 1)
             util.reset_state(model, data, data0)
             render = k0 % render_every == 0
-            # if render:
-                # breakpoint()
             hxs, qs = forward_with_sites(env, ctrls, sites, render)
             for k in range(n_sites):
                 hx = hxs[k]
@@ -1108,7 +1110,6 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             lowest_losses.append(loss, (k0, ctrls.copy()))
             loss_curr_mask_avg = sum([loss.item() for loss in losses_curr_mask]) / n_sites 
             lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
-            print(loss_curr_mask_avg)
             toc = time.time()
             # print(loss, toc-tic)
             nr = range(n_sites)
@@ -1120,6 +1121,14 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                           sites, site_grad_idxs, ctrls,
                           grads, show=False, save=True)
                 plt.pause(.1)
+                if k0 == 0: 
+# Plot again to refresh the window so it resizes to a proper size
+                    show_plot(axs, hxs, tt, targ_trajs, targ_traj_mask_currs,
+                              # qs_wr,
+                              # q_targs_wr,
+                              sites, site_grad_idxs, ctrls,
+                              grads, show=False, save=True)
+                    plt.pause(.1)
             # util.reset_state(model, data, data0)
             # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
                     # plt.show()

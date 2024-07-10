@@ -468,7 +468,8 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    update_every=1, update_phase=0, grad_filter=True,
                    grab_time=None, let_go_times=None,
                    let_go_ids=None, n_steps_adh=10,
-                   contact_check_list=None, adh_ids=None
+                   contact_check_list=None, adh_ids=None,
+                   joint_penalty_factor=None
                   ):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
@@ -490,10 +491,12 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     hxs = np.zeros((Tk, 3))
 
-    adh_ctrl = AdhCtrl(let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids)
+    adh_ctrl = AdhCtrl(let_go_times, let_go_ids, n_steps_adh,
+                       contact_check_list, adh_ids)
 
     q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
-    vel_penalty_factor = 1e-6
+    if joint_penalty_factor is None:
+        joint_penalty_factor = 0
 
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
@@ -516,7 +519,8 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
             dldq = qnow - q_targ[tk]
             dldqs[tk] += dldq * q_targ_mask[tk]
         if tk in grad_range:
-            dldqs[tk, model.nv:] *= vel_penalty_factor
+            dldqs[tk, model.nv:] *= joint_penalty_factor
+            breakpoint()
         
         if tk < Tk-1:
             if contact_check_list is not None:
@@ -524,62 +528,22 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                     model, data, ctrls[tk],
                 )
             sim_util.step(model, data, ctrls[tk])
-    # print(As[1630])
-    # print(Bs[1630])
-    # print(dldqs[1630])
-    # Ast = [A.T for A in As]
-    # Aprods = cum_mat_prod(As)
-    # Aprods.insert(0, np.eye(As[0].shape[0]))
-    # terms = [Aprods[k]@dldqs[k] for k in range(Tk)]
-    # lams2 = cum_sum(terms)
-    # n = 1*(len(deriv_site) < 5)
-    # print(deriv_site + '\t\t' + '\t'*n + str(np.max(np.abs(As))))
-    # ttm = targ_traj_mask.reshape(-1, 1)
-    # dldqs = dldqs * ttm
-    # lams[-1] = dldqs[-1]
     lams[tk] = dldqs[tk]
-    # lams2[tk] = dldqs[tk]
-    # lams3[tk] = dldqs[tk]
     grads = np.zeros((Tk-1, nuderiv))
     tau_loss_factor = 1e-7
-    # tau_loss_factor = 0
     loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
     
-    # time.tic()
-    # terms = [dldqs[tk]]
-    # terms2 = [dldqs[tk]]
-    # from matplotlib import pyplot as plt
-    # plt.close('all')
-    # fig, ax = plt.subplots()
-    # fig.show()
     terms = []
     for tk in reversed(grad_range[1:]):
         tks = tk - update_every # Shifted by one update
-        # lams[tks] = dldqs[tks] + As[tks].T @ lams[tk]
         terms.insert(0, dldqs[tk])
         while len(terms) > grad_trunc_tk:
             terms.pop()
         At = As[tks].T
         terms = [At @ term for term in terms]
-        # print(np.linalg.norm(terms[0]), np.linalg.norm(terms[-1]))
-        # nrm_terms = np.linalg.norm(terms, axis=1)
-        # ax.cla()
-        # ax.plot(nrm_terms)
-        # plt.pause(1)
-        # mprods = cum_mat_prod(Ast[tks:])
-        # terms = [mat@lam for mat, lam in zip(mprods, dldqs[tk:])]
-        # lams2[tks] = dldqs[tks] + np.sum(terms, axis=0)
         lams[tks] = dldqs[tks] + np.sum(terms, axis=0)
-        # print(np.linalg.norm(lams[tks]))
         if grad_filter and targ_traj_mask[tk]:
             grads[tks] = tau_loss_factor*loss_u[tks] + Bs[tks].T @ lams[tk]
-        # if np.sum(np.abs(grads[tks])) > 0:
-            # breakpoint()
-    # breakpoint()
-    # fig, ax = plt.subplots()
-    # nrms = np.linalg.norm(grads, axis=1)
-    # ax.plot(nrms)
-    # plt.show()
 
     mat_block = np.zeros((update_every, update_every+1))
     dk = 1/update_every

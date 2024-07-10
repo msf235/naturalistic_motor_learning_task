@@ -1,15 +1,17 @@
 params:
   name: basic_movements_left
   xml_file: './humanoid_and_basic.xml'
-  max_its: 500
+  max_its: 1000
   Tf: 1.0
   optimizer: 'adam'
-  lr: .001
-  lr2: .0005
-  it_lr2: 180
+  lr: .0005
+  lr2: .0001
+  it_lr2: 800
   grad_update_every: 10
   reset_noise_scale: 0
   incr_every: 50
   t_incr: 1.0
   grab_phase_it: 0
-  grad_window_t: 0.1
+  #grad_window_t: 1
+  grad_window_t: .1
+  joint_penalty_factor: 1e-3
