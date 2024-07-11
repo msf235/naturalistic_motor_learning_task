@@ -20,7 +20,7 @@ from scipy.ndimage import gaussian_filter1d
 
 def reflective_random_walk(n_steps=1000, initial_position=0.5, step_std=0.02,
                            smoothing_sigma=10, lower_lim=0, upper_lim=1,
-                           seed=2):
+                           rng=None):
     # n_steps: Number of steps in the random walk
     # initial_position: Starting position of the random walk
     # step_std: Standard deviation of the increments
@@ -30,10 +30,12 @@ def reflective_random_walk(n_steps=1000, initial_position=0.5, step_std=0.02,
     positions = np.zeros(n_steps)
     positions[0] = initial_position
 
-    rng = np.random.default_rng(seed)
+    if rng is None:
+        rng = np.random.default_rng()
     
     # Generate random steps
     steps = rng.normal(loc=0, scale=step_std, size=n_steps)
+    print(steps[-5:])
     
     # Perform the random walk with reflective boundary conditions
     for i in range(1, n_steps):
@@ -110,10 +112,12 @@ def random_arcs(shouldx, handx, elbowx, n_steps, initial_xpos,
     if th0 < -np.pi/2:
         th0 += 2*np.pi
 
+    rng = np.random.default_rng(seed)
+
     # Random walk for radius
     positions, smoothed_positions = reflective_random_walk(
         n_steps=n_steps, initial_position=r0, step_std=step_std,
-        smoothing_sigma=smoothing_sigma, lower_lim=0, upper_lim=r, seed=seed
+        smoothing_sigma=smoothing_sigma, lower_lim=0, upper_lim=r, rng=rng
     )
 
     rs = smoothed_positions - smoothed_positions[0] + r0
@@ -122,7 +126,7 @@ def random_arcs(shouldx, handx, elbowx, n_steps, initial_xpos,
     positions, smoothed_positions = reflective_random_walk(
         n_steps=n_steps, initial_position=th0, step_std=step_std,
         smoothing_sigma=smoothing_sigma, lower_lim=theta_lims[0],
-        upper_lim=theta_lims[1]
+        upper_lim=theta_lims[1], rng=rng
     )
     thetas = smoothed_positions - smoothed_positions[0] + th0
 

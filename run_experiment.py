@@ -69,6 +69,8 @@ sites = out_idx['sites']
 out_time = arm_t.get_times(env, params['name'], Tf)
 
 out_traj = arm_t.make_traj_sets(env, params['name'], Tk, seed=args.seed)
+out_traj['q_targ_masks'] = [params['joint_penalty_factor'] * x
+                            for x in out_traj['q_targ_masks']]
 targ_trajs = out_traj['targ_trajs']
 # plt.plot(tt, targ_trajs[0][:,1]); plt.show()
 

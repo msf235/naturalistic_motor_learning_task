@@ -555,6 +555,8 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
     arc_std = 0.0001 / model.opt.timestep
     arc_std = 0.2
     joints = opt_utils.get_joint_ids(model)
+    left_arm_vel_idx = [x+model.nq for x in joints['body']['left_arm']]
+    right_arm_vel_idx = [x+model.nq for x in joints['body']['right_arm']]
     acts = opt_utils.get_act_ids(model)
     # q_targ = np.zeros((Tk, 2*model.nq))
     if exp_name == 'basic_movements_right':
@@ -574,7 +576,9 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         mask_types = [targ_traj_mask_type]
 
         q_targs = [np.zeros((Tk, model.nq))]
-        q_targ_masks = [np.zeros((Tk, model.nq))]
+        q_targ_mask = np.zeros((Tk, model.nq))
+        q_targ_mask[:, right_arm_vel_idx] = 1
+        q_targ_masks = [q_targ_mask]
         q_targ_mask_types = ['const']
     elif exp_name == 'basic_movements_left':
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
@@ -595,8 +599,10 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
-        q_targs = [np.zeros((Tk, model.nq))]
-        q_targ_masks = [np.zeros((Tk, model.nq))]
+        q_targs = [np.zeros((Tk, 2*model.nq))]
+        q_targ_mask = np.zeros((Tk, 2*model.nq))
+        q_targ_mask[:, left_arm_vel_idx] = 1
+        q_targ_masks = [q_targ_mask]
         q_targ_mask_types = ['const']
     elif exp_name == 'basic_movements_both':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
@@ -930,7 +936,6 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     let_go_times=[],
                     let_go_ids=[],
                     n_steps_adh=10,
-                    joint_penalty_factor=None
                    ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
@@ -1074,7 +1079,6 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     n_steps_adh=n_steps_adh,
                     contact_check_list=contact_check_list,
                     adh_ids=adh_ids,
-                    joint_penalty_factor=joint_penalty_factor
                 )
                 util.reset_state(model, data, data0)
             for k in range(n_sites):

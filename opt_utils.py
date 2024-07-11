@@ -469,7 +469,6 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    grab_time=None, let_go_times=None,
                    let_go_ids=None, n_steps_adh=10,
                    contact_check_list=None, adh_ids=None,
-                   joint_penalty_factor=None
                   ):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
@@ -495,8 +494,6 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                        contact_check_list, adh_ids)
 
     q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
-    if joint_penalty_factor is None:
-        joint_penalty_factor = 0
 
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
@@ -514,13 +511,11 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                     model, data, epsilon_grad, True, As[tk], B, None, None
                 )
                 Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
-        if tk in grad_range and q_targ_mask_flat[tk]:
+        # if tk in grad_range and q_targ_mask_flat[tk]:
+        if q_targ_mask_flat[tk]:
             qnow = np.concatenate((data.qpos[:], data.qvel[:]))
             dldq = qnow - q_targ[tk]
             dldqs[tk] += dldq * q_targ_mask[tk]
-        if tk in grad_range:
-            dldqs[tk, model.nv:] *= joint_penalty_factor
-            breakpoint()
         
         if tk < Tk-1:
             if contact_check_list is not None:

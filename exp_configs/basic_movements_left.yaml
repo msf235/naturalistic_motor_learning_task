@@ -5,7 +5,7 @@ params:
   Tf: 1.0
   optimizer: 'adam'
   lr: .0005
-  lr2: .0001
+  lr2: .00025
   it_lr2: 800
   grad_update_every: 10
   reset_noise_scale: 0
@@ -14,4 +14,4 @@ params:
   grab_phase_it: 0
   #grad_window_t: 1
   grad_window_t: .1
-  joint_penalty_factor: 1e-3
+  joint_penalty_factor: .000005
