@@ -552,8 +552,9 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
     model = env.model
     data = env.data
     # smoothing_sigma = int(.1 / model.opt.timestep)
-    arc_std = 0.0001 / model.opt.timestep
-    arc_std = 0.2
+    # arc_std = 0.0001 / model.opt.timestep
+    arc_std = 0.02
+    smoothing_time = .1
     joints = opt_utils.get_joint_ids(model)
     left_arm_vel_idx = [x+model.nq for x in joints['body']['left_arm']]
     right_arm_vel_idx = [x+model.nq for x in joints['body']['right_arm']]
@@ -561,7 +562,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
     # q_targ = np.zeros((Tk, 2*model.nq))
     if exp_name == 'basic_movements_right':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
-            model, data, Tk, data.site('hand_right').xpos, .1,
+            model, data, Tk, data.site('hand_right').xpos, smoothing_time,
             arc_std, seed)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
@@ -575,14 +576,14 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
-        q_targs = [np.zeros((Tk, model.nq))]
-        q_targ_mask = np.zeros((Tk, model.nq))
+        q_targs = [np.zeros((Tk, 2*model.nq))]
+        q_targ_mask = np.zeros((Tk, 2*model.nq))
         q_targ_mask[:, right_arm_vel_idx] = 1
         q_targ_masks = [q_targ_mask]
         q_targ_mask_types = ['const']
     elif exp_name == 'basic_movements_left':
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
-            model, data, Tk, data.site('hand_left').xpos, .1,
+            model, data, Tk, data.site('hand_left').xpos, smoothing_time,
             arc_std, seed)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
@@ -606,7 +607,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_mask_types = ['const']
     elif exp_name == 'basic_movements_both':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
-            model, data, Tk, data.site('hand_right').xpos, .1,
+            model, data, Tk, data.site('hand_right').xpos, smoothing_time,
             arc_std)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
@@ -621,7 +622,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         mask_types = [targ_traj_mask_type]
 
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
-            model, data, Tk, data.site('hand_left').xpos, .1,
+            model, data, Tk, data.site('hand_left').xpos, smoothing_time,
             arc_std)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)

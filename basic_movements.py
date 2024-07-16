@@ -116,8 +116,10 @@ def random_arcs(shouldx, handx, elbowx, n_steps, initial_xpos,
 
     # Random walk for radius
     positions, smoothed_positions = reflective_random_walk(
-        n_steps=n_steps, initial_position=r0, step_std=step_std,
-
+        n_steps=n_steps, initial_position=r0,
+        step_std=step_std,
+        smoothing_sigma=smoothing_sigma,
+        lower_lim=0, upper_lim=r, rng=rng
     )
 
     rs = smoothed_positions - smoothed_positions[0] + r0
@@ -139,9 +141,6 @@ def random_arcs_right_arm(model, data, n_steps, initial_xpos,
     handx = data.site('hand_right').xpos
     theta_max = 1.2*np.pi
     theta_min = np.pi/2.5
-    if smoothing_sigma is None:
-        t_sm = .1
-        smoothing_sigma = int(t_sm / model.opt.timestep)
     if smoothing_time is None:
         smoothing_time = .1
     smoothing_sigma = int(smoothing_time / model.opt.timestep)
