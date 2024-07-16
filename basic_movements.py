@@ -117,7 +117,7 @@ def random_arcs(shouldx, handx, elbowx, n_steps, initial_xpos,
     # Random walk for radius
     positions, smoothed_positions = reflective_random_walk(
         n_steps=n_steps, initial_position=r0, step_std=step_std,
-        smoothing_sigma=smoothing_sigma, lower_lim=0, upper_lim=r, rng=rng
+
     )
 
     rs = smoothed_positions - smoothed_positions[0] + r0
