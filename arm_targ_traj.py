@@ -493,11 +493,10 @@ def get_idx_sets(env, exp_name):
                      'adh_left_hand']
         let_go_ids = [acts['adh_left_hand'][0]]
     elif exp_name == 'tennis_grab':
-        sites = ['hand_right', 'hand_left', 'racket_handle_top']
+        sites = ['hand_right', 'hand_left']
         tennis_idxs = two_arm_idxs(model)
         site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
-                          tennis_idxs['left_arm_without_adh'],
-                          tennis_idxs['right_arm_without_adh']]
+                          tennis_idxs['left_arm_without_adh']]
         stabilize_jnt_idx = tennis_idxs['not_arm_j']
         stabilize_act_idx = tennis_idxs['not_arm_a']
 
@@ -544,6 +543,10 @@ def get_times(env, exp_name, Tf):
         grab_t = Tf / 2.2
         grab_tk = int(grab_t/dt)
         let_go_times = [time_dict['t_left_3']]
+    elif exp_name == 'tennis_grab':
+        time_dict = tennis_traj(model, data, Tk)[-1]
+        grab_t = Tf / 2.2
+        grab_tk = int(grab_t/dt)
     out_dict = dict(grab_phase_tk=grab_tk, let_go_times=let_go_times)
     return out_dict
 
@@ -723,9 +726,9 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         targ_traj_mask_type = 'double_sided_progressive'
         out = tennis_grab_traj(model, data, Tk)
         right_hand_traj, left_hand_traj, ball_traj, time_dict = out
-        targ_trajs = [right_hand_traj, left_hand_traj, right_hand_traj]
-        masks = [targ_traj_mask, targ_traj_mask, targ_traj_mask]
-        mask_types = [targ_traj_mask_type]*3
+        targ_trajs = [right_hand_traj, left_hand_traj]
+        masks = [targ_traj_mask, targ_traj_mask]
+        mask_types = [targ_traj_mask_type]*2
         q_targ = np.zeros((Tk, 2*model.nq))
         q_targ_mask = np.zeros((Tk,2*model.nq))
         q_targ_mask2 = np.zeros((Tk,2*model.nq))
@@ -734,9 +737,12 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_nz = np.linspace(0, -2.44, Tk-time_dict['t_left_1'])
         q_targ[time_dict['t_left_1']:, 
                 joints['all']['wrist_left']] = q_targ_nz
-        q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
+        q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask]
         q_targ_mask_types = ['const']*3
         q_targs = [q_targ]*3
+        # plt.plot(right_hand_traj[:,1])
+        # plt.plot(right_hand_traj[:,2])
+        # plt.show()
 
 
     out_dict = dict(targ_trajs=targ_trajs,

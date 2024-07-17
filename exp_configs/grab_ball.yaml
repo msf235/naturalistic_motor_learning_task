@@ -1,15 +1,20 @@
 params:
   name: grab_ball
   xml_file: './humanoid_and_baseball.xml'
-  max_its: 300
+  max_its: 1000
   Tf: .9
-  optimizer: 'adam'
-  lr: .001
-  lr2: .0005
-  it_lr2: 250
+  #optimizer: 'adam'
+  #lr: .001
+  #lr2: .0005
+  optimizer: 'sgd'
+  lr: 2.5
+  lr2: .5
+  it_lr2: 800
   grad_update_every: 10
   reset_noise_scale: .001
   t_incr: .9
+  #t_incr: 1.0
   incr_every: 50
   grab_phase_it: 20
   grad_window_t: 0.1
+  joint_penalty_factor: 5e-7

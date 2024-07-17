@@ -15,6 +15,9 @@ import config
 args = config.get_arg_parser().parse_args()
 vargs = vars(args)
 params = config.get_config(args.configfile)['params']
+# Since numbers in scientific notation are converted to a string from yaml,
+# need to convert these to a number.
+params = {k: config.inp_to_num(v) for k, v in params.items()}
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,
@@ -52,7 +55,11 @@ data = env.data
 
 dt = model.opt.timestep
 burn_step = int(.1 / dt)
-reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step, 2*burn_step)
+reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
+                                          2*burn_step,
+                                          params['balance_cost'],
+                                          params['joint_cost']
+                                         )
 
 ctrls_burn_in = reset()
 
@@ -72,7 +79,8 @@ out_traj = arm_t.make_traj_sets(env, params['name'], Tk, seed=args.seed)
 out_traj['q_targ_masks'] = [params['joint_penalty_factor'] * x
                             for x in out_traj['q_targ_masks']]
 targ_trajs = out_traj['targ_trajs']
-# plt.plot(tt, targ_trajs[0][:,1]); plt.show()
+# plt.plot(tt, targ_trajs[0][:,1])
+# plt.plot(tt, targ_trajs[1][:,1]); plt.show()
 
 noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -93,6 +101,8 @@ if args.rerun or not out_f.exists():
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
         bodyj,
         free_ctrls=np.zeros((Tk, len(acts['adh']))),
+        balance_cost=params['balance_cost'],
+        joint_cost=params['joint_cost'],
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     reset()
@@ -104,6 +114,7 @@ if args.rerun or not out_f.exists():
                         'grad_update_every', 'incr_every',
                         # 't_incr',
                         'grab_phase_it',
+                        'balance_cost', 'joint_cost',
                         # 'grad_window_t'
                        ]}
     ctrls, lowest_losses = arm_t.arm_target_traj(

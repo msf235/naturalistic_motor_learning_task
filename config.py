@@ -223,3 +223,21 @@ def get_config(config_file):
             print(exc)
     return cfg
 
+def inp_to_num(in_val):
+    """Convert input value to number. Typically, the input value in_val will be
+    a string that should be converted to a number. If it is not a string,
+    return input back. If no conversion is possible, return the input string
+    back."""
+    if not isinstance(in_val, str):
+        return in_val
+    try:
+        return int(in_val)
+    except ValueError:
+        pass
+    try:
+        return float(in_val)
+    except ValueError:
+        return in_val
+
+
+

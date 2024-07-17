@@ -27,7 +27,6 @@ def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     # ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(M)
     ctrl0 = np.linalg.lstsq(M.T, qfrc0, rcond=None)[0]
     # ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
-    # breakpoint()
     return ctrl0
 
 body_keys = ['human', 'shoulder', 'hand', 'torso', 'hip', 'knee', 'ankle',
@@ -403,7 +402,6 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
     # print(As[1630])
     # print(Bs[0][1630])
     # print(dldqs[0, 1630])
-    # breakpoint()
     grads = np.zeros((n, Tk-1, nuderiv))
     loss_us = []
     for k in range(n):
@@ -429,8 +427,6 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
                 grads[k, tks] = tau_loss_factor*loss_us[k][tks] \
                     + Bs[k][tks].T @ lams[k, tk]
         # if np.sum(np.abs(lams[k, tks])) > 0:
-            # breakpoint()
-    # breakpoint()
     # fig, ax = plt.subplots()
     # nrms = np.linalg.norm(grads, axis=1)
     # ax.plot(nrms)
@@ -562,7 +558,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
 
     return grads_interp
 
-def reset_with_lqr(env, seed, nsteps1, nsteps2):
+def reset_with_lqr(env, seed, nsteps1, nsteps2, balance_cost, joint_cost):
     env.reset(seed=seed, options={'n_steps': nsteps1, 'render': False})
     model = env.model
     data = env.data
@@ -572,7 +568,8 @@ def reset_with_lqr(env, seed, nsteps1, nsteps2):
     bodyj = joints['body']['body_dofs']
     ctrls = get_stabilized_ctrls(
         model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
-        bodyj, free_ctrls=np.ones((nsteps2, len(acts['adh'])))
+        bodyj, free_ctrls=np.ones((nsteps2, len(acts['adh']))),
+        balance_cost=balance_cost, joint_cost=joint_cost
     )[0]
     ctrls = np.vstack((np.zeros((nsteps1, model.nu)), ctrls))
     return ctrls
