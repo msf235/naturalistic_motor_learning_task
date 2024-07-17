@@ -32,8 +32,8 @@ only_save_states = True
 savedir.mkdir(parents=True, exist_ok=True)
 
 shutil.copy('humanoid.xml', savedir)
-shutil.copy('humanoid_and_tennis.xml', savedir)
-shutil.copy('tennis_serve_scene.xml', savedir)
+shutil.copy('humanoid_and_baseball.xml', savedir)
+shutil.copy('baseball_pitch_scene.xml', savedir)
 
 for num in range(1, 4):
     ### Set things up
