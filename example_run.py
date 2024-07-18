@@ -1,15 +1,6 @@
 import humanoid2d
-import opt_utils
-import numpy as np
-import sim_util as util
-import sys
-from pathlib import Path
-import pickle as pkl
-import arm_targ_traj as arm_t
-import basic_movements as bm
-from matplotlib import pyplot as plt
-import torch
 import mujoco as mj
+import numpy as np
 import time
 
 DEFAULT_CAMERA_CONFIG = {
@@ -24,7 +15,6 @@ DEFAULT_CAMERA_CONFIG = {
 ### Set things up
 
 render_mode = 'human'
-# render_mode = 'rgb_array'
 
 keyframe = 'wide'
 
@@ -40,12 +30,20 @@ model = env.model
 data = env.data
 
 ctrls = np.load('./data/phase_1/ball_grab/ball_grab_2_ctrls.npy')
+states = np.load('./data/phase_1/ball_grab/ball_grab_2_states.npy')
+data.qpos[:] = states[0, :model.nq]
+data.qvel[:] = states[0, model.nq:]
 
-while True:
-    for k, ctrl in enumerate(ctrls):
-        mj.mj_step1(model, data)
-        data.ctrl[:] = ctrl
-        mj.mj_step2(model, data)
-        env.render()
+for k, ctrl in enumerate(ctrls):
+    mj.mj_step1(model, data)
+    data.ctrl[:] = ctrl
+    mj.mj_step2(model, data)
+    env.render()
 
-    time.sleep(10)
+time.sleep(3)
+env.reset()
+for k, state in enumerate(states):
+    data.qpos[:] = state[:model.nq]
+    data.qvel[:] = state[model.nq:]
+    mj.mj_forward(model, data)
+    env.render()
