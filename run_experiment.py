@@ -58,7 +58,9 @@ burn_step = int(.1 / dt)
 reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
                                           2*burn_step,
                                           params['balance_cost'],
-                                          params['joint_cost']
+                                          params['joint_cost'],
+                                          params['foot_cost'],
+                                          params['ctrl_cost'],
                                          )
 
 ctrls_burn_in = reset()
@@ -103,6 +105,8 @@ if args.rerun or not out_f.exists():
         free_ctrls=np.zeros((Tk, len(acts['adh']))),
         balance_cost=params['balance_cost'],
         joint_cost=params['joint_cost'],
+        foot_cost=params['foot_cost'],
+        ctrl_cost=params['ctrl_cost']
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     reset()

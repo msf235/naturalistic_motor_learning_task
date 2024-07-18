@@ -161,7 +161,7 @@ class AdhCtrl:
         self.k_right = 0
         self.k_left = 0
 
-def get_Q_balance(model, data):
+def get_Q_balance(model, data, balance_cost, foot_cost):
     nq = model.nq
     jac_com = np.zeros((3, nq))
     mj.mj_jacSubtreeCom(model, data, jac_com, model.body('torso').id)
@@ -174,7 +174,8 @@ def get_Q_balance(model, data):
                      model.body('foot_right').id)
     jac_base = (jac_lfoot + jac_rfoot) / 2
     jac_diff = jac_com - jac_base
-    Qbalance = jac_diff.T @ jac_diff
+    Qbalance = balance_cost * jac_diff.T @ jac_diff 
+    Qbalance += foot_cost * (jac_lfoot.T @ jac_lfoot + jac_rfoot.T @ jac_rfoot)
     return Qbalance
 
 def get_Q_joint(model, data=None, excluded_acts=[]):
@@ -194,16 +195,16 @@ def get_Q_joint(model, data=None, excluded_acts=[]):
     return Qjoint
 
 def get_Q_matrix(model, data, excluded_state_inds=[], balance_cost=1000,
-                 joint_cost=100):
+                 joint_cost=100, foot_cost=1000):
     # Cost coefficients.
     # balance_cost        = 1000  # Balancing.
 
-    Qbalance = get_Q_balance(model, data)
+    Qbalance = get_Q_balance(model, data, balance_cost, foot_cost)
     Qjoint = get_Q_joint(model, data, excluded_state_inds)
     # Construct the Q matrix for position DoFs.
     # Qpos = balance_cost * Qbalance + Qjoint
     # Qpos = balance_cost * Qbalance + 500*Qjoint
-    Qpos = balance_cost * Qbalance + joint_cost*Qjoint
+    Qpos = Qbalance + joint_cost*Qjoint
     # Qpos = 1000*Qjoint
 
     # No explicit penalty for velocities.
@@ -236,15 +237,16 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
     return K
 
 def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
-                             active_ctrl_ids, balance_cost=1000, joint_cost=100):
+                             active_ctrl_ids, balance_cost=1000,
+                             joint_cost=100, foot_cost=1000, ctrl_cost=1):
     # What about data.qpos, data.qvel, data.qacc?
     # data = copy.deepcopy(data)
     data.ctrl[active_ctrl_ids] = ctrl0
     nq = model.nq
     nu = model.nu
-    R = np.eye(len(active_ctrl_ids))
+    R = ctrl_cost*np.eye(len(active_ctrl_ids))
     Q = get_Q_matrix(model, data, balance_cost=balance_cost,
-                     joint_cost=joint_cost)
+                     joint_cost=joint_cost, foot_cost=foot_cost)
     K = get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
                                          active_ctrl_ids)
     return K
@@ -262,6 +264,8 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                          free_ctrls=None,
                          K_update_interv=None, free_ctrl_fn=None,
                          balance_cost=1000, joint_cost=100,
+                         foot_cost=1000,
+                         ctrl_cost=1,
                          let_go_times=[], let_go_ids=[],
                          n_steps_adh=20,
                          contact_check_list=[], adh_ids=[]):
@@ -307,7 +311,8 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                               ctrl_act_ids)
             util.reset_state(model, data, datak0)
             K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
-                                         ctrl_act_ids, balance_cost, joint_cost)
+                                         ctrl_act_ids, balance_cost,
+                                         joint_cost, foot_cost, ctrl_cost)
             util.reset_state(model, data, datak0)
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
                                    stable_jnt_ids)
@@ -558,7 +563,8 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
 
     return grads_interp
 
-def reset_with_lqr(env, seed, nsteps1, nsteps2, balance_cost, joint_cost):
+def reset_with_lqr(env, seed, nsteps1, nsteps2, balance_cost, joint_cost,
+                   foot_cost, ctrl_cost):
     env.reset(seed=seed, options={'n_steps': nsteps1, 'render': False})
     model = env.model
     data = env.data
@@ -569,7 +575,8 @@ def reset_with_lqr(env, seed, nsteps1, nsteps2, balance_cost, joint_cost):
     ctrls = get_stabilized_ctrls(
         model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
         bodyj, free_ctrls=np.ones((nsteps2, len(acts['adh']))),
-        balance_cost=balance_cost, joint_cost=joint_cost
+        balance_cost=balance_cost, joint_cost=joint_cost, foot_cost=foot_cost,
+        ctrl_cost=ctrl_cost
     )[0]
     ctrls = np.vstack((np.zeros((nsteps1, model.nu)), ctrls))
     return ctrls
