@@ -64,7 +64,7 @@ for num in range(1, 4):
     # reset()
     ctrls = lowest_losses.peekitem(0)[1][1]
     # arm_t.forward_with_sites(env, ctrls, ['hand_right'], render=True)
-    reset()
+    ctrls0 = reset()
     qs, vs, ss = util.forward_sim(model, data, ctrls)
     system_states = np.hstack((qs, vs))
     fn = f'ball_grab_{num}_'
