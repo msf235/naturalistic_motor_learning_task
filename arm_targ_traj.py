@@ -272,7 +272,7 @@ def tennis_traj(model, data, Tk):
     # Right arm
 
     # grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
-    grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0.03])
+    grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0.01])
     # grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0])
     sx = np.linspace(0, 1, Tk_right_1)
     s = sigmoid(sx, 5)
@@ -304,7 +304,7 @@ def tennis_traj(model, data, Tk):
 
     # Left arm
     # grab_targ = data.site('ball').xpos + np.array([0, 0, 0.04])
-    grab_targ = data.site('ball_top').xpos + np.array([0, 0, .03])
+    grab_targ = data.site('ball_top').xpos + np.array([0, 0, .01])
     s = sigmoid(np.linspace(0, 1, Tk_left_1), 5)
     s = np.tile(s, (3, 1)).T
     s = np.concatenate((s, np.ones((Tk_left_2, 3))), axis=0)
@@ -540,7 +540,7 @@ def get_times(env, exp_name, Tf):
         grab_tk = int(grab_t/dt)
     elif exp_name == 'tennis_serve':
         time_dict = tennis_traj(model, data, Tk)[-1]
-        grab_t = Tf / 2.2
+        grab_t = Tf / 2.8
         grab_tk = int(grab_t/dt)
         let_go_times = [time_dict['t_left_3']]
     elif exp_name == 'tennis_grab':
@@ -714,10 +714,10 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_mask = np.zeros((Tk,2*model.nq))
         q_targ_mask2 = np.zeros((Tk,2*model.nq))
         q_targ_mask2[time_dict['t_left_1']:, joints['all']['wrist_left']] = 1
-        q_targ_nz = np.linspace(0, -2.44, time_dict['t_left_2']-time_dict['t_left_1'])
+        q_targ_nz = np.linspace(0, 2.44, time_dict['t_left_2']-time_dict['t_left_1'])
         q_targ[time_dict['t_left_1']:time_dict['t_left_2'], 
                 joints['all']['wrist_left']] = q_targ_nz
-        q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = -2.44
+        q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = 2.44
         q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
         q_targ_mask_types = ['const']*3
         q_targs = [q_targ]*3
@@ -888,8 +888,8 @@ class WindowedIdx:
         return self.idx
 
 def show_plot(axs, hxs, tt, target_trajs, targ_traj_mask, site_names=None,
-              site_grad_idxs=None, ctrls=None, grads=None, show=True,
-              save=False):
+              site_grad_idxs=None, ctrls=None, grads=None, qvals=None,
+              qtargs=None, show=True, save=False):
     fig = axs[0, 0].figure
     n = len(hxs)
     nr = range(n)
@@ -919,6 +919,11 @@ def show_plot(axs, hxs, tt, target_trajs, targ_traj_mask, site_names=None,
     if ctrls is not None:
         axs[1,0].plot(tt[:-1], ctrls[:, -2])
         # axs[1,1].plot(tt[:-1], ctrls[:, -1])
+    if q_vals is not None:
+        for k in nr:
+            axs[2, k].plot(tt, qvals[k])
+            axs[2, k].set_prop_cycle(None)
+            axs[2, k].plot(tt, qval_targs[k], '--')
     fig.tight_layout()
     if show:
         plt.show(block=False)
@@ -1040,7 +1045,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
 
     contact_bool = False
     grab_phase_switch = True
-    fig, axs = plt.subplots(3, n_sites, figsize=(5*n_sites, 5))
+    fig, axs = plt.subplots(3, n_sites+1, figsize=(4*(n_sites+1), 4))
     if n_sites == 1:
         axs = axs.reshape((3,1))
     try:
@@ -1113,6 +1118,8 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             util.reset_state(model, data, data0)
             render = k0 % render_every == 0
             hxs, qs = forward_with_sites(env, ctrls, sites, render)
+            q_targs_masked = []
+            qs_list = [qs] * n_sites
             for k in range(n_sites):
                 hx = hxs[k]
                 diffsq = (hx - targ_trajs[k])**2
@@ -1120,20 +1127,25 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                 mask = np.tile((targ_traj_mask_currs[k]>0), (3, 1)).T
                 temp = np.sum(diffsq*mask) / (np.sum(mask[:,0]))
                 losses_curr_mask[k] = temp
+                q_targs_masked_tmp = q_targs[k] * q_targ_masks[k]
+                q_targs_masked_tmp[q_targs_masked == 0] = np.nan
+                q_targs_masked.append(q_targs_masked_tmp)
             loss = sum([loss.item() for loss in losses]) / n_sites
             lowest_losses.append(loss, (k0, ctrls.copy()))
             loss_curr_mask_avg = sum([loss.item() for loss in losses_curr_mask]) / n_sites 
             lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
             toc = time.time()
             # print(loss, toc-tic)
+
             nr = range(n_sites)
             if k0 % plot_every == 0:
                 # qs_wr = qs[:, joints['all']['wrist_left']]
+                breakpoint()
                 show_plot(axs, hxs, tt, targ_trajs, targ_traj_mask_currs,
                           # qs_wr,
                           # q_targs_wr,
                           sites, site_grad_idxs, ctrls,
-                          grads, show=False, save=True)
+                          grads, qs_list, q_targs_masked, show=False, save=True)
                 plt.pause(.1)
                 if k0 == 0: 
 # Plot again to refresh the window so it resizes to a proper size

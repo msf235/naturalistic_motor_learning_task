@@ -1,17 +1,20 @@
 params:
   name: throw_ball
   xml_file: './humanoid_and_baseball.xml'
-  max_its: 300
   Tf: 0.6
   optimizer: 'adam'
+  max_its: 500
   lr: .001
   lr2: .0005
-  it_lr2: 250
+  it_lr2: 350
   grad_update_every: 10
   reset_noise_scale: .001
   t_incr: .06
   incr_every: 50
   grab_phase_it: 20
-  grad_window_t: .06
-  
-
+  grad_window_t: .1
+  joint_penalty_factor: 1e-6
+  balance_cost: 6000
+  joint_cost: 200
+  foot_cost: 6000
+  ctrl_cost: 100

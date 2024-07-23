@@ -93,7 +93,7 @@
         <joint range="-100 85" stiffness="0"/>
       </default>
       <default class="wrist">
-        <joint range="-140 85" stiffness="3" pos="0 0 0"/>
+        <joint range="-10 140" stiffness="3" pos="0 0 0"/>
       </default>
     </default>
   </default>
@@ -176,7 +176,7 @@
             <site name="hand_right1" class="hand" pos="0 0 -.025" size="0.1"/> <!--Check size.-->
             <geom name="hand_right2"  type="capsule" pos="0 0 .025" class="hand"/>
             <site name="hand_right2" class="hand" pos="0 0 .025" size="0.1"/> <!--Check size.-->
-            <joint name="wrist_right" axis="1 0 0" class="wrist" stiffness="0"/>
+            <joint name="wrist_right" axis="-1 0 0" class="wrist" stiffness="0"/>
               <!--friction="1 0.005 0.03"-->
           </body>
         </body>
@@ -198,7 +198,7 @@
             <geom name="hand_left2" type="capsule" class="hand"
               pos="0 0 .025"/>
             <site name="hand_left2" class="hand" pos="0 0 .025" size="0.1"/>
-            <joint name="wrist_left" axis="-1 0 0" class="wrist" stiffness="0"/>
+            <joint name="wrist_left" axis="1 0 0" class="wrist" stiffness="0"/>
           </body>
         </body>
       </body>

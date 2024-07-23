@@ -151,7 +151,8 @@ ctrls = lowest_losses.peekitem(0)[1][1]
 Te = 3
 Tke = int(3 / dt)
 ctrls_end = np.zeros((Tke, model.nu))
-ctrls_full = np.vstack((ctrls, ctrls_end))
+# ctrls_full = np.vstack((ctrls, ctrls_end))
+ctrls_full = ctrls
 reset()
 hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
 fig, axs = plt.subplots(1, len(sites), figsize=(8,4))
@@ -161,6 +162,7 @@ axs = axs.reshape((1, len(sites)))
 arm_t.show_plot(axs, hxs, tt, out_traj['targ_trajs'],
                 out_traj['targ_traj_masks'],
                 sites, out_idx['site_grad_idxs'])
+plt.show()
 while True:
     reset()
     arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
