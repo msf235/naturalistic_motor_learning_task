@@ -6,7 +6,8 @@ params:
   #lr: .0005
   #lr2: .0005
   #it_lr2: 800
-  optimizer: 'adam'
+  #optimizer: 'adam'
+  optimizer: 'rmsprop'
   max_its: 1000
   lr: .0005
   lr2: .0005
@@ -17,7 +18,7 @@ params:
   incr_every: 50
   grab_phase_it: 40
   grad_window_t: .1
-  joint_penalty_factor: 1e-6
+  joint_penalty_factor: 1e-2
   #balance_cost: 1000
   #joint_cost: 500
   balance_cost: 4000

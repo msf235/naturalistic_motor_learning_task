@@ -713,8 +713,9 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ = np.zeros((Tk, 2*model.nq))
         q_targ_mask = np.zeros((Tk,2*model.nq))
         q_targ_mask2 = np.zeros((Tk,2*model.nq))
-        q_targ_mask2[time_dict['t_left_1']:, joints['all']['wrist_left']] = 1
-        q_targ_nz = np.linspace(0, 2.44, time_dict['t_left_2']-time_dict['t_left_1'])
+        q_targ_mask2[time_dict['t_left_1']:time_dict['t_left_3'],
+                     joints['all']['wrist_left']] = 1
+        q_targ_nz = np.linspace(.75, 2.44, time_dict['t_left_2']-time_dict['t_left_1'])
         q_targ[time_dict['t_left_1']:time_dict['t_left_2'], 
                 joints['all']['wrist_left']] = q_targ_nz
         q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = 2.44
@@ -762,18 +763,21 @@ def show_forward_sim(env, ctrls):
 def forward_with_sites(env, ctrls, site_names, render=False):
     n = len(site_names)
     site_xvs = np.zeros((n, ctrls.shape[0]+1, 3))
-    model_qs = np.zeros((ctrls.shape[0]+1, env.model.nq))
-    model_qs[0] = env.data.qpos.copy()
+    nq = env.model.nq
+    state_vals = np.zeros((ctrls.shape[0]+1, 2*nq))
+    state_vals[0, :nq] = env.data.qpos.copy()
+    state_vals[0, nq:] = env.data.qvel.copy()
     for k2 in range(n):
         site_xvs[k2, 0] = env.data.site(site_names[k2]).xpos
     for k in range(ctrls.shape[0]):
         util.step(env.model, env.data, ctrls[k])
-        model_qs[k+1] = env.data.qpos.copy()
+        state_vals[k+1,:nq] = env.data.qpos.copy()
+        state_vals[k+1,nq:] = env.data.qvel.copy()
         for k2 in range(n):
             site_xvs[k2, k+1] = env.data.site(site_names[k2]).xpos
         if render:
             env.render()
-    return site_xvs, model_qs
+    return site_xvs, state_vals
 
 def forward_to_contact(env, ctrls, noisev=None, render=True, let_go_times=[],
                        let_go_ids=[], n_steps_adh=10,
@@ -905,6 +909,7 @@ def show_plot(axs, hxs, tt, target_trajs, targ_traj_mask, site_names=None,
         ax.plot(tt, ft[:,1], '--', color='blue')
         ax.plot(tt, hx[:,2], color='red', label='y')
         ax.plot(tt, ft[:,2], '--', color='red')
+        lims = ax.get_xlim()
         if site_names is not None:
             ax.set_title(site_names[k])
         ax.legend()
@@ -919,11 +924,14 @@ def show_plot(axs, hxs, tt, target_trajs, targ_traj_mask, site_names=None,
     if ctrls is not None:
         axs[1,0].plot(tt[:-1], ctrls[:, -2])
         # axs[1,1].plot(tt[:-1], ctrls[:, -1])
-    if q_vals is not None:
+    if qvals is not None:
         for k in nr:
-            axs[2, k].plot(tt, qvals[k])
-            axs[2, k].set_prop_cycle(None)
-            axs[2, k].plot(tt, qval_targs[k], '--')
+            ax = axs[3, k]
+            ax.cla()
+            ax.plot(tt, qvals[k])
+            ax.set_prop_cycle(None)
+            ax.plot(tt, qtargs[k], '--')
+            ax.set_xlim(lims)
     fig.tight_layout()
     if show:
         plt.show(block=False)
@@ -1045,9 +1053,9 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
 
     contact_bool = False
     grab_phase_switch = True
-    fig, axs = plt.subplots(3, n_sites+1, figsize=(4*(n_sites+1), 4))
+    fig, axs = plt.subplots(4, n_sites, figsize=(4*n_sites, 4))
     if n_sites == 1:
-        axs = axs.reshape((3,1))
+        axs = axs.reshape((4,1))
     try:
         for k0 in range(max_its):
             if k0 >= it_lr2:
@@ -1119,7 +1127,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             render = k0 % render_every == 0
             hxs, qs = forward_with_sites(env, ctrls, sites, render)
             q_targs_masked = []
-            qs_list = [qs] * n_sites
+            qs_list = []
             for k in range(n_sites):
                 hx = hxs[k]
                 diffsq = (hx - targ_trajs[k])**2
@@ -1127,9 +1135,13 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                 mask = np.tile((targ_traj_mask_currs[k]>0), (3, 1)).T
                 temp = np.sum(diffsq*mask) / (np.sum(mask[:,0]))
                 losses_curr_mask[k] = temp
-                q_targs_masked_tmp = q_targs[k] * q_targ_masks[k]
-                q_targs_masked_tmp[q_targs_masked == 0] = np.nan
+
+                q_targs_masked_tmp = q_targs[k].copy()
+                q_targs_masked_tmp[q_targ_masks[k] == 0] = np.nan
                 q_targs_masked.append(q_targs_masked_tmp)
+                qs_tmp = qs.copy()
+                qs_tmp[q_targ_masks[k] == 0] = np.nan
+                qs_list.append(qs_tmp)
             loss = sum([loss.item() for loss in losses]) / n_sites
             lowest_losses.append(loss, (k0, ctrls.copy()))
             loss_curr_mask_avg = sum([loss.item() for loss in losses_curr_mask]) / n_sites 
@@ -1140,7 +1152,6 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             nr = range(n_sites)
             if k0 % plot_every == 0:
                 # qs_wr = qs[:, joints['all']['wrist_left']]
-                breakpoint()
                 show_plot(axs, hxs, tt, targ_trajs, targ_traj_mask_currs,
                           # qs_wr,
                           # q_targs_wr,
