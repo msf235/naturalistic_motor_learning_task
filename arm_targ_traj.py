@@ -477,8 +477,7 @@ def get_idx_sets(env, exp_name):
         tennis_idxs = two_arm_idxs(model)
         site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                           tennis_idxs['left_arm_without_adh'],
-                          tennis_idxs['right_arm_without_adh'],
-                          tennis_idxs['left_arm_without_adh']]
+                          tennis_idxs['right_arm_without_adh']]
         site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                           tennis_idxs['left_arm_without_adh'],
                           tennis_idxs['right_arm_without_adh']]
@@ -715,10 +714,14 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_mask2 = np.zeros((Tk,2*model.nq))
         q_targ_mask2[time_dict['t_left_1']:time_dict['t_left_3'],
                      joints['all']['wrist_left']] = 1
-        q_targ_nz = np.linspace(.75, 2.44, time_dict['t_left_2']-time_dict['t_left_1'])
+        tmp = np.linspace(0, 1, time_dict['t_left_2']-time_dict['t_left_1'])
+        tmp = sigmoid(tmp, 5)
+        q_targ_nz = (2.3-.75)*tmp + .75
+        # tmp = np.linspace(.75, 2.3, time_dict['t_left_2']-time_dict['t_left_1'])
+        # q_targ_nz = sigmoid(tmp, 3)
         q_targ[time_dict['t_left_1']:time_dict['t_left_2'], 
                 joints['all']['wrist_left']] = q_targ_nz
-        q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = 2.44
+        q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = 2.3
         q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
         q_targ_mask_types = ['const']*3
         q_targs = [q_targ]*3
@@ -897,6 +900,7 @@ def show_plot(axs, hxs, tt, target_trajs, targ_traj_mask, site_names=None,
     fig = axs[0, 0].figure
     n = len(hxs)
     nr = range(n)
+    ax_cntr = 0
     for k in nr:
         hx = hxs[k]
         tm = np.tile(targ_traj_mask[k], (3, 1)).T
@@ -913,20 +917,25 @@ def show_plot(axs, hxs, tt, target_trajs, targ_traj_mask, site_names=None,
         if site_names is not None:
             ax.set_title(site_names[k])
         ax.legend()
-        if ctrls is not None and site_grad_idxs is not None:
-            ax = axs[1,k]
+    ax_cntr += 1
+    if ctrls is not None and site_grad_idxs is not None:
+        for k in nr:
+            ax = axs[ax_cntr,k]
             ax.cla()
             ax.plot(tt[:-1], ctrls[:, site_grad_idxs[k]])
-        if grads is not None:
-            ax = axs[2,k]
+        ax_cntr += 1
+    if grads is not None:
+        for k in nr:
+            ax = axs[ax_cntr,k]
             ax.cla()
             ax.plot(tt[:-1], grads[k])
-    if ctrls is not None:
-        axs[1,0].plot(tt[:-1], ctrls[:, -2])
+        ax_cntr += 1
+    # if ctrls is not None:
+        # axs[1,0].plot(tt[:-1], ctrls[:, -2])
         # axs[1,1].plot(tt[:-1], ctrls[:, -1])
     if qvals is not None:
         for k in nr:
-            ax = axs[3, k]
+            ax = axs[ax_cntr, k]
             ax.cla()
             ax.plot(tt, qvals[k])
             ax.set_prop_cycle(None)
@@ -1053,7 +1062,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
 
     contact_bool = False
     grab_phase_switch = True
-    fig, axs = plt.subplots(4, n_sites, figsize=(4*n_sites, 4))
+    fig, axs = plt.subplots(4, n_sites, figsize=(4*n_sites, 4*3.5))
     if n_sites == 1:
         axs = axs.reshape((4,1))
     try:

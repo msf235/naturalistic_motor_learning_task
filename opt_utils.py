@@ -496,6 +496,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
 
     q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
 
+    qs = np.zeros((Tk, 2*model.nq))
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
             mj.mj_forward(model, data)
@@ -513,10 +514,10 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                 )
                 Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
         # if tk in grad_range and q_targ_mask_flat[tk]:
-        if q_targ_mask_flat[tk]:
-            qnow = np.concatenate((data.qpos[:], data.qvel[:]))
-            dldq = qnow - q_targ[tk]
-            dldqs[tk] += dldq * q_targ_mask[tk]
+        qnow = np.concatenate((data.qpos[:], data.qvel[:]))
+        qs[tk] = qnow
+        dldq = qnow - q_targ[tk]
+        dldqs[tk] += dldq * q_targ_mask[tk]
         
         if tk < Tk-1:
             if contact_check_list is not None:
@@ -524,10 +525,43 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                     model, data, ctrls[tk],
                 )
             sim_util.step(model, data, ctrls[tk])
+    # qdots = qs[:, model.nq:]
+    # qaccs = np.gradient(qdots, axis=0)
+    qsfft = np.fft.fft(qs[:, :model.nq], axis=0)
+    freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, model.nq))
+    # regularizer = np.sum((freqs**2) * np.abs(qsfft)**2)
+    grad_regularizer = np.fft.ifft(2 * (freqs**2) * qsfft, axis=0).real
+    # dldqs[:, :model.nq] += 1e3*grad_regularizer
     lams[tk] = dldqs[tk]
     grads = np.zeros((Tk-1, nuderiv))
-    tau_loss_factor = 1e-7
-    loss_u = np.delete(ctrls, fixed_act_ids, axis=1)
+    # tau_loss_factor = 1e-7
+    ctrls_clip = np.delete(ctrls, fixed_act_ids, axis=1)
+    loss_u = 1e-4*ctrls_clip.copy()
+
+    ufft = np.fft.fft(ctrls_clip, axis=0)
+    # freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, model.nq))
+    # regularizer = np.sum((freqs**2) * np.abs(ufft)**2)
+    freqs = np.tile(np.fft.fftfreq(Tk-1).reshape(-1, 1), (1, nuderiv))
+    grad_regularizer = np.fft.ifft(2 * (freqs**2) * ufft, axis=0).real
+    # loss_u += grad_regularizer # endpoints large -- maybe remove
+    
+    # shift ctrls two places
+    ctrls_shift_r = np.roll(ctrls_clip, 1, axis=0)
+    ctrls_shift_l = np.roll(ctrls_clip, -1, axis=0)
+    ctrls_diff = ctrls_shift_l - ctrls_shift_r
+    dt = model.opt.timestep
+    ctrls_diff = ctrls_diff
+    deriv = ctrls_diff - np.roll(ctrls_diff, -2, axis=0)
+    deriv = deriv / (2*dt)
+    deriv[0] = -(ctrls_clip[1]-ctrls_clip[0]) - (ctrls_clip[2]-ctrls_clip[0])
+    deriv[0] = deriv[0] / dt
+    deriv[1] = -(ctrls_clip[1]-ctrls_clip[0]) - (ctrls_clip[3]-ctrls_clip[1])
+    deriv[1] = deriv[1] / dt
+    deriv[-2] = ctrls_clip[-2]-ctrls_clip[-4] - (ctrls_clip[-1]-ctrls_clip[-2])
+    deriv[-2] = deriv[-2] / dt
+    deriv[-1] = ctrls_clip[-1]-ctrls_clip[-3] + ctrls_clip[-1]-ctrls_clip[-2]
+    deriv[-1] = deriv[-1] / dt
+    loss_u += 1e-4 * deriv
     
     terms = []
     for tk in reversed(grad_range[1:]):
@@ -539,7 +573,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         terms = [At @ term for term in terms]
         lams[tks] = dldqs[tks] + np.sum(terms, axis=0)
         if grad_filter and targ_traj_mask[tk]:
-            grads[tks] = tau_loss_factor*loss_u[tks] + Bs[tks].T @ lams[tk]
+            grads[tks] = loss_u[tks] + Bs[tks].T @ lams[tk]
 
     mat_block = np.zeros((update_every, update_every+1))
     dk = 1/update_every

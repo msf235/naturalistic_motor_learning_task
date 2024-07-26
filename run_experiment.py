@@ -155,17 +155,30 @@ ctrls_end = np.zeros((Tke, model.nu))
 ctrls_full = ctrls
 reset()
 hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
-fig, axs = plt.subplots(1, len(sites), figsize=(8,4))
+fig, axs = plt.subplots(2, len(sites), figsize=(8,4))
 if len(sites) == 1:
     axs = np.array([axs], dtype=object)
-axs = axs.reshape((1, len(sites)))
+    axs = axs.reshape((1, len(sites)))
+q_targs_masked = []
+qs_list = []
+for k in range(len(sites)):
+    q_targs_masked_tmp = out_traj['q_targs'][k].copy()
+    q_targs_masked_tmp[out_traj['q_targ_masks'][k] == 0] = np.nan
+    q_targs_masked.append(q_targs_masked_tmp)
+    qs_tmp = qs.copy()
+    qs_tmp[out_traj['q_targ_masks'][k] == 0] = np.nan
+    qs_list.append(qs_tmp)
 arm_t.show_plot(axs, hxs, tt, out_traj['targ_trajs'],
                 out_traj['targ_traj_masks'],
-                sites, out_idx['site_grad_idxs'])
+                sites, out_idx['site_grad_idxs'], qvals=qs_list,
+                qtargs=q_targs_masked)
 plt.show()
+show_sim_cnt = 0
 while True:
+    print("shown simulation {} times".format(show_sim_cnt))
     reset()
     arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
     time.sleep(2)
+    show_sim_cnt += 1
 
 
