@@ -710,11 +710,15 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ = np.zeros((Tk, 2*model.nq))
         q_targ_mask = np.zeros((Tk,2*model.nq))
         q_targ_mask2 = np.zeros((Tk,2*model.nq))
-        q_targ_mask2[time_dict['t_left_1']:time_dict['t_left_3'],
+        # q_targ_mask2[time_dict['t_left_1']:time_dict['t_left_3'],
+                     # joints['all']['wrist_left']] = 1
+        q_targ_mask2[0:time_dict['t_left_3'],
                      joints['all']['wrist_left']] = 1
         tmp = np.linspace(0, 1, time_dict['t_left_3']-time_dict['t_left_1'])
         tmp = sigmoid(tmp, 5)
-        q_targ_nz = (2.3-.75)*tmp + .75
+        # bot = .75
+        bot = 0
+        q_targ_nz = (2.3-bot)*tmp + bot
         # tmp = np.linspace(.75, 2.3, time_dict['t_left_2']-time_dict['t_left_1'])
         # q_targ_nz = sigmoid(tmp, 3)
         q_targ[time_dict['t_left_1']:time_dict['t_left_3'], 
@@ -1141,10 +1145,19 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             qs_list = []
             for k in range(n_sites):
                 hx = hxs[k]
-                diffsq = (hx - targ_trajs[k])**2
-                losses[k] = np.mean(diffsq)
+                qs_k = qs * q_targ_masks[k]
+                q_targ = q_targs[k] * q_targ_masks[k]
+                diffsq1 = (hx - targ_trajs[k])**2
+                diffsq2 =  (qs_k - q_targ)**2
+                nonzero = np.sum(q_targ_masks[k]>0)
+                if nonzero > 0:
+                    sum2 = np.sum(diffsq2) / np.sum(q_targ_masks[k]>0)
+                else:
+                    sum2 = 0
+                # losses[k] = np.mean(diffsq1) + sum2 
+                losses[k] = np.mean(diffsq1)
                 mask = np.tile((targ_traj_mask_currs[k]>0), (3, 1)).T
-                temp = np.sum(diffsq*mask) / (np.sum(mask[:,0]))
+                temp = np.sum(diffsq1*mask) / (np.sum(mask[:,0]))
                 losses_curr_mask[k] = temp
 
                 q_targs_masked_tmp = q_targs[k].copy()
