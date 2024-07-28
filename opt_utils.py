@@ -461,6 +461,31 @@ def traj_deriv_new2(model, data, ctrls, targ_trajs, targ_traj_masks,
 
     return grads_interp
 
+def centered_diff_2_norm_der(u, dt, axis=0):
+    """Derivative of the 2-norm of the centered difference derivative
+    approximation of u, with respect to u. TODO: change to work with axis other
+    than 0."""
+    assert axis == 0
+    u_r = np.roll(u, 1, axis=axis)
+    u_l = np.roll(u, -1, axis=axis)
+    u_diff = u_l - u_r
+    # Derivative away from the boundaries
+    deriv = np.roll(u_diff, 1, axis=axis) - np.roll(u_diff, -1, axis=axis)
+    deriv = deriv / (2*dt)
+    # Now to deal with the boundaries TODO: change to work with axis other than
+    # 0
+    deriv[0] = -(u[1]-u[0]) - (u[2]-u[0])
+    deriv[0] = deriv[0] / dt
+    deriv[1] = -(u[1]-u[0]) - (u[3]-u[1])
+    deriv[1] = deriv[1] / dt
+    deriv[-2] = u[-2]-u[-4] - (u[-1]-u[-2])
+    deriv[-2] = deriv[-2] / dt
+    deriv[-1] = u[-1]-u[-3] + u[-1]-u[-2]
+    deriv[-1] = deriv[-1] / dt
+    return deriv
+
+
+
 ### Gradient descent
 def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    q_targ, q_targ_mask,
@@ -470,15 +495,19 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                    grab_time=None, let_go_times=None,
                    let_go_ids=None, n_steps_adh=10,
                    contact_check_list=None, adh_ids=None,
+                   ctrl_reg_weight=None
                   ):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
     assert update_phase < update_every
+    nuderiv = len(deriv_ids)
+    if ctrl_reg_weight is None:
+        ctrl_reg_weight = np.ones((ctrls.shape[0], nuderiv))
     Tk = ctrls.shape[0]+1
     grad_range = range(update_phase, Tk, update_every)
     Tkn = grad_range[-1]
-    nuderiv = len(deriv_ids)
+    nq = model.nq
     As = np.zeros((Tk-1, 2*model.nv, 2*model.nv))
     Bs = np.zeros((Tk-1, 2*model.nv, nuderiv))
     B = np.zeros((2*model.nv, model.nu))
@@ -536,7 +565,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     grads = np.zeros((Tk-1, nuderiv))
     # tau_loss_factor = 1e-7
     ctrls_clip = np.delete(ctrls, fixed_act_ids, axis=1)
-    loss_u = 1e-4*ctrls_clip.copy()
+    loss_u = 1e-6*ctrls_clip.copy() * ctrl_reg_weight
 
     ufft = np.fft.fft(ctrls_clip, axis=0)
     # freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, model.nq))
@@ -544,24 +573,16 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     freqs = np.tile(np.fft.fftfreq(Tk-1).reshape(-1, 1), (1, nuderiv))
     grad_regularizer = np.fft.ifft(2 * (freqs**2) * ufft, axis=0).real
     # loss_u += grad_regularizer # endpoints large -- maybe remove
+
+    dt = model.opt.timestep
     
     # shift ctrls two places
-    ctrls_shift_r = np.roll(ctrls_clip, 1, axis=0)
-    ctrls_shift_l = np.roll(ctrls_clip, -1, axis=0)
-    ctrls_diff = ctrls_shift_l - ctrls_shift_r
-    dt = model.opt.timestep
-    ctrls_diff = ctrls_diff
-    deriv = ctrls_diff - np.roll(ctrls_diff, -2, axis=0)
-    deriv = deriv / (2*dt)
-    deriv[0] = -(ctrls_clip[1]-ctrls_clip[0]) - (ctrls_clip[2]-ctrls_clip[0])
-    deriv[0] = deriv[0] / dt
-    deriv[1] = -(ctrls_clip[1]-ctrls_clip[0]) - (ctrls_clip[3]-ctrls_clip[1])
-    deriv[1] = deriv[1] / dt
-    deriv[-2] = ctrls_clip[-2]-ctrls_clip[-4] - (ctrls_clip[-1]-ctrls_clip[-2])
-    deriv[-2] = deriv[-2] / dt
-    deriv[-1] = ctrls_clip[-1]-ctrls_clip[-3] + ctrls_clip[-1]-ctrls_clip[-2]
-    deriv[-1] = deriv[-1] / dt
-    loss_u += 1e-4 * deriv
+    deriv = centered_diff_2_norm_der(ctrls_clip, dt) * ctrl_reg_weight
+    loss_u += 1e-5 * deriv
+
+    # deriv = centered_diff_2_norm_der(qs[:, :nq], dt)
+    # deriv *= (q_targ_mask[:, :nq]>0)
+    # dldqs[:, :nq] += 1e2 * deriv
     
     terms = []
     for tk in reversed(grad_range[1:]):

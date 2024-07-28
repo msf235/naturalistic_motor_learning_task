@@ -473,14 +473,12 @@ def get_idx_sets(env, exp_name):
         let_go_ids = []
         let_go_times = []
     elif exp_name == 'tennis_serve':
-        sites = ['hand_right', 'hand_left', 'racket_handle_top'] # Move
+        sites = ['hand_right', 'hand_left'] # Move
         tennis_idxs = two_arm_idxs(model)
         site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
-                          tennis_idxs['left_arm_without_adh'],
-                          tennis_idxs['right_arm_without_adh']]
+                          tennis_idxs['left_arm_without_adh']]
         site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
-                          tennis_idxs['left_arm_without_adh'],
-                          tennis_idxs['right_arm_without_adh']]
+                          tennis_idxs['left_arm_without_adh']]
         stabilize_jnt_idx = tennis_idxs['not_arm_j']
         stabilize_act_idx = tennis_idxs['not_arm_a']
         contact_check_list = [['racket_handle', 'hand_right1'], ['racket_handle', 'hand_right2'],
@@ -706,25 +704,25 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         ball_traj_mask[time_dict['t_left_3']:] = 0
         out = tennis_traj(model, data, Tk)
         right_hand_traj, left_hand_traj, ball_traj, time_dict = out
-        targ_trajs = [right_hand_traj, left_hand_traj, right_hand_traj]
-        masks = [targ_traj_mask, targ_traj_mask, targ_traj_mask]
-        mask_types = [targ_traj_mask_type]*3
+        targ_trajs = [right_hand_traj, left_hand_traj]
+        masks = [targ_traj_mask, targ_traj_mask]
+        mask_types = [targ_traj_mask_type]*2
         q_targ = np.zeros((Tk, 2*model.nq))
         q_targ_mask = np.zeros((Tk,2*model.nq))
         q_targ_mask2 = np.zeros((Tk,2*model.nq))
         q_targ_mask2[time_dict['t_left_1']:time_dict['t_left_3'],
                      joints['all']['wrist_left']] = 1
-        tmp = np.linspace(0, 1, time_dict['t_left_2']-time_dict['t_left_1'])
+        tmp = np.linspace(0, 1, time_dict['t_left_3']-time_dict['t_left_1'])
         tmp = sigmoid(tmp, 5)
         q_targ_nz = (2.3-.75)*tmp + .75
         # tmp = np.linspace(.75, 2.3, time_dict['t_left_2']-time_dict['t_left_1'])
         # q_targ_nz = sigmoid(tmp, 3)
-        q_targ[time_dict['t_left_1']:time_dict['t_left_2'], 
+        q_targ[time_dict['t_left_1']:time_dict['t_left_3'], 
                 joints['all']['wrist_left']] = q_targ_nz
-        q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = 2.3
-        q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
-        q_targ_mask_types = ['const']*3
-        q_targs = [q_targ]*3
+        # q_targ[time_dict['t_left_2']:, joints['all']['wrist_left']] = 2.3
+        q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask]
+        q_targ_mask_types = ['const']*2
+        q_targs = [q_targ]*2
     elif exp_name == "tennis_grab":
         targ_traj_mask = np.ones((Tk,))
         targ_traj_mask_type = 'double_sided_progressive'
@@ -967,6 +965,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     let_go_times=[],
                     let_go_ids=[],
                     n_steps_adh=10,
+                    ctrl_reg_weights=None,
                    ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
@@ -999,6 +998,8 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
         update_plot_every = max_its
     if render_every is None:
         render_every = max_its
+    if ctrl_reg_weights is None:
+        ctrl_reg_weights = [None] * len(site_names)
     model = env.model
     data = env.data
 
@@ -1110,6 +1111,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     n_steps_adh=n_steps_adh,
                     contact_check_list=contact_check_list,
                     adh_ids=adh_ids,
+                    ctrl_reg_weight=ctrl_reg_weights[k]
                 )
                 util.reset_state(model, data, data0)
             for k in range(n_sites):

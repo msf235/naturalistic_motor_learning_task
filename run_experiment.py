@@ -92,6 +92,11 @@ amnt_to_incr = int(t_incr/dt)
 grad_update_every = params['grad_update_every']
 grad_trunc_tk = int(params['grad_window_t']/(grad_update_every*dt))
 
+# TODO: move this out
+ctrl_reg_weight = np.ones((Tk-1, len(out_idx['site_grad_idxs'][1])))
+ctrl_reg_weight[:, -1] = 100
+ctrl_reg_weights = [None, ctrl_reg_weight]
+
 if args.rerun or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
@@ -135,6 +140,7 @@ if args.rerun or not out_f.exists():
         phase_2_it=params['max_its']+1,
         plot_every=args.plot_every,
         render_every=args.render_every,
+        ctrl_reg_weights=ctrl_reg_weights,
     )
     ctrls = np.vstack((ctrls, ctrls_burn_in))
     with open(out_f, 'wb') as f:
@@ -146,6 +152,7 @@ else:
     ctrls = load_data['ctrls']
     ctrls_burn_in = load_data['ctrls_burn_in']
     lowest_losses = load_data['lowest_losses']
+
 
 ctrls = lowest_losses.peekitem(0)[1][1]
 Te = 3
