@@ -707,17 +707,20 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         targ_trajs = [right_hand_traj, left_hand_traj]
         masks = [targ_traj_mask, targ_traj_mask]
         mask_types = [targ_traj_mask_type]*2
-        q_targ = np.zeros((Tk, 2*model.nq))
+        # q_targ = np.zeros((Tk, 2*model.nq))
+        bot = .6
+        q_targ = np.ones((Tk, 2*model.nq)) * bot
         q_targ_mask = np.zeros((Tk,2*model.nq))
         q_targ_mask2 = np.zeros((Tk,2*model.nq))
-        q_targ_mask2[time_dict['t_left_1']:time_dict['t_left_3'],
-                     joints['all']['wrist_left']] = 1
-        # q_targ_mask2[0:time_dict['t_left_3'],
+        # q_targ_mask2[time_dict['t_left_1']:time_dict['t_left_3'],
                      # joints['all']['wrist_left']] = 1
+        # tp = int(time_dict['t_left_1'] / 2)
+        tp = time_dict['t_left_1']
+        q_targ_mask2[tp:time_dict['t_left_3'],
+                     joints['all']['wrist_left']] = 1
         tmp = np.linspace(0, 1, time_dict['t_left_3']-time_dict['t_left_1'])
         tmp = sigmoid(tmp, 5)
-        bot = .75
-        # bot = 0
+        # bot = .75
         q_targ_nz = (2.3-bot)*tmp + bot
         # tmp = np.linspace(.75, 2.3, time_dict['t_left_2']-time_dict['t_left_1'])
         # q_targ_nz = sigmoid(tmp, 3)
