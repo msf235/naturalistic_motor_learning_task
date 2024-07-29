@@ -54,7 +54,7 @@ model = env.model
 data = env.data
 
 dt = model.opt.timestep
-burn_step = int(.1 / dt)
+burn_step = int(.09 / dt)
 reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
                                           2*burn_step,
                                           params['balance_cost'],

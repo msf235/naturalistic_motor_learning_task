@@ -19,14 +19,15 @@ params:
   reset_noise_scale: .001
   t_incr: 1.8
   incr_every: 50
-  grab_phase_it: 40
+  #grab_phase_it: 20
+  grab_phase_it: 3
   #grad_window_t: .1
   grad_window_t: 0.1
   joint_penalty_factor: 1e-2
   #balance_cost: 1000
   #joint_cost: 500
-  balance_cost: 2000
-  joint_cost: 200
-  foot_cost: 6000
+  balance_cost: 30000
+  joint_cost: 600
+  foot_cost: 9000
   ctrl_cost: 100
 
