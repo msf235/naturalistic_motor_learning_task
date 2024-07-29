@@ -8,7 +8,7 @@ params:
   #it_lr2: 800
   #optimizer: 'adam'
   optimizer: 'rmsprop'
-  max_its: 1000
+  max_its: 100
   #lr: .0005
   lr: .005
   #lr2: .0005
