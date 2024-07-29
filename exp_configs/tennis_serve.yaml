@@ -14,18 +14,18 @@ params:
   #lr2: .0005
   lr2: .005
   it_lr2: 800
-  #grad_update_every: 10
-  grad_update_every: 1
+  grad_update_every: 10
+  #grad_update_every: 1
   reset_noise_scale: .001
   t_incr: 1.8
   incr_every: 50
   grab_phase_it: 40
   #grad_window_t: .1
-  grad_window_t: 1.8
+  grad_window_t: 0.1
   joint_penalty_factor: 1e-2
   #balance_cost: 1000
   #joint_cost: 500
-  balance_cost: 4000
+  balance_cost: 2000
   joint_cost: 200
   foot_cost: 6000
   ctrl_cost: 100
