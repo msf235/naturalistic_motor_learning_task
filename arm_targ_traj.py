@@ -560,6 +560,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
     right_arm_vel_idx = [x+model.nq for x in joints['body']['right_arm']]
     acts = opt_utils.get_act_ids(model)
     # q_targ = np.zeros((Tk, 2*model.nq))
+    out_idx = get_idx_sets(env, exp_name)
     if exp_name == 'basic_movements_right':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site('hand_right').xpos, smoothing_time,
@@ -581,6 +582,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_mask[:, right_arm_vel_idx] = 1
         q_targ_masks = [q_targ_mask]
         q_targ_mask_types = ['const']
+        ctrl_reg_weights = [None]
     elif exp_name == 'basic_movements_left':
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
             model, data, Tk, data.site('hand_left').xpos, smoothing_time,
@@ -605,6 +607,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_mask[:, left_arm_vel_idx] = 1
         q_targ_masks = [q_targ_mask]
         q_targ_mask_types = ['const']
+        ctrl_reg_weights = [None]
     elif exp_name == 'basic_movements_both':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site('hand_right').xpos, smoothing_time,
@@ -641,6 +644,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targs = [np.zeros((Tk, model.nq)), np.zeros((Tk, model.nq))]
         q_targ_masks = [np.zeros((Tk, model.nq)), np.zeros((Tk, model.nq))]
         q_targ_mask_types = ['const', 'const']
+        ctrl_reg_weights = [None]
     elif exp_name == 'throw_ball':
         targ_traj_mask = np.ones((Tk,))
         targ_traj_mask_type = 'double_sided_progressive'
@@ -666,6 +670,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
         q_targ_mask_types = ['const']
         q_targs = [q_targ]
+        ctrl_reg_weights = [None]
     elif exp_name == "grab_ball":
         targ_traj_mask = np.ones((Tk,))
         # targ_traj_mask_type = 'progressive'
@@ -693,6 +698,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
         q_targ_mask_types = ['const']
         q_targs = [q_targ]
+        ctrl_reg_weights = [None]
     elif exp_name == "tennis_serve":
         targ_traj_mask = np.ones((Tk,))
         # targ_traj_mask_type = 'progressive'
@@ -730,6 +736,10 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask]
         q_targ_mask_types = ['const']*2
         q_targs = [q_targ]*2
+
+        ctrl_reg_weight = np.ones((Tk-1, len(out_idx['site_grad_idxs'][1])))
+        ctrl_reg_weight[:, -1] = 100
+        ctrl_reg_weights = [None, ctrl_reg_weight]
     elif exp_name == "tennis_grab":
         targ_traj_mask = np.ones((Tk,))
         targ_traj_mask_type = 'double_sided_progressive'
@@ -749,6 +759,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask]
         q_targ_mask_types = ['const']*3
         q_targs = [q_targ]*3
+        ctrl_reg_weights = [None]*3
         # plt.plot(right_hand_traj[:,1])
         # plt.plot(right_hand_traj[:,2])
         # plt.show()
@@ -759,6 +770,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
                     targ_traj_mask_types=mask_types, q_targs=q_targs,
                     q_targ_masks=q_targ_masks,
                     q_targ_mask_types=q_targ_mask_types,
+                    ctrl_reg_weights=ctrl_reg_weights,
                    )
 
     return out_dict

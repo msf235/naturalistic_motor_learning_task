@@ -86,16 +86,12 @@ targ_trajs = out_traj['targ_trajs']
 
 noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 
-
 t_incr = params['t_incr']
 amnt_to_incr = int(t_incr/dt)
 grad_update_every = params['grad_update_every']
 grad_trunc_tk = int(params['grad_window_t']/(grad_update_every*dt))
 
 # TODO: move this out
-ctrl_reg_weight = np.ones((Tk-1, len(out_idx['site_grad_idxs'][1])))
-ctrl_reg_weight[:, -1] = 100
-ctrl_reg_weights = [None, ctrl_reg_weight]
 
 if args.rerun or not out_f.exists():
     ### Get initial stabilizing controls
@@ -140,7 +136,6 @@ if args.rerun or not out_f.exists():
         phase_2_it=params['max_its']+1,
         plot_every=args.plot_every,
         render_every=args.render_every,
-        ctrl_reg_weights=ctrl_reg_weights,
     )
     ctrls = np.vstack((ctrls, ctrls_burn_in))
     with open(out_f, 'wb') as f:
@@ -164,8 +159,7 @@ reset()
 hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
 fig, axs = plt.subplots(2, len(sites), figsize=(8,4))
 if len(sites) == 1:
-    axs = np.array([axs], dtype=object)
-    axs = axs.reshape((1, len(sites)))
+    axs = axs.reshape((2, 1))
 q_targs_masked = []
 qs_list = []
 for k in range(len(sites)):
