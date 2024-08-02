@@ -7,7 +7,6 @@ from pathlib import Path
 import pickle as pkl
 import arm_targ_traj as arm_t
 from matplotlib import pyplot as plt
-import torch
 import mujoco as mj
 import time
 import config
@@ -59,6 +58,7 @@ reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
                                           2*burn_step,
                                           params['balance_cost'],
                                           params['joint_cost'],
+                                          params['root_cost'],
                                           params['foot_cost'],
                                           params['ctrl_cost'],
                                          )
@@ -106,6 +106,7 @@ if args.rerun or not out_f.exists():
         free_ctrls=np.zeros((Tk, len(acts['adh']))),
         balance_cost=params['balance_cost'],
         joint_cost=params['joint_cost'],
+        root_cost=params['root_cost'],
         foot_cost=params['foot_cost'],
         ctrl_cost=params['ctrl_cost']
     )[:2]

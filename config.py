@@ -15,7 +15,7 @@ import argparse
 # from isaacgym import gymapi
 # from isaacgym import gymutil
 
-import torch
+# import torch
 
 
 SIM_TIMESTEP = 1.0 / 60.0
