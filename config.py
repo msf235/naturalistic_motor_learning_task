@@ -201,10 +201,14 @@ def get_arg_parser():
                         help="increase output verbosity")
     parser.add_argument("--rerun", action="store_true",
                         help="Retrain model instead of loading.")
-    parser.add_argument("--savefile", type=str, default=None,
-            help="Path to the datafile for previous runs.")
+    # parser.add_argument("--savefile", type=str, default=None,
+            # help="Path to the datafile for previous runs.")
+    parser.add_argument("--name", type=str, default=None,
+            help="Name of experiment, used to name output files etc.")
     parser.add_argument("--seed", type=int, default=2,
             help="Random seed.")
+    parser.add_argument("--task-phase", type=int, default=1,
+            help="Task phase (from 1 to 7).")
     parser.add_argument("--render", action="store_true",
             help="Render the agent.")
     parser.add_argument("--plot_every", type=int,

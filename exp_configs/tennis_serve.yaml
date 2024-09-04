@@ -2,6 +2,7 @@ params:
   name: tennis_serve
   xml_file: './humanoid_and_tennis.xml'
   Tf: 1.8
+  t_after: .8
   #optimizer: 'adam'
   #lr: .0005
   #lr2: .0005

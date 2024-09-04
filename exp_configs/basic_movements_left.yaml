@@ -3,6 +3,7 @@ params:
   xml_file: './humanoid_and_basic.xml'
   max_its: 1000
   Tf: 1.0
+  t_after: 0
   #optimizer: 'adam'
   #lr: .00025
   #lr2: .00005

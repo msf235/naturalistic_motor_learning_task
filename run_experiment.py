@@ -3,6 +3,7 @@ import opt_utils
 import numpy as np
 import sim_util as util
 import sys
+import shutil
 from pathlib import Path
 import pickle as pkl
 import arm_targ_traj as arm_t
@@ -26,7 +27,9 @@ DEFAULT_CAMERA_CONFIG = {
     "azimuth": 180,
 }
 
-out_f = Path(args.savefile)
+name = args.name
+out_f = (Path('output') / name).with_suffix('.pkl')
+
 out_f.parent.mkdir(parents=True, exist_ok=True)
 
 Tf = params['Tf']
@@ -91,6 +94,8 @@ amnt_to_incr = int(t_incr/dt)
 grad_update_every = params['grad_update_every']
 grad_trunc_tk = int(params['grad_window_t']/(grad_update_every*dt))
 
+Tke = int(params['t_after'] / dt)
+
 # TODO: move this out
 
 if args.rerun or not out_f.exists():
@@ -139,9 +144,10 @@ if args.rerun or not out_f.exists():
         render_every=args.render_every,
     )
     ctrls = np.vstack((ctrls, ctrls_burn_in))
+    ctrls_end = np.zeros((Tke, model.nu))
     with open(out_f, 'wb') as f:
         pkl.dump({'ctrls': ctrls, 'lowest_losses': lowest_losses,
-                  'ctrls_burn_in': ctrls_burn_in}, f)
+                  'ctrls_burn_in': ctrls_burn_in, 'ctrls_end': ctrls_end}, f)
 else:
     with open(out_f, 'rb') as f:
         load_data = pkl.load(f)
@@ -151,11 +157,7 @@ else:
 
 
 ctrls = lowest_losses.peekitem(0)[1][1]
-Te = 3
-Tke = int(3 / dt)
 ctrls_end = np.zeros((Tke, model.nu))
-# ctrls_full = np.vstack((ctrls, ctrls_end))
-ctrls_full = ctrls
 reset()
 hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
 fig, axs = plt.subplots(2, len(sites), figsize=(8,4))
@@ -176,11 +178,31 @@ arm_t.show_plot(axs, hxs, tt, out_traj['targ_trajs'],
                 qtargs=q_targs_masked)
 plt.show()
 show_sim_cnt = 0
-while True:
-    print("shown simulation {} times".format(show_sim_cnt))
-    reset()
-    arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
-    time.sleep(2)
-    show_sim_cnt += 1
+# while True:
+    # print("shown simulation {} times".format(show_sim_cnt))
+    # reset()
+    # arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
+    # time.sleep(2)
+    # show_sim_cnt += 1
+
+
+phase = args.task_phase
+datadir = (Path('data') / name)
+datadir.mkdir(parents=True, exist_ok=True)
+
+shutil.copy('humanoid.xml', datadir)
+shutil.copy('humanoid_and_basic.xml', datadir)
+shutil.copy('basic_scene.xml', datadir)
+
+ctrls_full = np.vstack((ctrls, ctrls_end))
+reset()
+qs, vs, ss = util.forward_sim(model, data, ctrls_full)
+states = np.hstack((qs, vs))
+
+np.save(datadir / 'states_{}.npy'.format(args.seed), states)
+
+if phase in (1, 5):
+    np.save(datadir / 'ctrls_{}.npy'.format(args.seed), ctrls_full)
+    np.save(datadir / 'sensors_{}.npy'.format(args.seed), ss)
 
 

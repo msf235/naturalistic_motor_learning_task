@@ -2,6 +2,7 @@ params:
   name: throw_ball
   xml_file: './humanoid_and_baseball.xml'
   Tf: 0.6
+  t_after: 1.0
   optimizer: 'adam'
   max_its: 500
   lr: .001
