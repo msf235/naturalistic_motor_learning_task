@@ -43,7 +43,7 @@
   <worldbody>
     <!--<light name="spotlight" mode="targetbodycom" target="floor" diffuse=".8 .8 .8" specular="0.3 0.3 0.3" pos="0 -6 4" cutoff="30"/>-->
     <!--<site name="target" pos="0 -.8 1.4" size=".1" rgba="1 0 0 1"/>-->
-    <geom name="floor" size=".1 3 .05" type="plane" material="grid"
+    <geom name="floor" size="3 3 3" type="plane" material="grid"
       condim="3"/>
     <body name="wall" pos="0 0 0" xyaxes="1 0 0 0 0 1">
       <geom name="rwall2" pos = "0 2 -2" size=".1 2 .05" type="plane"
