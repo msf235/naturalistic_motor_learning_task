@@ -31,4 +31,5 @@ params:
   joint_cost: 600
   foot_cost: 9000
   ctrl_cost: 100
+  root_cost: 10
 

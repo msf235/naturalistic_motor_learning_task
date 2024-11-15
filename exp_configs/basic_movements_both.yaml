@@ -1,6 +1,6 @@
 params:
   name: basic_movements_both
-  xml_file: './humanoid_and_basic.xml'
+  xml_file: './model_files/humanoid_and_basic.xml'
   max_its: 1000
   Tf: 1.0
   t_after: 0
@@ -18,3 +18,8 @@ params:
   grad_update_every: 10
   grad_window_t: 0.1
   joint_penalty_factor: 5e-7
+  balance_cost: 0
+  root_cost: 10
+  joint_cost: 10000
+  foot_cost: 100
+  ctrl_cost: 1

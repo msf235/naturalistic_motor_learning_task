@@ -73,6 +73,7 @@ tt = np.arange(0, Tf, dt)
 
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
+breakpoint()
 
 bodyj = joints['body']['body_dofs']
 
