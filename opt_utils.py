@@ -78,6 +78,7 @@ def get_body_joints(model, data=None):
 
 def get_joint_ids(model, data=None):
     jntn = lambda k: model.joint(k).name
+    breakpoint()
     joints = {}
     joints['joint_names'] = [jntn(k) for k in range(model.njnt)]
     joints['all'] = {jntn(k): k for k in range(model.njnt)}

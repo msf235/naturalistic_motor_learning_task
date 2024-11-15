@@ -1,6 +1,6 @@
 params:
   name: throw_ball
-  xml_file: './humanoid_and_baseball.xml'
+  xml_file: './model_files/humanoid_and_baseball.xml'
   Tf: 0.6
   t_after: 1.0
   optimizer: 'adam'

@@ -1,6 +1,6 @@
 params:
   name: grab_ball
-  xml_file: './humanoid_and_baseball.xml'
+  xml_file: './model_files/humanoid_and_baseball.xml'
   Tf: .9
   t_after: 0
   optimizer: 'adam'

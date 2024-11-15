@@ -43,7 +43,7 @@ else:
     # render_mode = 'rgb_array'
     render_mode = 'None'
 
-keyframe = 'wide'
+keyframe = 'tpose1'
 
 env = humanoid2d.Humanoid2dEnv(
     render_mode=render_mode,

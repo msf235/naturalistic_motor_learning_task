@@ -1,6 +1,6 @@
 params:
   name: basic_movements_both
-  xml_file: './humanoid_and_basic.xml'
+  xml_file: './model_files/humanoid_and_basic.xml'
   max_its: 1000
   Tf: 1.0
   t_after: 0
