@@ -1,6 +1,6 @@
 params:
   name: tennis_grab
-  xml_file: './humanoid_and_tennis.xml'
+  xml_file: './model_files/humanoid_and_tennis.xml'
   Tf: 1.8
   t_after: 0
   optimizer: 'adam'

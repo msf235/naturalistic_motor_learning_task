@@ -37,6 +37,7 @@ def sigmoid(x, a):
     return .5*np.tanh(a*(x-.5)) + .5
 
 def throw_grab_traj(model, data, Tk):
+    breakpoint()
     shouldx = data.site('shoulder1_right').xpos
     elbowx = data.site('elbow_right').xpos
     handx = data.site('hand_right').xpos
@@ -73,6 +74,7 @@ def throw_grab_traj(model, data, Tk):
     return full_traj, time_dict
 
 def throw_traj(model, data, Tk):
+    breakpoint()
     shouldx = data.site('shoulder1_right').xpos
     elbowx = data.site('elbow_right').xpos
     handx = data.site('hand_right').xpos
@@ -109,6 +111,7 @@ def throw_traj(model, data, Tk):
 
 
 def tennis_grab_traj(model, data, Tk):
+    breakpoint()
     shouldxr = data.site('shoulder1_right').xpos
     shouldxl = data.site('shoulder1_left').xpos
     elbowx = data.site('elbow_right').xpos
@@ -240,6 +243,7 @@ def tennis_grab_traj(model, data, Tk):
     return right_arm_traj, left_arm_traj, ball_traj, time_dict
 
 def tennis_traj(model, data, Tk):
+    breakpoint()
     shouldxr = data.site('shoulder1_right').xpos
     shouldxl = data.site('shoulder1_left').xpos
     elbowx = data.site('elbow_right').xpos
@@ -549,6 +553,7 @@ def get_times(env, exp_name, Tf):
 
 
 def make_traj_sets(env, exp_name, Tk, seed=2):
+    breakpoint()
     model = env.model
     data = env.data
     # smoothing_sigma = int(.1 / model.opt.timestep)

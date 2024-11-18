@@ -40,37 +40,42 @@ def key_match(key, key_list):
 
 def get_body_joints(model, data=None):
     """Get joint names for body."""
-    body_keys = ['human', 'shoulder', 'torso', 'hip', 'knee', 'ankle',
-                 'abdomen', 'elbow', 'arm', 'wrist'] 
+    body_keys = ['Pelvis', 'Hip', 'Knee', 'Ankle', 'Toe', 'Torso',
+                 'Spine', 'Chest', 'Neck', 'Head', 'Thorax', 'Shoulder',
+                 'Elbow', 'Wrist', 'Hand'] 
+    abd_keys = ['Torso', 'Spine', 'Thorax']
+    leg_keys = ['Hip', 'Knee', 'Ankle', 'Toe']
+    arm_keys = ['Shoulder', 'Elbow', 'Wrist', 'Hand']
+    roots = ['Pelvis']
+
     jntn = lambda k: model.joint(k).name
 
     joints = {}
-    joints['all'] = [k for k in range(model.nq) if
+    joints['all'] = [k for k in range(model.njnt) if
                       key_match(jntn(k), body_keys)]
     jba = joints['all']
     # Get indices into relevant sets of joints.
-    joints['root_dofs'] = [k for k in jba if 'root' in jntn(k)]
+    joints['root_dofs'] = [model.joint(s).id for s in roots]
     joints['body_dofs'] = [k for k in jba if k not in joints['root_dofs']]
     jb = joints['body_dofs']
 
     joints['abdomen_dofs'] = [
-        k for k in jb if 'abdomen' in jntn(k) and not 'z' in jntn(k)
+        k for k in jb if key_match(jntn(k), abd_keys)
     ]
     joints['leg_dofs'] = [
-        k for k in jb if key_match(jntn(k), ['hip', 'knee', 'ankle'])
+        k for k in jb if key_match(jntn(k), leg_keys)
     ]
     joints['balance_dofs'] = joints['abdomen_dofs'] + joints['leg_dofs']
     joints['balance_dofs'].sort()
     joints['other_dofs'] = [k for k in jb if k not in joints['balance_dofs']]
     joints['right_arm'] = [
-        k for k in jb if key_match(jntn(k), ['shoulder', 'elbow', 'wrist'])
-        and 'right' in jntn(k)
+        k for k in jb if key_match(jntn(k), arm_keys)
+        and 'R_' in jntn(k)
     ]
     joints['left_arm'] = [
-        k for k in jb if key_match(jntn(k), ['shoulder', 'elbow', 'wrist'])
-        and 'left' in jntn(k)
+        k for k in jb if key_match(jntn(k), arm_keys)
+        and 'L_' in jntn(k)
     ]
-
     joints['not_right_arm'] = [i for i in jb if i not in joints['right_arm']]
     joints['not_left_arm'] = [i for i in jb if i not in joints['left_arm']]
 
@@ -78,16 +83,15 @@ def get_body_joints(model, data=None):
 
 def get_joint_ids(model, data=None):
     jntn = lambda k: model.joint(k).name
-    breakpoint()
     joints = {}
-    joints['joint_names'] = [jntn(k) for k in range(model.njnt)]
+    joints['names'] = [jntn(k) for k in range(model.njnt)]
     joints['all'] = {jntn(k): k for k in range(model.njnt)}
     joints['body'] = get_body_joints(model, data)
     joints['ball'] = [
-        k for k in range(model.nq) if 'ball' in jntn(k)
+        k for k in range(model.njnt) if 'ball' in jntn(k)
     ]
     joints['tennis'] = [
-        k for k in range(model.nq) if 'tennis' in jntn(k)
+        k for k in range(model.njnt) if 'tennis' in jntn(k)
     ]
     return joints
 
@@ -163,16 +167,19 @@ class AdhCtrl:
         self.k_left = 0
 
 def get_Q_balance(model, data, balance_cost, foot_cost):
-    nq = model.nq
-    jac_com = np.zeros((3, nq))
-    mj.mj_jacSubtreeCom(model, data, jac_com, model.body('torso').id)
+    center_chest = 'Chest'
+    left_foot = 'L_Ankle'
+    right_foot = 'R_Ankle'
+    nv = model.nv
+    jac_com = np.zeros((3, nv))
+    mj.mj_jacSubtreeCom(model, data, jac_com, model.body(center_chest).id)
     # Get the Jacobian for the left foot.
-    jac_lfoot = np.zeros((3, nq))
+    jac_lfoot = np.zeros((3, nv))
     mj.mj_jacBodyCom(model, data, jac_lfoot, None,
-                     model.body('foot_left').id)
-    jac_rfoot = np.zeros((3, nq))
+                     model.body(left_foot).id)
+    jac_rfoot = np.zeros((3, nv))
     mj.mj_jacBodyCom(model, data, jac_rfoot, None,
-                     model.body('foot_right').id)
+                     model.body(right_foot).id)
     jac_base = (jac_lfoot + jac_rfoot) / 2
     jac_diff = jac_com - jac_base
     Qbalance = balance_cost * jac_diff.T @ jac_diff 
@@ -186,7 +193,7 @@ def get_Q_joint(model, data=None, balance_joint_cost=3, other_joint_cost=.3,
     joints = joint_ids['body']
     # z_joint = joint_ids['all']['human_z_root']
     # Construct the Qjoint matrix.
-    Qjoint = np.eye(model.nq)
+    Qjoint = np.eye(model.nv)
     # Qjoint[joints['root_dofs'], joints['root_dofs']] *= 0  # Don't penalize free joint directly.
     Qjoint[joints['root_dofs'], joints['root_dofs']] *= root_cost
     # Qjoint[z_joint, z_joint] = 100
@@ -210,9 +217,9 @@ def get_Q_matrix(model, data, excluded_state_inds=[], balance_cost=1000,
     # Qpos = 1000*Qjoint
 
     # No explicit penalty for velocities.
-    nq = model.nq
-    Q = np.block([[Qpos, np.zeros((nq, nq))],
-                  [np.zeros((nq, 2*nq))]])
+    nv = model.nv
+    Q = np.block([[Qpos, np.zeros((nv, nv))],
+                  [np.zeros((nv, 2*nv))]])
     return Q
 
 def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
@@ -221,13 +228,13 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
     # to qpos0.
     # data = copy.deepcopy(data)
     qvel = data.qvel.copy()
-    nq = model.nq
-    A = np.zeros((2*nq, 2*nq))
-    B = np.zeros((2*nq, model.nu))
+    nv = model.nv
+    A = np.zeros((2*nv, 2*nv))
+    B = np.zeros((2*nv, model.nu))
     flg_centered = True
     mj.mjd_transitionFD(model, data, epsilon_grad, flg_centered, A, B,
                         None, None)
-    stable_ids = stable_jnt_ids + [i+nq for i in stable_jnt_ids]
+    stable_ids = stable_jnt_ids + [i+nv for i in stable_jnt_ids]
     A = A[stable_ids][:, stable_ids]
     B = B[stable_ids][:, active_ctrl_ids]
     Q = Q[stable_ids][:, stable_ids]
@@ -256,7 +263,7 @@ def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
     return K
 
 def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
-    dq = np.zeros(model.nq)
+    dq = np.zeros(model.nv)
     mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)
     dq = dq[stable_jnt_ids]
     qvel = data.qvel[stable_jnt_ids]
@@ -305,7 +312,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
     qpos0n = qpos0.copy()
     qs = np.zeros((Tk, model.nq))
     qs[0] = data.qpos.copy()
-    qvels = np.zeros((Tk, model.nq))
+    qvels = np.zeros((Tk, model.nv))
     qvels[0] = data.qvel.copy()
     ctrls = np.zeros((Tk-1, model.nu))
     for k in range(Tk-1):
@@ -534,7 +541,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     qs = np.zeros((Tk, 2*model.nq))
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
-            mj.mj_forward(model, data)
+            mj.mj_forward(mode, data)
             mj.mj_jacSite(
                 model, data, C, None, site=data.site(f'{deriv_site}').id)
             site_xpos = data.site(f'{deriv_site}').xpos
