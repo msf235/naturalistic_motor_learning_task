@@ -514,6 +514,9 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
     assert update_phase < update_every
+    syssize1 = model.nv + model.nq
+    syssize2 = 2*model.nv + model.na
+    syssize3 = 2*model.nq
     nuderiv = len(deriv_ids)
     if ctrl_reg_weight is None:
         ctrl_reg_weight = np.ones((ctrls.shape[0], nuderiv))
@@ -521,15 +524,15 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     grad_range = range(update_phase, Tk, update_every)
     Tkn = grad_range[-1]
     nq = model.nq
-    As = np.zeros((Tk-1, 2*model.nv, 2*model.nv))
-    Bs = np.zeros((Tk-1, 2*model.nv, nuderiv))
-    B = np.zeros((2*model.nv, model.nu))
+    As = np.zeros((Tk-1, syssize2, syssize2))
+    Bs = np.zeros((Tk-1, syssize2, nuderiv))
+    B = np.zeros((syssize2, model.nu))
     C = np.zeros((3, model.nv))
-    dldqs = np.zeros((Tk, 2*model.nv))
+    dldqs = np.zeros((Tk, syssize3))
     dldss = np.zeros((Tk, 3))
-    lams = np.zeros((Tk, 2*model.nv))
-    lams2 = np.zeros((Tk, 2*model.nv))
-    lams3 = np.zeros((Tk, 2*model.nv))
+    lams = np.zeros((Tk, syssize3))
+    lams2 = np.zeros((Tk, syssize3))
+    lams3 = np.zeros((Tk, syssize3))
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     hxs = np.zeros((Tk, 3))
 
@@ -538,10 +541,10 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
 
     q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
 
-    qs = np.zeros((Tk, 2*model.nq))
+    qs = np.zeros((Tk, syssize1))
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
-            mj.mj_forward(mode, data)
+            mj.mj_forward(model, data)
             mj.mj_jacSite(
                 model, data, C, None, site=data.site(f'{deriv_site}').id)
             site_xpos = data.site(f'{deriv_site}').xpos
@@ -558,6 +561,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         # if tk in grad_range and q_targ_mask_flat[tk]:
         qnow = np.concatenate((data.qpos[:], data.qvel[:]))
         qs[tk] = qnow
+        breakpoint()
         dldq = qnow - q_targ[tk]
         dldqs[tk] += dldq * q_targ_mask[tk]
         

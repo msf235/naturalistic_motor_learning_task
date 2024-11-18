@@ -112,7 +112,7 @@ def forward_sim(model, data, ctrls):
     Tk = ctrls.shape[0]
     qs = np.zeros((Tk+1, model.nq))
     qs[0] = data.qpos.copy()
-    vs = np.zeros((Tk+1, model.nq))
+    vs = np.zeros((Tk+1, model.nv))
     vs[0] = data.qvel.copy()
     ss = np.zeros((Tk+1, data.sensordata.shape[0]))
     ss[0] = data.sensordata[:].copy()

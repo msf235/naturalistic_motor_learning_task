@@ -10,6 +10,16 @@ from matplotlib import pyplot as plt
 import time
 import basic_movements
 
+# Site names
+RHAND_S = 'R_Hand'
+LHAND_S = 'L_Hand'
+RFOOT_S = 'R_Ankle'
+LFOOT_S = 'L_Ankle'
+RSHOULD_S = 'R_Shoulder'
+LSHOULD_S = 'L_Shoulder'
+RELBOW_S = 'R_Elbow'
+LELBOW_S = 'L_Elbow'
+
 def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     acts = opt_utils.get_act_ids(model)
     adh = acts['adh_right_hand']
@@ -38,9 +48,9 @@ def sigmoid(x, a):
 
 def throw_grab_traj(model, data, Tk):
     breakpoint()
-    shouldx = data.site('shoulder1_right').xpos
-    elbowx = data.site('elbow_right').xpos
-    handx = data.site('hand_right').xpos
+    shouldx = data.site(RSHOULD_S).xpos
+    elbowx = data.site(RELBOW_S).xpos
+    handx = data.site(RHAND_S).xpos
     r1 = np.sum((shouldx - elbowx)**2)**.5
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
@@ -48,7 +58,7 @@ def throw_grab_traj(model, data, Tk):
     # Tk2 = int(2*Tk/3)
     Tk2 = Tk - Tk1
     Tk3 = int((Tk+Tk2)/2)
-    arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+    arc_traj_vs = arc_traj(data.site(RSHOULD_S).xpos, r, np.pi,
                                   np.pi/2.2, Tk-Tk2, density_fn='')
     grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
     s = sigmoid(np.linspace(0, 1, Tk1), 5)
@@ -75,16 +85,16 @@ def throw_grab_traj(model, data, Tk):
 
 def throw_traj(model, data, Tk):
     breakpoint()
-    shouldx = data.site('shoulder1_right').xpos
-    elbowx = data.site('elbow_right').xpos
-    handx = data.site('hand_right').xpos
+    shouldx = data.site(RSHOULD_S).xpos
+    elbowx = data.site(RELBOW_S).xpos
+    handx = data.site(RHAND_S).xpos
     r1 = np.sum((shouldx - elbowx)**2)**.5
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
     Tk1 = int(Tk / 3)
     Tk2 = int(2*Tk/3)
     Tk3 = int((Tk+Tk2)/2)
-    arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+    arc_traj_vs = arc_traj(data.site(RSHOULD_S).xpos, r, np.pi,
                                   np.pi/2.2, Tk-Tk2, density_fn='')
     grab_targ = data.site('ball').xpos + np.array([0, 0, 0])
     s = sigmoid(np.linspace(0, 1, Tk1), 5)
@@ -112,11 +122,11 @@ def throw_traj(model, data, Tk):
 
 def tennis_grab_traj(model, data, Tk):
     breakpoint()
-    shouldxr = data.site('shoulder1_right').xpos
-    shouldxl = data.site('shoulder1_left').xpos
-    elbowx = data.site('elbow_right').xpos
-    handxr = data.site('hand_right').xpos
-    handxl = data.site('hand_left').xpos
+    shouldxr = data.site(RSHOULD_S).xpos
+    shouldxl = data.site(LSHOULD_S).xpos
+    elbowx = data.site(RELBOW_S).xpos
+    handxr = data.site(RHAND_S).xpos
+    handxl = data.site(LHAND_S).xpos
     r1 = np.sum((shouldxr - elbowx)**2)**.5
     r2 = np.sum((elbowx - handxr)**2)**.5
     r = r1 + r2
@@ -146,7 +156,7 @@ def tennis_grab_traj(model, data, Tk):
     s = np.concatenate((s, np.ones((Tk_right_2, 3))), axis=0)
     grab_traj = handxr + s*(grab_targ - handxr)
 
-    arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+    arc_traj_vs = arc_traj(data.site(RSHOULD_S).xpos, r, np.pi,
                                   np.pi/6, 10, density_fn='')
 
     s = np.linspace(0, 1, Tk_right_3)
@@ -176,16 +186,16 @@ def tennis_grab_traj(model, data, Tk):
     s = np.concatenate((s, np.ones((Tk_left_2, 3))), axis=0)
     grab_traj = handxl + s*(grab_targ - handxl)
 
-    arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
+    arc_traj_vs = arc_traj(data.site(LSHOULD_S).xpos, r,
                             np.pi/5, np.pi/2, 10, density_fn='')
     xs = arc_traj_vs[:, 1].copy()
     x0 = xs[0]
     recenter_scale_xs = .8*(xs - x0)
     arc_traj_vs[:,1] = recenter_scale_xs + x0
-    # arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
+    # arc_traj_vs2 = arc_traj(data.site(LSHOULD_S).xpos, r,
                             # .9*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
     # arc_traj_vs2 = arc_traj_vs[:-Tk_left_5:-1]
-    arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
+    arc_traj_vs2 = arc_traj(data.site(LSHOULD_S).xpos, r,
                             .9*np.pi/2, .7*np.pi/2, 10, density_fn='')
 
     setup_traj = np.zeros((Tk_left_3, 3))
@@ -215,9 +225,9 @@ def tennis_grab_traj(model, data, Tk):
     # plt.show()
 
     # Ball trajectory
-    # arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
+    # arc_traj_vs = arc_traj(data.site(LSHOULD_S).xpos, r,
                             # 0, .9*np.pi/2, Tk_left_4, density_fn='')
-    # arc_traj_ball = arc_traj(data.site('shoulder1_left').xpos, r, 0,
+    # arc_traj_ball = arc_traj(data.site(LSHOULD_S).xpos, r, 0,
                              # 1.1*np.pi/2, Tk_left_4, density_fn='')
 
     # ball_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
@@ -244,11 +254,11 @@ def tennis_grab_traj(model, data, Tk):
 
 def tennis_traj(model, data, Tk):
     breakpoint()
-    shouldxr = data.site('shoulder1_right').xpos
-    shouldxl = data.site('shoulder1_left').xpos
-    elbowx = data.site('elbow_right').xpos
-    handxr = data.site('hand_right').xpos
-    handxl = data.site('hand_left').xpos
+    shouldxr = data.site(RSHOULD_S).xpos
+    shouldxl = data.site(LSHOULD_S).xpos
+    elbowx = data.site(RELBOW_S).xpos
+    handxr = data.site(RHAND_S).xpos
+    handxl = data.site(LHAND_S).xpos
     r1 = np.sum((shouldxr - elbowx)**2)**.5
     r2 = np.sum((elbowx - handxr)**2)**.5
     r = r1 + r2
@@ -284,7 +294,7 @@ def tennis_traj(model, data, Tk):
     s = np.concatenate((s, np.ones((Tk_right_2, 3))), axis=0)
     grab_traj = handxr + s*(grab_targ - handxr)
 
-    arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+    arc_traj_vs = arc_traj(data.site(RSHOULD_S).xpos, r, np.pi,
                                   np.pi/6, Tk_right_4, density_fn='')
 
     s = np.linspace(0, 1, Tk_right_3)
@@ -314,16 +324,16 @@ def tennis_traj(model, data, Tk):
     s = np.concatenate((s, np.ones((Tk_left_2, 3))), axis=0)
     grab_traj = handxl + s*(grab_targ - handxl)
 
-    arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
+    arc_traj_vs = arc_traj(data.site(LSHOULD_S).xpos, r,
                             -np.pi/8, .9*np.pi/2, Tk_left_4, density_fn='')
     xs = arc_traj_vs[:, 1].copy()
     x0 = xs[0]
     recenter_scale_xs = .8*(xs - x0)
     arc_traj_vs[:,1] = recenter_scale_xs + x0
-    # arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
+    # arc_traj_vs2 = arc_traj(data.site(LSHOULD_S).xpos, r,
                             # .9*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
     # arc_traj_vs2 = arc_traj_vs[:-Tk_left_5:-1]
-    arc_traj_vs2 = arc_traj(data.site('shoulder1_left').xpos, r,
+    arc_traj_vs2 = arc_traj(data.site(LSHOULD_S).xpos, r,
                             .9*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
 
     setup_traj = np.zeros((Tk_left_3, 3))
@@ -354,9 +364,9 @@ def tennis_traj(model, data, Tk):
     # plt.show()
 
     # Ball trajectory
-    # arc_traj_vs = arc_traj(data.site('shoulder1_left').xpos, r,
+    # arc_traj_vs = arc_traj(data.site(LSHOULD_S).xpos, r,
                             # 0, .9*np.pi/2, Tk_left_4, density_fn='')
-    # arc_traj_ball = arc_traj(data.site('shoulder1_left').xpos, r, 0,
+    # arc_traj_ball = arc_traj(data.site(LSHOULD_S).xpos, r, 0,
                              # 1.1*np.pi/2, Tk_left_4, density_fn='')
 
     # ball_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
@@ -439,26 +449,26 @@ def get_idx_sets(env, exp_name):
     adh_ids = []
     let_go_ids = []
     if exp_name == 'basic_movements_right':
-        sites = ['hand_right']
+        sites = [RHAND_S]
         throw_idxs = one_arm_idxs(model)
         site_grad_idxs = [throw_idxs['arm_a_without_adh']]
         stabilize_jnt_idx = throw_idxs['not_arm_j']
         stabilize_act_idx = throw_idxs['not_arm_a']
     elif exp_name == 'basic_movements_left':
-        sites = ['hand_left']
+        sites = [LHAND_S]
         throw_idxs = one_arm_idxs(model, 'left')
         site_grad_idxs = [throw_idxs['arm_a_without_adh']]
         stabilize_jnt_idx = throw_idxs['not_arm_j']
         stabilize_act_idx = throw_idxs['not_arm_a']
     elif exp_name == 'basic_movements_both':
-        sites = ['hand_right', 'hand_left']
+        sites = [RHAND_S, LHAND_S]
         tennis_idxs = two_arm_idxs(model)
         site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                           tennis_idxs['left_arm_without_adh']]
         stabilize_jnt_idx = tennis_idxs['not_arm_j']
         stabilize_act_idx = tennis_idxs['not_arm_a']
     elif exp_name == 'throw_ball':
-        sites = ['hand_right']
+        sites = [RHAND_S]
         throw_idxs = one_arm_idxs(model)
         site_grad_idxs = [throw_idxs['arm_a_without_adh']]
         stabilize_jnt_idx = throw_idxs['not_arm_j']
@@ -467,7 +477,7 @@ def get_idx_sets(env, exp_name):
         adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0]]
         let_go_ids = [acts['adh_right_hand'][0]]
     elif exp_name == 'grab_ball':
-        sites = ['hand_right']
+        sites = [RHAND_S]
         throw_idxs = one_arm_idxs(model)
         site_grad_idxs = [throw_idxs['arm_a_without_adh']]
         stabilize_jnt_idx = throw_idxs['not_arm_j']
@@ -477,7 +487,7 @@ def get_idx_sets(env, exp_name):
         let_go_ids = []
         let_go_times = []
     elif exp_name == 'tennis_serve':
-        sites = ['hand_right', 'hand_left'] # Move
+        sites = [RHAND_S, LHAND_S] # Move
         tennis_idxs = two_arm_idxs(model)
         site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                           tennis_idxs['left_arm_without_adh']]
@@ -494,7 +504,7 @@ def get_idx_sets(env, exp_name):
                      'adh_left_hand']
         let_go_ids = [acts['adh_left_hand'][0]]
     elif exp_name == 'tennis_grab':
-        sites = ['hand_right', 'hand_left']
+        sites = [RHAND_S, LHAND_S]
         tennis_idxs = two_arm_idxs(model)
         site_grad_idxs = [tennis_idxs['right_arm_without_adh'],
                           tennis_idxs['left_arm_without_adh']]
@@ -553,7 +563,6 @@ def get_times(env, exp_name, Tf):
 
 
 def make_traj_sets(env, exp_name, Tk, seed=2):
-    breakpoint()
     model = env.model
     data = env.data
     # smoothing_sigma = int(.1 / model.opt.timestep)
@@ -568,12 +577,12 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
     out_idx = get_idx_sets(env, exp_name)
     if exp_name == 'basic_movements_right':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
-            model, data, Tk, data.site('hand_right').xpos, smoothing_time,
+            model, data, Tk, data.site(RHAND_S).xpos, smoothing_time,
             arc_std, seed)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
         traj1_xs[:,2] = rs * np.sin(thetas)
-        traj1_xs += data.site('shoulder1_right').xpos
+        traj1_xs += data.site(RSHOULD_S).xpos
         full_traj = traj1_xs
         targ_traj_mask = np.ones((Tk,))
         targ_traj_mask_type = 'double_sided_progressive'
@@ -590,12 +599,12 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         ctrl_reg_weights = [None]
     elif exp_name == 'basic_movements_left':
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
-            model, data, Tk, data.site('hand_left').xpos, smoothing_time,
+            model, data, Tk, data.site(LHAND_S).xpos, smoothing_time,
             arc_std, seed)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
         traj1_xs[:,2] = rs * np.sin(thetas)
-        traj1_xs += data.site('shoulder1_left').xpos
+        traj1_xs += data.site(LSHOULD_S).xpos
         full_traj = traj1_xs
         targ_traj_mask = np.ones((Tk,))
         targ_traj_mask_type = 'double_sided_progressive'
@@ -615,12 +624,12 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         ctrl_reg_weights = [None]
     elif exp_name == 'basic_movements_both':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
-            model, data, Tk, data.site('hand_right').xpos, smoothing_time,
+            model, data, Tk, data.site(RHAND_S).xpos, smoothing_time,
             arc_std)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
         traj1_xs[:,2] = rs * np.sin(thetas)
-        traj1_xs += data.site('shoulder1_right').xpos
+        traj1_xs += data.site(RSHOULD_S).xpos
         full_traj = traj1_xs
         targ_traj_mask = np.ones((Tk,))
         targ_traj_mask_type = 'double_sided_progressive'
@@ -630,12 +639,12 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         mask_types = [targ_traj_mask_type]
 
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
-            model, data, Tk, data.site('hand_left').xpos, smoothing_time,
+            model, data, Tk, data.site(LHAND_S).xpos, smoothing_time,
             arc_std)
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:,1] = rs * np.cos(thetas)
         traj1_xs[:,2] = rs * np.sin(thetas)
-        traj1_xs += data.site('shoulder1_left').xpos
+        traj1_xs += data.site(LSHOULD_S).xpos
         full_traj = traj1_xs
         targ_traj_mask = np.ones((Tk,))
         targ_traj_mask_type = 'double_sided_progressive'
