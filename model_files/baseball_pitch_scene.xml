@@ -1,0 +1,122 @@
+<!-- Copyright 2021 DeepMind Technologies Limited
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+<mujoco model="Baseball pitch">
+  <visual>
+    <map force="0.1" zfar="30"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+      <!--offwidth="2560" offheight="1440"-->
+    <global
+      elevation="20"
+      azimuth="10"
+      />
+    <headlight ambient=".8 .8 .8" specular=".8 .8 .8"/>
+  </visual>
+
+  <statistic center="0 0 0.7"/>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0"
+      width="32" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+      rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
+    <material name="grid" texture="grid" texrepeat="1 1" texuniform="true"
+      reflectance=".2"/>
+    <texture name="obj" type="cube" builtin="flat" mark="cross" width="128"
+      height="128" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1"
+      random="0.01"/>
+    <material name="obj" texture="obj" texuniform="true" rgba="0.8 0.6 .4 1"/>
+  </asset>
+
+  <worldbody>
+    <!--<light name="spotlight" mode="targetbodycom" target="floor" diffuse=".8 .8 .8" specular="0.3 0.3 0.3" pos="0 -6 4" cutoff="30"/>-->
+    <!--<site name="target" pos="0 -.8 1.4" size=".1" rgba="1 0 0 1"/>-->
+    <geom name="floor" size=".1 3 .05" type="plane" material="grid"
+      condim="3"/>
+    <body name="wall" pos="0 0 0" xyaxes="1 0 0 0 0 1">
+      <geom name="rwall2" pos = "0 2 -2" size=".1 2 .05" type="plane"
+        material="grid" condim="3"/>
+    </body>
+    <body name="lwall" pos="0 0 0" xyaxes="-1 0 0 0 0 1">
+      <geom name="lwall2" pos = "0 2 -2" size=".1 2 .05" type="plane"
+        material="grid" condim="3"/>
+    </body>
+    <body name="ceil" pos="0 0 0" xyaxes="-1 0 0 0 1 0">
+      <geom name="ceil2" pos = "0 0 -3" size=".1 2 .05" type="plane"
+        material="grid" condim="3"/>
+    </body>
+    <camera name="forward" pos="9 0 0" xyaxes="0 1 0 0 0 1"/>
+
+    <!--<body name="ball" pos="0 0.2 1.05">-->
+      <!--<geom name="ball" size=".05 .05 .05" pos="0 0 0" type="sphere"-->
+        <!--material="obj" condim="3" friction="1 0.005 0.0001"-->
+        <!--rgba=".7 0 0 1" mass=".057"/>-->
+      <!--<site name="ball_base" pos="0 0 -.05" size=".01"/>-->
+      <!--<site name="ball" pos="0 0 0"/>-->
+      <!--<site name="ball_top" pos="0 0 0.05"/>-->
+      <!--<joint name="ball_z_root" type="slide" axis="0 0 1" range="-100 100"/>-->
+      <!--<joint name="ball_x_root" type="slide" axis="0 1 0" range="-100 100"/>-->
+      <!--<joint name="ball_hinge_root" type="hinge" axis="1 0 0" range="-1000 1000"/>-->
+    <!--</body>-->
+
+    <geom name="ballstand" size=".1 .1 .5" pos="0 -1.0 .5" type="box"
+      material="obj" condim="3"/>
+    <body name="ball" pos="0 -1.0 1.05">
+      <geom name="ball" size=".05 .05 .05" pos="0 0 0" type="sphere"
+        material="obj" condim="3" friction="1 0.005 0.0001"
+        rgba=".7 0 0 1" mass=".057"/>
+      <site name="ball_base" pos="0 0 -.05" size=".01" rgba=".7 .7 .2 0"/>
+      <site name="ball" pos="0 0 0" rgba=".7 .7 .2 0"/>
+      <site name="ball_top" pos="0 0 0.05" rgba=".7 .7 .2 0"/>
+      <joint name="ball_z_root" type="slide" axis="0 0 1" range="-100 100"/>
+      <joint name="ball_x_root" type="slide" axis="0 1 0" range="-100 100"/>
+      <joint name="ball_hinge_root" type="hinge" axis="1 0 0" range="-1000 1000"/>
+    </body>
+    <!--<body name="racket" pos="0 -1.04 1.01">-->
+      <!--<geom name="racket_handle" type="cylinder" size=".02 .15" pos="0 .06 0" -->
+        <!--material="obj" condim="3" rgba=".7 0 0 1"-->
+        <!--zaxis="0 1 0" friction="1 0.005 .0001" density="500"/>-->
+      <!--<site name="racket_handle" pos="0 .09 0" size=".05" rgba=".7 .7 .2 1"/>-->
+      <!--<site name="racket_handle_top" pos="0 .09 .02" size=".05" rgba=".7 .7 .2 1"/>-->
+      <!--<geom name="racket_handle_ball" type="sphere" size=".02" pos="0 .2 0" -->
+        <!--material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 1"-->
+        <!--density="2000"/>-->
+      <!--<geom name="racket_net" type="box" size=".08 .14 .008" pos="0 -.21 0" -->
+        <!--material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 1"-->
+        <!--density="200"/>-->
+      <!--<site name="racket" pos="0 0 0"/>-->
+      <!--<joint name="racket_z_root" type="slide" axis="0 0 1" range="-100 100"/>-->
+      <!--<joint name="racket_x_root" type="slide" axis="0 1 0" range="-100 100"/>-->
+      <!--<joint name="racket_hinge_root" type="hinge" axis="1 0 0"-->
+        <!--range="-1000 1000"/>-->
+    <!--</body>-->
+
+    <body name="target" pos="0 2 .5">
+      <geom name="target" type="cylinder" pos="0 0 0" size="1 .05"
+        zaxis="0 1 0"/>
+      <site name="bullseye" pos="0 -.05 0" size="0.06" rgba="1 1 1 0"/>
+    </body>
+
+    <!--<site name="target2" pos="0 -.85 1.5" size=".06" rgba="1 1 0 .5"/>-->
+    <!--<site name="temp" pos="0 -.84982217 1.496221" size=".03" rgba="1 .5 .5 .5"/>-->
+    <!--<site name="target3" pos="0 -.65 1.8" size=".06" rgba="1 1 0 .5"/>-->
+    <!--<site name="target4" pos="0 -.3 2" size=".06" rgba="1 1 0 .5"/>-->
+    <!--<body name="target2" pos="0 .2 1.8">-->
+      <!--<freejoint name="target2_free"/>-->
+      <!--<geom name="target2" size=".06" pos="0 0 0" type="sphere"-->
+        <!--material="obj" condim="3" rgba="1 1 0 .5"/>-->
+    <!--</body>-->
+  </worldbody>
+</mujoco>
