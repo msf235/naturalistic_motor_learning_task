@@ -74,7 +74,10 @@ tt = np.arange(0, Tf, dt)
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
-bodyj = joints['body']['body_dofs']
+bodyj_id = joints['body']['body_dofs']
+# body_dof_unflat = [joints['dofadr'][k] for k in bodyj_id] # Body dof ids
+# body_dof = [dof for dofs in body_dof_unflat for dof in dofs] # flattened
+body_dof = opt_utils.convert_dofadr(model, None, bodyj_id, True)
 
 out_idx = arm_t.get_idx_sets(env, params['name'])
 sites = out_idx['sites']
@@ -107,7 +110,7 @@ if args.rerun or not out_f.exists():
     # stab_ctrls_idx.update({'let_go_times': out_time['let_go_times']})
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        bodyj,
+        body_dof,
         free_ctrls=np.zeros((Tk, len(acts['adh']))),
         balance_cost=params['balance_cost'],
         joint_cost=params['joint_cost'],

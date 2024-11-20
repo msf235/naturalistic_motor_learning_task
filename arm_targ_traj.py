@@ -47,7 +47,6 @@ def sigmoid(x, a):
     return .5*np.tanh(a*(x-.5)) + .5
 
 def throw_grab_traj(model, data, Tk):
-    breakpoint()
     shouldx = data.site(RSHOULD_S).xpos
     elbowx = data.site(RELBOW_S).xpos
     handx = data.site(RHAND_S).xpos
@@ -84,7 +83,6 @@ def throw_grab_traj(model, data, Tk):
     return full_traj, time_dict
 
 def throw_traj(model, data, Tk):
-    breakpoint()
     shouldx = data.site(RSHOULD_S).xpos
     elbowx = data.site(RELBOW_S).xpos
     handx = data.site(RHAND_S).xpos
@@ -121,7 +119,6 @@ def throw_traj(model, data, Tk):
 
 
 def tennis_grab_traj(model, data, Tk):
-    breakpoint()
     shouldxr = data.site(RSHOULD_S).xpos
     shouldxl = data.site(LSHOULD_S).xpos
     elbowx = data.site(RELBOW_S).xpos
@@ -253,7 +250,6 @@ def tennis_grab_traj(model, data, Tk):
     return right_arm_traj, left_arm_traj, ball_traj, time_dict
 
 def tennis_traj(model, data, Tk):
-    breakpoint()
     shouldxr = data.site(RSHOULD_S).xpos
     shouldxl = data.site(LSHOULD_S).xpos
     elbowx = data.site(RELBOW_S).xpos
@@ -403,8 +399,12 @@ def two_arm_idxs(model):
     acts = opt_utils.get_act_ids(model)
 
     body_j = joints['body_dofs']
-    two_arm_idx['body_j'] = joints['body_dofs']
-    arm_j = [k for k in body_j if k in joints['right_arm'] or k in
+    two_arm_idx['body_j'] = opt_utils.convert_dofadr(model, None,
+                                                     joints['body_dofs'])
+    raj = opt_utils.convert_dofadr(model, None, joints['right_arm'])
+    laj = opt_utils.convert_dofadr(model, None, joints['left_arm'])
+    breakpoint()
+    arm_j = [k for k in body_j if k in raj or k in
              joints['left_arm']]
     two_arm_idx['not_arm_j'] = [i for i in body_j if i not in arm_j]
     arm_a = [k for k in acts['all'] if k in acts['right_arm'] or
@@ -437,7 +437,8 @@ def one_arm_idxs(model, right_or_left='right'):
     not_arm_a = [k for k in acts['all'] if k not in arm_a and k not in
                  acts['adh']]
     one_arm_idx['arm_a_without_adh'] = arm_a_without_adh
-    one_arm_idx['not_arm_j'] = not_arm_j
+    one_arm_idx['not_arm_j'] = opt_utils.convert_dofadr(model, None, not_arm_j,
+                                                    True)
     one_arm_idx['not_arm_a'] = not_arm_a
     return one_arm_idx
 
@@ -495,7 +496,8 @@ def get_idx_sets(env, exp_name):
                           tennis_idxs['left_arm_without_adh']]
         stabilize_jnt_idx = tennis_idxs['not_arm_j']
         stabilize_act_idx = tennis_idxs['not_arm_a']
-        contact_check_list = [['racket_handle', 'hand_right1'], ['racket_handle', 'hand_right2'],
+        contact_check_list = [['racket_handle', 'hand_right1'],
+                              ['racket_handle', 'hand_right2'],
                               ['ball', 'hand_left1'], ['ball', 'hand_left2']]
         acts = opt_utils.get_act_ids(model)
         adh_ids = [acts['adh_right_hand'][0], acts['adh_right_hand'][0],
@@ -570,11 +572,18 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
     arc_std = 0.02
     smoothing_time = .1
     joints = opt_utils.get_joint_ids(model)
-    left_arm_vel_idx = [x+model.nq for x in joints['body']['left_arm']]
-    right_arm_vel_idx = [x+model.nq for x in joints['body']['right_arm']]
+    left_arm_dofadr = opt_utils.convert_dofadr(
+        model, None, joints['body']['left_arm'], True)
+    right_arm_dofadr = opt_utils.convert_dofadr(
+        model, None, joints['body']['right_arm'], True)
+    left_arm_vel_id = [x+model.nq for x in left_arm_dofadr]
+    right_arm_vel_id = [x+model.nq for x in right_arm_dofadr]
     acts = opt_utils.get_act_ids(model)
     # q_targ = np.zeros((Tk, 2*model.nq))
     out_idx = get_idx_sets(env, exp_name)
+    syssize = model.nq + model.nv
+    syssize2 = 2*model.nv
+    # TODO: qposadr versus id versus dofadr
     if exp_name == 'basic_movements_right':
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site(RHAND_S).xpos, smoothing_time,
@@ -591,9 +600,9 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
-        q_targs = [np.zeros((Tk, 2*model.nq))]
-        q_targ_mask = np.zeros((Tk, 2*model.nq))
-        q_targ_mask[:, right_arm_vel_idx] = 1
+        q_targs = [np.zeros((Tk, syssize))]
+        q_targ_mask = np.zeros((Tk, syssize))
+        q_targ_mask[:, right_arm_vel_id] = 1
         q_targ_masks = [q_targ_mask]
         q_targ_mask_types = ['const']
         ctrl_reg_weights = [None]
@@ -616,9 +625,9 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
-        q_targs = [np.zeros((Tk, 2*model.nq))]
-        q_targ_mask = np.zeros((Tk, 2*model.nq))
-        q_targ_mask[:, left_arm_vel_idx] = 1
+        q_targs = [np.zeros((Tk, syssize))]
+        q_targ_mask = np.zeros((Tk, syssize2))
+        q_targ_mask[:, left_arm_vel_id] = 1
         q_targ_masks = [q_targ_mask]
         q_targ_mask_types = ['const']
         ctrl_reg_weights = [None]
@@ -672,9 +681,10 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
-        q_targ = np.zeros((Tk, 2*model.nq))
-        q_targ_mask = np.zeros((Tk,2*model.nq))
-        q_targ_mask2 = np.zeros((Tk,2*model.nq))
+        q_targs = [np.zeros((Tk, syssize))]
+        q_targ_mask = np.zeros((Tk, syssize2))
+        q_targ_mask2 = np.zeros((Tk, syssize2))
+        # TODO: resolve quaternion
         q_targ_mask2[time_dict['t_1']:,
                     joints['all']['wrist_left']] = 1
         q_targ_nz = np.linspace(0, -2.44, time_dict['t_2']-time_dict['t_1'])
@@ -700,9 +710,9 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
-        q_targ = np.zeros((Tk, 2*model.nq))
-        q_targ_mask = np.zeros((Tk,2*model.nq))
-        q_targ_mask2 = np.zeros((Tk,2*model.nq))
+        q_targs = [np.zeros((Tk, syssize))]
+        q_targ_mask = np.zeros((Tk, syssize))
+        q_targ_mask2 = np.zeros((Tk, syssize))
         q_targ_mask2[time_dict['t_1']:,
                     joints['all']['wrist_left']] = 1
         q_targ_nz = np.linspace(0, -2.44, time_dict['t_2']-time_dict['t_1'])
@@ -729,9 +739,9 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         mask_types = [targ_traj_mask_type]*2
         # q_targ = np.zeros((Tk, 2*model.nq))
         bot = .6
-        q_targ = np.ones((Tk, 2*model.nq)) * bot
-        q_targ_mask = np.zeros((Tk,2*model.nq))
-        q_targ_mask2 = np.zeros((Tk,2*model.nq))
+        q_targ = np.ones((Tk, syssize)) * bot
+        q_targ_mask = np.zeros((Tk,syssize))
+        q_targ_mask2 = np.zeros((Tk,syssize))
         # q_targ_mask2[time_dict['t_left_1']:time_dict['t_left_3'],
                      # joints['all']['wrist_left']] = 1
         # tp = int(time_dict['t_left_1'] / 2)
@@ -762,9 +772,9 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         targ_trajs = [right_hand_traj, left_hand_traj]
         masks = [targ_traj_mask, targ_traj_mask]
         mask_types = [targ_traj_mask_type]*2
-        q_targ = np.zeros((Tk, 2*model.nq))
-        q_targ_mask = np.zeros((Tk,2*model.nq))
-        q_targ_mask2 = np.zeros((Tk,2*model.nq))
+        q_targs = [np.zeros((Tk, syssize))]
+        q_targ_mask = np.zeros((Tk, syssize))
+        q_targ_mask2 = np.zeros((Tk, syssize))
         q_targ_mask2[time_dict['t_left_1']:,
                     joints['all']['wrist_left']] = 1
         q_targ_nz = np.linspace(0, -2.44, Tk-time_dict['t_left_1'])
@@ -798,7 +808,8 @@ def forward_with_sites(env, ctrls, site_names, render=False):
     n = len(site_names)
     site_xvs = np.zeros((n, ctrls.shape[0]+1, 3))
     nq = env.model.nq
-    state_vals = np.zeros((ctrls.shape[0]+1, 2*nq))
+    nv = env.model.nv
+    state_vals = np.zeros((ctrls.shape[0]+1, nq+nv))
     state_vals[0, :nq] = env.data.qpos.copy()
     state_vals[0, nq:] = env.data.qvel.copy()
     for k2 in range(n):
@@ -1036,6 +1047,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
         ctrl_reg_weights = [None] * len(site_names)
     model = env.model
     data = env.data
+    nq = model.nq
 
     not_stabilize_act_idx = [k for k in range(model.nu) if k not in
                              stabilize_act_idx]
@@ -1097,6 +1109,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
 
     contact_bool = False
     grab_phase_switch = True
+    dq = np.zeros(model.nv)
     fig, axs = plt.subplots(4, n_sites, figsize=(4*n_sites, 4*3.5))
     if n_sites == 1:
         axs = axs.reshape((4,1))
@@ -1175,12 +1188,21 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             qs_list = []
             for k in range(n_sites):
                 hx = hxs[k]
-                qs_k = qs * q_targ_masks[k]
-                q_targ = q_targs[k] * q_targ_masks[k]
+                # qs_k = qs * q_targ_masks[k]
+                # q_targ = q_targs[k] * q_targ_masks[k]
+                # diffsq2 =  (qs_k - q_targ)**2
                 diffsq1 = (hx - targ_trajs[k])**2
-                diffsq2 =  (qs_k - q_targ)**2
-                nonzero = np.sum(q_targ_masks[k]>0)
+                mask = q_targ_masks[k]
+                nonzero = np.sum(mask>0)
                 if nonzero > 0:
+                    qs_k = qs.copy()
+                    q_targ = q_targs[k]
+                    dq = opt_utils.batch_differentiatePos(model, 1, 
+                                           qs_k[:, :nq]*mask[:, :nq],
+                                           q_targ[:, :nq]*mask[:, :nq])
+                    dvel = (qs_k[:, nq:]-q_targ[:, nq:])*mask[:, nq:]
+                    dqfull = np.concatenate((dq, dvel))
+                    diffsq2 = dqfull**2
                     sum2 = np.sum(diffsq2) / np.sum(q_targ_masks[k]>0)
                 else:
                     sum2 = 0
