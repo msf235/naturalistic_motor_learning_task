@@ -107,6 +107,13 @@ class FilteredNoise:
     def reset(self, rng):
         self.rng = rng
 
+def forward_sim_render(env, ctrls):
+    Tk = ctrls.shape[0]
+    for k in range(Tk):
+        mj.mj_step1(env.model, env.data)
+        env.data.ctrl[:] = ctrls[k]
+        mj.mj_step2(env.model, env.data)
+        env.render()
 
 def forward_sim(model, data, ctrls):
     Tk = ctrls.shape[0]

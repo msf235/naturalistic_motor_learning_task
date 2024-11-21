@@ -56,17 +56,23 @@ model = env.model
 data = env.data
 
 dt = model.opt.timestep
-burn_step = int(.09 / dt)
+# burn_step = int(.09 / dt)
+# burn_step = int(.001 / dt)
+burn_step = int(.02 / dt)
 reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
-                                          2*burn_step,
+                                          # 2*burn_step,
+                                          10000,
                                           params['balance_cost'],
                                           params['joint_cost'],
                                           params['root_cost'],
                                           params['foot_cost'],
                                           params['ctrl_cost'],
                                          )
-
 ctrls_burn_in = reset()
+while True:
+    env.reset(seed=args.seed, options={'n_steps': 0, 'render': False})
+    util.forward_sim_render(env, ctrls_burn_in)
+# breakpoint()
 
 Tk = int(Tf / dt)
 tt = np.arange(0, Tf, dt)
