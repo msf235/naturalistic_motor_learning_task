@@ -101,7 +101,6 @@ def get_body_joints(model, data=None):
     bod_jnts['root_ids'] = [k for k in bod_jnts['ids']
                              if key_match(jntname(k), body_root_keys)]
     bod_jnts['root_dofadrs'] = dof_conv(bod_jnts['root_ids'])
-    breakpoint()
 
     bod_jnts['abdomen_ids'] = []
     bod_jnts['abdomen_dofadrs'] = []
@@ -117,10 +116,10 @@ def get_body_joints(model, data=None):
             bod_jnts['leg_dofadrs'].append(dof)
     bod_jnts['balance_ids'] = bod_jnts['abdomen_ids'] + bod_jnts['leg_ids']
     bod_jnts['balance_ids'].sort()
-    bod_jnts['balance_dofs'] = bod_jnts['abdomen_dofadrs'] + bod_jnts['leg_dofadrs']
-    bod_jnts['balance_dofs'].sort()
+    bod_jnts['balance_dofadrs'] = bod_jnts['abdomen_dofadrs'] + bod_jnts['leg_dofadrs']
+    bod_jnts['balance_dofadrs'].sort()
     bod_jnts['other_ids'] = [k for k in body_ids if k not in bod_jnts['balance_ids']]
-    bod_jnts['other_dofs'] = dof_conv(bod_jnts['other_ids'])
+    bod_jnts['other_dofadrs'] = dof_conv(bod_jnts['other_ids'])
     bod_jnts['right_arm_ids'] = []
     bod_jnts['right_arm_dofadrs'] = []
     bod_jnts['left_arm_ids'] = []
@@ -144,7 +143,6 @@ def get_body_joints(model, data=None):
 
 def get_joint_ids(model, data=None):
     jntn = lambda k: model.joint(k).name
-    breakpoint()
     joints = {}
     joints['names'] = [jntn(k) for k in range(model.njnt)]
     joints['all_id_dict'] = {jntn(k): k for k in range(model.njnt)}
@@ -259,11 +257,10 @@ def get_Q_joint(model, data=None, balance_joint_cost=3, other_joint_cost=.3,
     # Construct the Qjoint matrix.
     Qjoint = np.eye(model.nv)
     # Qjoint[joints['root_dofs'], joints['root_dofs']] *= 0  # Don't penalize free joint directly.
-    breakpoint()
-    Qjoint[joints['root_dofs'], joints['root_dofs']] *= root_cost
+    Qjoint[joints['root_dofadrs'], joints['root_dofadrs']] *= root_cost
     # Qjoint[z_joint, z_joint] = 100
-    Qjoint[joints['balance_dofs'], joints['balance_dofs']] *= balance_joint_cost
-    Qjoint[joints['other_dofs'], joints['other_dofs']] *= other_joint_cost
+    Qjoint[joints['balance_dofadrs'], joints['balance_dofadrs']] *= balance_joint_cost
+    Qjoint[joints['other_dofadrs'], joints['other_dofadrs']] *= other_joint_cost
     Qjoint[excluded_acts, excluded_acts] *= 0
     return Qjoint
 

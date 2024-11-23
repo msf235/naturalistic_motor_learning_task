@@ -72,7 +72,7 @@ ctrls_burn_in = reset()
 while True:
     env.reset(seed=args.seed, options={'n_steps': 0, 'render': False})
     util.forward_sim_render(env, ctrls_burn_in)
-# breakpoint()
+breakpoint()
 
 Tk = int(Tf / dt)
 tt = np.arange(0, Tf, dt)
