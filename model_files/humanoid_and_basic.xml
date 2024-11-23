@@ -1,0 +1,76 @@
+<!-- Copyright 2021 DeepMind Technologies Limited
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+    <!--timestep="0.00125"-->
+    <!--integrator="implicitfast"/>-->
+<mujoco model="Humanoid and basic">
+  <option timestep="0.0005" integrator="implicitfast"/>
+      <!-- geoms -->
+  <default>
+    <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/>
+  </default>
+  <include file="smpl_humanoid.xml"/>
+  <include file="basic_scene.xml"/>
+  <visual>
+    <map force="0.1" zfar="30"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+      <!--offwidth="2560" offheight="1440"-->
+    <global
+      elevation="20"
+      azimuth="10"
+      />
+    <headlight ambient=".8 .8 .8" specular=".8 .8 .8"/>
+  </visual>
+  <!--<keyframe>-->
+    <!--<key name="basic" qpos="0 -.4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"/>-->
+    <!--<key name="wide" qpos="0 0 0 0 -.2 -.1 -.2 .1 0 0 0 0 0 0"/>-->
+  <!--</keyframe>-->
+  <keyframe>
+    <key name="mocapkey1" qpos="
+        -0.14426346 -0.2548669  0.93561393  0.04709487  0.0399107
+         0.67674685  0.7336231  0.17616479  0.08318119  0.04824333
+        -0.07312427 -0.05859271 -0.04904975 -0.15061913  0.13697378
+         0.08793706  0.0  0.0  0.0  0.15672256
+        -0.06152193 -0.03302204 -0.0548543  0.03923444  0.06740185
+        -0.05360978 -0.02410129  0.10172428  0.0  0.0
+         0.0  0.09632684  0.00737159 -0.00681898  0.04040197
+        -0.05157863  0.0183998  0.04037395 -0.01544289  0.01334759
+        -0.01976619  0.04973658 -0.01946192  0.01356398 -0.00550782
+        -0.01633868  0.08427852  0.01847901 -0.42414925 -0.01715259
+        -0.19665715 -1.0586443  0.27059013 -0.42222056  0.20862088
+        -0.14239776 -0.05630037 -0.08847867  0.0  0.0
+         0.0  0.04334291  0.050582  0.43154302  0.00844709
+         0.22953878  1.0244433 -0.00678981  0.33399022 -0.16710037
+        -0.1558385  0.02925445  0.10611813  0.0  0.0
+         0.0"/>
+    <key name="tpose1" qpos="
+        0.0  0.0  0.94  0.5  0.5
+        0.5  0.5  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0  0.0  0.0   0.0  0.0
+        0.0"/>
+  </keyframe>
+</mujoco>

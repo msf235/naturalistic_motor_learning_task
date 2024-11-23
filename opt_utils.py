@@ -20,7 +20,9 @@ def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     data.qacc[:] = 0
     data.qvel[:] = 0
     mj.mj_inverse(model, data)
-    qfrc0 = data.qfrc_inverse.copy()[stable_jnt_ids]
+    qfrc0 = data.qfrc_inverse.copy()
+    # breakpoint()
+    qfrc0 = qfrc0[stable_jnt_ids]
     # M = data.actuator_moment[:, stable_jnt_ids]
     M = data.actuator_moment[ctrl_act_ids][:, stable_jnt_ids]
     # Probably much better way to do this
@@ -29,8 +31,6 @@ def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     # ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
     return ctrl0
 
-body_keys = ['human', 'shoulder', 'hand', 'torso', 'hip', 'knee', 'ankle',
-             'abdomen', 'elbow', 'arm', 'wrist'] 
 
 def key_match(key, key_list):
     for k in key_list:
@@ -38,56 +38,124 @@ def key_match(key, key_list):
             return True
     return False
 
+def batch_differentiatePos(model, dt, qpos1_list, qpos2_list):
+    res = []
+    qvel = np.zeros(model.nv)
+    assert len(qpos1_list) == len(qpos2_list)
+    for qpos1, qpos2 in zip(qpos1_list, qpos2_list):
+        mj.mj_differentiatePos(model, qvel, dt, qpos1, qpos2)
+        res.append(qvel.copy())
+    return np.array(res)
+
+
+def convert_dofadr(model, data=None, joint_ids=None, concat=False):
+    """Convert joint ids to dofadr. A list of dofadr is associated with each
+    joint id; hence, this function returns a list of lists of dofard."""
+    # WARNING: I'm not totally sure that len(bodyid) is always the number of
+    # dofs for a joint, which I assume here.
+    if joint_ids is None:
+        joint_ids = range(model.njnt)
+    if not hasattr(joint_ids, '__len__'):
+        joint = model.joint(joint_ids)
+        dof_st = joint.dofadr.item()
+        n_dofs = len(joint.bodyid)
+        dofadr = list(range(dof_st, dof_st+n_dofs))
+        return dofadr
+    dofadrs = []
+    for id in joint_ids:
+        joint = model.joint(id)
+        dof_st = joint.dofadr.item()
+        n_dofs = len(joint.bodyid)
+        dofadr = list(range(dof_st, dof_st+n_dofs))
+        if concat:
+            dofadrs.extend(dofadr)
+        else:
+            dofadrs.append(dofadr)
+    return dofadrs
+
 def get_body_joints(model, data=None):
     """Get joint names for body."""
-    body_keys = ['human', 'shoulder', 'torso', 'hip', 'knee', 'ankle',
-                 'abdomen', 'elbow', 'arm', 'wrist'] 
-    jntn = lambda k: model.joint(k).name
+    body_root_keys = ['Pelvis']
+    body_without_root_keys = ['Hip', 'Knee', 'Ankle', 'Toe', 'Torso',
+                 'Spine', 'Chest', 'Neck', 'Head', 'Thorax', 'Shoulder',
+                 'Elbow', 'Wrist', 'Hand'] 
+    body_keys = body_root_keys + body_without_root_keys
+    # body_keys = ['human', 'shoulder', 'hand', 'torso', 'hip', 'knee', 'ankle',
+                 # 'abdomen', 'elbow', 'arm', 'wrist'] 
+    abd_keys = ['Torso', 'Spine', 'Thorax']
+    leg_keys = ['Hip', 'Knee', 'Ankle', 'Toe']
+    arm_keys = ['Shoulder', 'Elbow', 'Wrist', 'Hand']
 
-    joints = {}
-    joints['all'] = [k for k in range(model.nq) if
-                      key_match(jntn(k), body_keys)]
-    jba = joints['all']
-    # Get indices into relevant sets of joints.
-    joints['root_dofs'] = [k for k in jba if 'root' in jntn(k)]
-    joints['body_dofs'] = [k for k in jba if k not in joints['root_dofs']]
-    jb = joints['body_dofs']
+    jntname = lambda k: model.joint(k).name
+    dof_conv = lambda li: convert_dofadr(model, None, li, True)
 
-    joints['abdomen_dofs'] = [
-        k for k in jb if 'abdomen' in jntn(k) and not 'z' in jntn(k)
-    ]
-    joints['leg_dofs'] = [
-        k for k in jb if key_match(jntn(k), ['hip', 'knee', 'ankle'])
-    ]
-    joints['balance_dofs'] = joints['abdomen_dofs'] + joints['leg_dofs']
-    joints['balance_dofs'].sort()
-    joints['other_dofs'] = [k for k in jb if k not in joints['balance_dofs']]
-    joints['right_arm'] = [
-        k for k in jb if key_match(jntn(k), ['shoulder', 'elbow', 'wrist'])
-        and 'right' in jntn(k)
-    ]
-    joints['left_arm'] = [
-        k for k in jb if key_match(jntn(k), ['shoulder', 'elbow', 'wrist'])
-        and 'left' in jntn(k)
-    ]
+    bod_jnts = {}
+    bod_jnts['ids'] = [k for k in range(model.njnt)
+                       if key_match(jntname(k), body_keys)]
+    bod_jnts['ids_without_root'] = [k for k in range(model.njnt)
+                       if key_match(jntname(k), body_without_root_keys)]
+    body_ids = bod_jnts['ids_without_root'] # Exclude root here
+    bod_jnts['dofadrs'] = dof_conv(bod_jnts['ids'])
+    bod_jnts['dofadrs_without_root'] = dof_conv(bod_jnts['ids_without_root'])
+    body_dofs = bod_jnts['dofadrs_without_root'] # Exclude root here
+    bod_jnts['root_ids'] = [k for k in bod_jnts['ids']
+                             if key_match(jntname(k), body_root_keys)]
+    bod_jnts['root_dofadrs'] = dof_conv(bod_jnts['root_ids'])
+    breakpoint()
 
-    joints['not_right_arm'] = [i for i in jb if i not in joints['right_arm']]
-    joints['not_left_arm'] = [i for i in jb if i not in joints['left_arm']]
+    bod_jnts['abdomen_ids'] = []
+    bod_jnts['abdomen_dofadrs'] = []
+    for id, dof in zip(body_ids, body_dofs):
+        if key_match(jntname(id), abd_keys):
+            bod_jnts['abdomen_ids'].append(id)
+            bod_jnts['abdomen_dofadrs'].append(dof)
+    bod_jnts['leg_ids'] = []
+    bod_jnts['leg_dofadrs'] = []
+    for id, dof in zip(body_ids, body_dofs):
+        if key_match(jntname(id), leg_keys):
+            bod_jnts['leg_ids'].append(id)
+            bod_jnts['leg_dofadrs'].append(dof)
+    bod_jnts['balance_ids'] = bod_jnts['abdomen_ids'] + bod_jnts['leg_ids']
+    bod_jnts['balance_ids'].sort()
+    bod_jnts['balance_dofs'] = bod_jnts['abdomen_dofadrs'] + bod_jnts['leg_dofadrs']
+    bod_jnts['balance_dofs'].sort()
+    bod_jnts['other_ids'] = [k for k in body_ids if k not in bod_jnts['balance_ids']]
+    bod_jnts['other_dofs'] = dof_conv(bod_jnts['other_ids'])
+    bod_jnts['right_arm_ids'] = []
+    bod_jnts['right_arm_dofadrs'] = []
+    bod_jnts['left_arm_ids'] = []
+    bod_jnts['left_arm_dofadrs'] = []
+    for id, dof in zip(body_ids, body_dofs):
+        if key_match(jntname(id), arm_keys):
+            if 'R_' in jntname(id):
+                bod_jnts['right_arm_ids'].append(id)
+                bod_jnts['right_arm_dofadrs'].append(dof)
+            if 'L_' in jntname(id):
+                bod_jnts['left_arm_ids'].append(id)
+                bod_jnts['left_arm_dofadrs'].append(dof)
+    bod_jnts['not_right_arm_ids'] = [i for i in body_ids if i not in
+                                   bod_jnts['right_arm_ids']]
+    bod_jnts['not_right_arm_dofadrs'] = dof_conv(bod_jnts['not_right_arm_ids'])
+    bod_jnts['not_left_arm_ids'] = [i for i in body_ids if i not in
+                                   bod_jnts['left_arm_ids']]
+    bod_jnts['not_left_arm_dofadrs'] = dof_conv(bod_jnts['not_left_arm_ids'])
 
-    return joints
+    return bod_jnts
 
 def get_joint_ids(model, data=None):
     jntn = lambda k: model.joint(k).name
     breakpoint()
     joints = {}
-    joints['joint_names'] = [jntn(k) for k in range(model.njnt)]
-    joints['all'] = {jntn(k): k for k in range(model.njnt)}
+    joints['names'] = [jntn(k) for k in range(model.njnt)]
+    joints['all_id_dict'] = {jntn(k): k for k in range(model.njnt)}
+    # joints['all_dofadr_dict'] = convert_dofadr(model, data,
+                                      # joints['all_id_dict'].values())
     joints['body'] = get_body_joints(model, data)
     joints['ball'] = [
-        k for k in range(model.nq) if 'ball' in jntn(k)
+        k for k in range(model.njnt) if 'ball' in jntn(k)
     ]
     joints['tennis'] = [
-        k for k in range(model.nq) if 'tennis' in jntn(k)
+        k for k in range(model.njnt) if 'tennis' in jntn(k)
     ]
     return joints
 
@@ -163,16 +231,19 @@ class AdhCtrl:
         self.k_left = 0
 
 def get_Q_balance(model, data, balance_cost, foot_cost):
-    nq = model.nq
-    jac_com = np.zeros((3, nq))
-    mj.mj_jacSubtreeCom(model, data, jac_com, model.body('torso').id)
+    center_chest = 'Chest'
+    left_foot = 'L_Ankle'
+    right_foot = 'R_Ankle'
+    nv = model.nv
+    jac_com = np.zeros((3, nv))
+    mj.mj_jacSubtreeCom(model, data, jac_com, model.body(center_chest).id)
     # Get the Jacobian for the left foot.
-    jac_lfoot = np.zeros((3, nq))
+    jac_lfoot = np.zeros((3, nv))
     mj.mj_jacBodyCom(model, data, jac_lfoot, None,
-                     model.body('foot_left').id)
-    jac_rfoot = np.zeros((3, nq))
+                     model.body(left_foot).id)
+    jac_rfoot = np.zeros((3, nv))
     mj.mj_jacBodyCom(model, data, jac_rfoot, None,
-                     model.body('foot_right').id)
+                     model.body(right_foot).id)
     jac_base = (jac_lfoot + jac_rfoot) / 2
     jac_diff = jac_com - jac_base
     Qbalance = balance_cost * jac_diff.T @ jac_diff 
@@ -186,8 +257,9 @@ def get_Q_joint(model, data=None, balance_joint_cost=3, other_joint_cost=.3,
     joints = joint_ids['body']
     # z_joint = joint_ids['all']['human_z_root']
     # Construct the Qjoint matrix.
-    Qjoint = np.eye(model.nq)
+    Qjoint = np.eye(model.nv)
     # Qjoint[joints['root_dofs'], joints['root_dofs']] *= 0  # Don't penalize free joint directly.
+    breakpoint()
     Qjoint[joints['root_dofs'], joints['root_dofs']] *= root_cost
     # Qjoint[z_joint, z_joint] = 100
     Qjoint[joints['balance_dofs'], joints['balance_dofs']] *= balance_joint_cost
@@ -210,9 +282,9 @@ def get_Q_matrix(model, data, excluded_state_inds=[], balance_cost=1000,
     # Qpos = 1000*Qjoint
 
     # No explicit penalty for velocities.
-    nq = model.nq
-    Q = np.block([[Qpos, np.zeros((nq, nq))],
-                  [np.zeros((nq, 2*nq))]])
+    nv = model.nv
+    Q = np.block([[Qpos, np.zeros((nv, nv))],
+                  [np.zeros((nv, 2*nv))]])
     return Q
 
 def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
@@ -221,13 +293,13 @@ def get_feedback_ctrl_matrix_from_QR(model, data, Q, R, stable_jnt_ids,
     # to qpos0.
     # data = copy.deepcopy(data)
     qvel = data.qvel.copy()
-    nq = model.nq
-    A = np.zeros((2*nq, 2*nq))
-    B = np.zeros((2*nq, model.nu))
+    nv = model.nv
+    A = np.zeros((2*nv, 2*nv))
+    B = np.zeros((2*nv, model.nu))
     flg_centered = True
     mj.mjd_transitionFD(model, data, epsilon_grad, flg_centered, A, B,
                         None, None)
-    stable_ids = stable_jnt_ids + [i+nq for i in stable_jnt_ids]
+    stable_ids = stable_jnt_ids + [i+nv for i in stable_jnt_ids]
     A = A[stable_ids][:, stable_ids]
     B = B[stable_ids][:, active_ctrl_ids]
     Q = Q[stable_ids][:, stable_ids]
@@ -256,7 +328,7 @@ def get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
     return K
 
 def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
-    dq = np.zeros(model.nq)
+    dq = np.zeros(model.nv)
     mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)
     dq = dq[stable_jnt_ids]
     qvel = data.qvel[stable_jnt_ids]
@@ -264,7 +336,7 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
     return ctrl0 - K @ dx
 
 def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
-                         stable_jnt_ids,
+                         stable_jnt_dofadrs,
                          free_ctrls=None,
                          K_update_interv=None, free_ctrl_fn=None,
                          balance_cost=1000, joint_cost=100,
@@ -286,8 +358,8 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
             control.
         free_act_ids: IDs for actuators that will not be used for stabilization
             control.
-        stable_jnt_ids: IDs for joints that will be stabilized (kept from
-            moving).
+        stable_jnt_dofadrs: DOF adrs for joints that will be stabilized (kept
+        from moving).
         free_ctrls: Free controls.
         K_update_interv: Update interval for K.
         """
@@ -297,7 +369,11 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
 
     data0 = copy.deepcopy(data)
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
-    free_jnt_ids = [k for k in range(model.njnt) if k not in stable_jnt_ids]
+    free_jnt_dofadrs = [k for k in range(model.njnt) if k not in stable_jnt_dofadrs]
+    joints = get_joint_ids(model)
+    acts = get_act_ids(model)
+    # bodyj_id = joints['body']['body_dofs']
+    # body_dof = convert_dofadr(model, None, bodyj_id, concat=True)
     if free_ctrls is None:
         free_ctrls = np.zeros((Tk, len(free_act_ids)))
     if K_update_interv is None:
@@ -305,23 +381,23 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
     qpos0n = qpos0.copy()
     qs = np.zeros((Tk, model.nq))
     qs[0] = data.qpos.copy()
-    qvels = np.zeros((Tk, model.nq))
+    qvels = np.zeros((Tk, model.nv))
     qvels[0] = data.qvel.copy()
     ctrls = np.zeros((Tk-1, model.nu))
     for k in range(Tk-1):
         if k % K_update_interv == 0:
             datak0 = copy.deepcopy(data)
-            qpos0n[free_jnt_ids] = data.qpos[free_jnt_ids]
-            ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_ids,
+            qpos0n[free_jnt_dofadrs] = data.qpos[free_jnt_dofadrs]
+            ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_dofadrs,
                               ctrl_act_ids)
             util.reset_state(model, data, datak0)
-            K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_ids,
+            K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_dofadrs,
                                          ctrl_act_ids, balance_cost,
                                          joint_cost, root_cost, foot_cost,
                                          ctrl_cost)
             util.reset_state(model, data, datak0)
         ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
-                                   stable_jnt_ids)
+                                   stable_jnt_dofadrs)
         ctrls[k][ctrl_act_ids] = ctrl
         # if free_ctrl_fn is not None:
             # ctrls[k][free_act_ids] = free_ctrl_fn(model, data, free_ctrls[k])
@@ -507,22 +583,27 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     updated (for instance, the actuators related to the right arm)."""
     # data = copy.deepcopy(data)
     assert update_phase < update_every
+    nq = model.nq
+    nv = model.nv
+    syssize1 = nv + nq
+    syssize2 = 2*nv + model.na
+    syssize3 = 2*nq
     nuderiv = len(deriv_ids)
     if ctrl_reg_weight is None:
         ctrl_reg_weight = np.ones((ctrls.shape[0], nuderiv))
     Tk = ctrls.shape[0]+1
     grad_range = range(update_phase, Tk, update_every)
     Tkn = grad_range[-1]
-    nq = model.nq
-    As = np.zeros((Tk-1, 2*model.nv, 2*model.nv))
-    Bs = np.zeros((Tk-1, 2*model.nv, nuderiv))
-    B = np.zeros((2*model.nv, model.nu))
-    C = np.zeros((3, model.nv))
-    dldqs = np.zeros((Tk, 2*model.nv))
+    As = np.zeros((Tk-1, syssize2, syssize2))
+    Bs = np.zeros((Tk-1, syssize2, nuderiv))
+    B = np.zeros((syssize2, model.nu))
+    C = np.zeros((3, nv))
+    dq = np.zeros(nv)
+    dldqs = np.zeros((Tk, syssize2))
     dldss = np.zeros((Tk, 3))
-    lams = np.zeros((Tk, 2*model.nv))
-    lams2 = np.zeros((Tk, 2*model.nv))
-    lams3 = np.zeros((Tk, 2*model.nv))
+    lams = np.zeros((Tk, syssize2))
+    lams2 = np.zeros((Tk, syssize2))
+    lams3 = np.zeros((Tk, syssize2))
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     hxs = np.zeros((Tk, 3))
 
@@ -531,7 +612,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
 
     q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
 
-    qs = np.zeros((Tk, 2*model.nq))
+    qs = np.zeros((Tk, syssize1))
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk]:
             mj.mj_forward(model, data)
@@ -542,7 +623,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
             dldss[tk] = dlds
             hxs[tk] = site_xpos
             dldq = C.T @ dlds
-            dldqs[tk, :model.nv] = dldq
+            dldqs[tk, :nv] = dldq
             if tk < Tk-1:
                 mj.mjd_transitionFD(
                     model, data, epsilon_grad, True, As[tk], B, None, None
@@ -551,8 +632,13 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
         # if tk in grad_range and q_targ_mask_flat[tk]:
         qnow = np.concatenate((data.qpos[:], data.qvel[:]))
         qs[tk] = qnow
-        dldq = qnow - q_targ[tk]
-        dldqs[tk] += dldq * q_targ_mask[tk]
+        # dldq = qnow - q_targ[tk]
+        mj.mj_differentiatePos(model, dq, 1,
+                               data.qpos*q_targ_mask[tk, :nq],
+                               q_targ[tk, :nq]*q_targ_mask[tk, :nq])
+        dqvel = (qnow[nq:] - q_targ[tk, nq:]) * q_targ_mask[tk, nq:]
+        dqfull = np.concatenate((dq, dqvel))
+        dldqs[tk] += dqfull
         
         if tk < Tk-1:
             if contact_check_list is not None:
@@ -560,13 +646,13 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
                     model, data, ctrls[tk],
                 )
             sim_util.step(model, data, ctrls[tk])
-    # qdots = qs[:, model.nq:]
+    # qdots = qs[:, nq:]
     # qaccs = np.gradient(qdots, axis=0)
-    qsfft = np.fft.fft(qs[:, :model.nq], axis=0)
-    freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, model.nq))
+    qsfft = np.fft.fft(qs[:, :nq], axis=0)
+    freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, nq))
     # regularizer = np.sum((freqs**2) * np.abs(qsfft)**2)
     grad_regularizer = np.fft.ifft(2 * (freqs**2) * qsfft, axis=0).real
-    # dldqs[:, :model.nq] += 1e3*grad_regularizer
+    # dldqs[:, :nq] += 1e3*grad_regularizer
     lams[tk] = dldqs[tk]
     grads = np.zeros((Tk-1, nuderiv))
     # tau_loss_factor = 1e-7
@@ -574,7 +660,7 @@ def traj_deriv_new(model, data, ctrls, targ_traj, targ_traj_mask,
     loss_u = 1e-6*ctrls_clip.copy() * ctrl_reg_weight
 
     ufft = np.fft.fft(ctrls_clip, axis=0)
-    # freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, model.nq))
+    # freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, nq))
     # regularizer = np.sum((freqs**2) * np.abs(ufft)**2)
     freqs = np.tile(np.fft.fftfreq(Tk-1).reshape(-1, 1), (1, nuderiv))
     grad_regularizer = np.fft.ifft(2 * (freqs**2) * ufft, axis=0).real
@@ -632,10 +718,10 @@ def reset_with_lqr(env, seed, nsteps1, nsteps2, balance_cost, joint_cost,
     noisev = np.zeros((nsteps2, model.nu))
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
-    bodyj = joints['body']['body_dofs']
+    body_dof = joints['body']['dofadrs']
     ctrls = get_stabilized_ctrls(
         model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
-        bodyj, free_ctrls=np.ones((nsteps2, len(acts['adh']))),
+        body_dof, free_ctrls=np.ones((nsteps2, len(acts['adh']))),
         balance_cost=balance_cost, joint_cost=joint_cost, root_cost=root_cost,
         foot_cost=foot_cost, ctrl_cost=ctrl_cost
     )[0]

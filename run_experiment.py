@@ -56,17 +56,23 @@ model = env.model
 data = env.data
 
 dt = model.opt.timestep
-burn_step = int(.09 / dt)
+# burn_step = int(.09 / dt)
+# burn_step = int(.001 / dt)
+burn_step = int(.02 / dt)
 reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
-                                          2*burn_step,
+                                          # 8*burn_step,
+                                          10000,
                                           params['balance_cost'],
                                           params['joint_cost'],
                                           params['root_cost'],
                                           params['foot_cost'],
                                           params['ctrl_cost'],
                                          )
-
 ctrls_burn_in = reset()
+while True:
+    env.reset(seed=args.seed, options={'n_steps': 0, 'render': False})
+    util.forward_sim_render(env, ctrls_burn_in)
+# breakpoint()
 
 Tk = int(Tf / dt)
 tt = np.arange(0, Tf, dt)
@@ -74,7 +80,10 @@ tt = np.arange(0, Tf, dt)
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
-bodyj = joints['body']['body_dofs']
+bodyj_id = joints['body']['body_dofs']
+# body_dof_unflat = [joints['dofadr'][k] for k in bodyj_id] # Body dof ids
+# body_dof = [dof for dofs in body_dof_unflat for dof in dofs] # flattened
+body_dof = opt_utils.convert_dofadr(model, None, bodyj_id, True)
 
 out_idx = arm_t.get_idx_sets(env, params['name'])
 sites = out_idx['sites']
@@ -105,9 +114,10 @@ if args.rerun or not out_f.exists():
                       # ['let_go_ids', 'contact_check_list',
                        # 'adh_ids']}
     # stab_ctrls_idx.update({'let_go_times': out_time['let_go_times']})
+    breakpoint()
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        bodyj,
+        body_dof,
         free_ctrls=np.zeros((Tk, len(acts['adh']))),
         balance_cost=params['balance_cost'],
         joint_cost=params['joint_cost'],
@@ -117,8 +127,10 @@ if args.rerun or not out_f.exists():
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     reset()
+    util.forward_sim_render(env, ctrls_burn_in)
     # arm_t.forward_to_contact(env, ctrls, render=True)
-    # reset()
+    reset()
+    breakpoint()
 
     arm_targ_params = {k: params[k] for k in
                        ['max_its', 'optimizer', 'lr', 'lr2', 'it_lr2',

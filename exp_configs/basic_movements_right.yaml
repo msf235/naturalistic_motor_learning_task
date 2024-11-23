@@ -23,9 +23,14 @@ params:
   #joint_penalty_factor: 1e-6
   joint_penalty_factor: 1e-12
   #balance_cost: 0
+  #root_cost: 10
+  #joint_cost: 10000
+  #foot_cost: 100
   balance_cost: 0
-  root_cost: 10
-  joint_cost: 10000
-  foot_cost: 100
+  #balance_cost: 1e10
+  root_cost: 0
+  joint_cost: 1e6
+  #joint_cost: 0
+  foot_cost: 0
   ctrl_cost: 1
 

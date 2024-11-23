@@ -18,6 +18,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
 
+# Site names
+RHAND_S = 'R_Hand'
+LHAND_S = 'L_Hand'
+RFOOT_S = 'R_Ankle'
+LFOOT_S = 'L_Ankle'
+RSHOULD_S = 'R_Shoulder'
+LSHOULD_S = 'L_Shoulder'
+RELBOW_S = 'R_Elbow'
+LELBOW_S = 'L_Elbow'
+
 def reflective_random_walk(n_steps=1000, initial_position=0.5, step_std=0.02,
                            smoothing_sigma=10, lower_lim=0, upper_lim=1,
                            rng=None):
@@ -63,16 +73,16 @@ def arc_traj(x0, r, theta0, theta1, n, density_fn='uniform'):
     return x
 
 def throw_traj(model, data, Tk):
-    shouldx = data.site('shoulder1_right').xpos
-    elbowx = data.site('elbow_right').xpos
-    handx = data.site('hand_right').xpos
+    shouldx = data.site(RSHOULD_S).xpos
+    elbowx = data.site(RELBOW_S).xpos
+    handx = data.site(RHAND_S).xpos
     r1 = np.sum((shouldx - elbowx)**2)**.5
     r2 = np.sum((elbowx - handx)**2)**.5
     r = r1 + r2
     Tk1 = int(Tk / 3)
     Tk2 = int(2*Tk/4)
     Tk3 = int((Tk+Tk2)/2)
-    arc_traj_vs = arc_traj(data.site('shoulder1_right').xpos, r, np.pi,
+    arc_traj_vs = arc_traj(data.site(RSHOULD_S).xpos, r, np.pi,
                                   np.pi/2.5, Tk-Tk2-1, density_fn='')
     grab_targ = data.site('ball_base').xpos + np.array([0, 0, -0.01])
     s = np.tanh(5*np.linspace(0, 1, Tk1))
@@ -136,9 +146,9 @@ def random_arcs(shouldx, handx, elbowx, n_steps, initial_xpos,
 
 def random_arcs_right_arm(model, data, n_steps, initial_xpos,
                           smoothing_time=None, step_std=0.02, seed=2):
-    shouldx = data.site('shoulder1_right').xpos
-    elbowx = data.site('elbow_right').xpos
-    handx = data.site('hand_right').xpos
+    shouldx = data.site(RSHOULD_S).xpos
+    elbowx = data.site(RELBOW_S).xpos
+    handx = data.site(RHAND_S).xpos
     theta_max = 1.2*np.pi
     theta_min = np.pi/2.5
     if smoothing_time is None:

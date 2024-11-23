@@ -18,3 +18,8 @@ params:
   grad_update_every: 10
   grad_window_t: 0.1
   joint_penalty_factor: 5e-7
+  balance_cost: 0
+  root_cost: 10
+  joint_cost: 10000
+  foot_cost: 100
+  ctrl_cost: 1
