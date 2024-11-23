@@ -60,7 +60,7 @@ dt = model.opt.timestep
 # burn_step = int(.001 / dt)
 burn_step = int(.02 / dt)
 reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
-                                          # 2*burn_step,
+                                          # 8*burn_step,
                                           10000,
                                           params['balance_cost'],
                                           params['joint_cost'],
@@ -114,6 +114,7 @@ if args.rerun or not out_f.exists():
                       # ['let_go_ids', 'contact_check_list',
                        # 'adh_ids']}
     # stab_ctrls_idx.update({'let_go_times': out_time['let_go_times']})
+    breakpoint()
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
         body_dof,
@@ -126,8 +127,10 @@ if args.rerun or not out_f.exists():
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     reset()
+    util.forward_sim_render(env, ctrls_burn_in)
     # arm_t.forward_to_contact(env, ctrls, render=True)
-    # reset()
+    reset()
+    breakpoint()
 
     arm_targ_params = {k: params[k] for k in
                        ['max_its', 'optimizer', 'lr', 'lr2', 'it_lr2',
