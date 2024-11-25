@@ -104,23 +104,23 @@ noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 
 # breakpoint()
 
-ctrls, K = opt_utils.get_stabilized_ctrls(
-    model, data, Tk, noisev, data.qpos.copy(),
-    # acts['all'],
-    out_idx['stabilize_act_idx'],
-    # body_dof,
-    out_idx['stabilize_jnt_idx'],
-    # free_ctrls=np.zeros((Tk, len(acts['adh']))),
-    free_ctrls=np.zeros((Tk, len(out_idx['free_act_idx']))),
-    balance_cost=params['balance_cost'],
-    joint_cost=params['joint_cost'],
-    root_cost=params['root_cost'],
-    foot_cost=params['foot_cost'],
-    ctrl_cost=params['ctrl_cost']
-)[:2]
-while True:
-    reset()
-    util.forward_sim_render(env, ctrls)
+# ctrls, K = opt_utils.get_stabilized_ctrls(
+    # model, data, Tk, noisev, data.qpos.copy(),
+    # # acts['all'],
+    # out_idx['stabilize_act_idx'],
+    # # body_dof,
+    # out_idx['stabilize_jnt_idx'],
+    # # free_ctrls=np.zeros((Tk, len(acts['adh']))),
+    # free_ctrls=np.zeros((Tk, len(out_idx['free_act_idx']))),
+    # balance_cost=params['balance_cost'],
+    # joint_cost=params['joint_cost'],
+    # root_cost=params['root_cost'],
+    # foot_cost=params['foot_cost'],
+    # ctrl_cost=params['ctrl_cost']
+# )[:2]
+# while True:
+    # reset()
+    # util.forward_sim_render(env, ctrls)
 
 t_incr = params['t_incr']
 amnt_to_incr = int(t_incr/dt)
@@ -138,7 +138,6 @@ if args.rerun or not out_f.exists():
                       # ['let_go_ids', 'contact_check_list',
                        # 'adh_ids']}
     # stab_ctrls_idx.update({'let_go_times': out_time['let_go_times']})
-    breakpoint()
     ctrls, K = opt_utils.get_stabilized_ctrls(
         model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
         body_dof,
@@ -150,9 +149,9 @@ if args.rerun or not out_f.exists():
         ctrl_cost=params['ctrl_cost']
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
-    # while True:
-    # reset()
-    # util.forward_sim_render(env, ctrls)
+    while True:
+        reset()
+        util.forward_sim_render(env, ctrls)
     # arm_t.forward_to_contact(env, ctrls, render=True)
     reset()
 
