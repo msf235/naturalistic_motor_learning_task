@@ -395,18 +395,20 @@ def tennis_traj(model, data, Tk):
 
 def two_arm_idxs(model):
     two_arm_idx = {}
-    joints = opt_utils.get_joint_ids(model)['body']
+    body_j = opt_utils.get_joint_ids(model)['body']
     acts = opt_utils.get_act_ids(model)
 
-    body_j = joints['body_dofs']
-    two_arm_idx['body_j'] = opt_utils.convert_dofadr(model, None,
-                                                     joints['body_dofs'])
-    raj = opt_utils.convert_dofadr(model, None, joints['right_arm'])
-    laj = opt_utils.convert_dofadr(model, None, joints['left_arm'])
+    # body_j = joints['body']['dofadrs']
+    # body_j = joints['body']
+    # two_arm_idx['body_j'] = opt_utils.convert_dofadr(model, None,
+                                                     # joints['body_dofs'])
+    raj = body_j['right_arm_dofadrs']
+    # raj = opt_utils.convert_dofadr(model, None, joints['right_arm'])
+    laj = body_j['left_arm_dofadrs']
+    # laj = opt_utils.convert_dofadr(model, None, joints['left_arm'])
+    arm_dofadrs = [k for k in body_j if k in raj or k in body_j['left_arm']]
     breakpoint()
-    arm_j = [k for k in body_j if k in raj or k in
-             joints['left_arm']]
-    two_arm_idx['not_arm_j'] = [i for i in body_j if i not in arm_j]
+    two_arm_idx['not_arm_j'] = [i for i in body_j if i not in arm_dofadrs]
     arm_a = [k for k in acts['all'] if k in acts['right_arm'] or
                            k in acts['left_arm']]
     two_arm_idx['not_arm_a'] = [k for k in acts['all'] if k not in arm_a and k
@@ -427,19 +429,19 @@ def one_arm_idxs(model, right_or_left='right'):
         return list(set(l1).intersection(set(l2)))
 
     one_arm_idx = {}
-
-    arm_j = joints['body'][f'{right_or_left}_arm']
-    not_arm_j = [i for i in joints['body']['body_dofs'] if i not in arm_j]
-    arm_a = acts[f'{right_or_left}_arm']
-    arm_a_without_adh = [k for k in arm_a if k not in acts['adh']]
+    
+    arm_dofadrs = joints['body'][f'{right_or_left}_arm_dofadrs']
+    # not_arm_dofadrs = [i for i in joints['body']['dofadrs'] if i not in arm_dofadrs]
+    one_arm_idx['not_arm_dofadrs'] = [i for i in joints['body']['dofadrs_without_root']
+                                      if i not in arm_dofadrs]
+    arm_act = acts[f'{right_or_left}_arm']
+    arm_act_without_adh = [k for k in arm_act if k not in acts['adh']]
     # Include all adhesion (including other hand)
-    arm_with_all_adh = [k for k in acts['all'] if k in arm_a or k in acts['adh']]
-    not_arm_a = [k for k in acts['all'] if k not in arm_a and k not in
+    arm_with_all_adh = [k for k in acts['all'] if k in arm_act or k in acts['adh']]
+    not_arm_act = [k for k in acts['all'] if k not in arm_act and k not in
                  acts['adh']]
-    one_arm_idx['arm_a_without_adh'] = arm_a_without_adh
-    one_arm_idx['not_arm_j'] = opt_utils.convert_dofadr(model, None, not_arm_j,
-                                                    True)
-    one_arm_idx['not_arm_a'] = not_arm_a
+    one_arm_idx['arm_act_without_adh'] = arm_act_without_adh
+    one_arm_idx['not_arm_act'] = not_arm_act
     return one_arm_idx
 
 def get_idx_sets(env, exp_name):
@@ -451,10 +453,10 @@ def get_idx_sets(env, exp_name):
     let_go_ids = []
     if exp_name == 'basic_movements_right':
         sites = [RHAND_S]
-        throw_idxs = one_arm_idxs(model)
-        site_grad_idxs = [throw_idxs['arm_a_without_adh']]
-        stabilize_jnt_idx = throw_idxs['not_arm_j']
-        stabilize_act_idx = throw_idxs['not_arm_a']
+        throw_idxs = one_arm_idxs(model, 'right')
+        site_grad_idxs = [throw_idxs['arm_act_without_adh']]
+        stabilize_jnt_idx = throw_idxs['not_arm_dofadrs']
+        stabilize_act_idx = throw_idxs['not_arm_act']
     elif exp_name == 'basic_movements_left':
         sites = [LHAND_S]
         throw_idxs = one_arm_idxs(model, 'left')
@@ -572,12 +574,15 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
     arc_std = 0.02
     smoothing_time = .1
     joints = opt_utils.get_joint_ids(model)
-    left_arm_dofadr = opt_utils.convert_dofadr(
-        model, None, joints['body']['left_arm'], True)
-    right_arm_dofadr = opt_utils.convert_dofadr(
-        model, None, joints['body']['right_arm'], True)
-    left_arm_vel_id = [x+model.nq for x in left_arm_dofadr]
-    right_arm_vel_id = [x+model.nq for x in right_arm_dofadr]
+    left_arm_dofadr = joints['body']['left_arm_dofadrs']
+    # right_arm_dofadr = opt_utils.convert_dofadr(
+        # model, None, joints['body']['right_arm'], True)
+    right_arm_dofadr = joints['body']['right_arm_dofadrs']
+    dof_offset = model.nq - model.nv
+    # TODO: check
+    # left_arm_vel_id = [x+model.nq-dof_offset for x in left_arm_dofadr]
+    left_arm_vel_id = [x+model.nv for x in left_arm_dofadr]
+    right_arm_vel_id = [x+model.nv for x in right_arm_dofadr]
     acts = opt_utils.get_act_ids(model)
     # q_targ = np.zeros((Tk, 2*model.nq))
     out_idx = get_idx_sets(env, exp_name)

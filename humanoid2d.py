@@ -408,6 +408,7 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         info = self._get_reset_info()
 
         if self.render_mode == "human":
+            self.mujoco_renderer.data.time = 0
             self.render()
         return ob, info
 

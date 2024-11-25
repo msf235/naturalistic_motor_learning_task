@@ -61,7 +61,7 @@ dt = model.opt.timestep
 burn_step = int(.02 / dt)
 reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
                                           # 8*burn_step,
-                                          10000,
+                                          500,
                                           params['balance_cost'],
                                           params['joint_cost'],
                                           params['root_cost'],
@@ -69,10 +69,10 @@ reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
                                           params['ctrl_cost'],
                                          )
 ctrls_burn_in = reset()
-while True:
-    env.reset(seed=args.seed, options={'n_steps': 0, 'render': False})
-    util.forward_sim_render(env, ctrls_burn_in)
-breakpoint()
+# while True:
+    # env.reset(seed=args.seed, options={'n_steps': 0, 'render': False})
+    # util.forward_sim_render(env, ctrls_burn_in)
+# breakpoint()
 
 Tk = int(Tf / dt)
 tt = np.arange(0, Tf, dt)
@@ -80,10 +80,10 @@ tt = np.arange(0, Tf, dt)
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
-bodyj_id = joints['body']['body_dofs']
+body_dof = joints['body']['dofadrs']
 # body_dof_unflat = [joints['dofadr'][k] for k in bodyj_id] # Body dof ids
 # body_dof = [dof for dofs in body_dof_unflat for dof in dofs] # flattened
-body_dof = opt_utils.convert_dofadr(model, None, bodyj_id, True)
+# body_dof = opt_utils.convert_dofadr(model, None, bodyj_id, True)
 
 out_idx = arm_t.get_idx_sets(env, params['name'])
 sites = out_idx['sites']
