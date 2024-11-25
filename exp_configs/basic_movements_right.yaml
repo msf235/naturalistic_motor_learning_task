@@ -8,8 +8,10 @@ params:
   #lr: .001
   #lr2: .0005
   optimizer: 'rmsprop'
-  lr: .001
-  lr2: .0005
+  #lr: .00001
+  lr: 0
+  #lr2: .000005
+  lr2: 0
   #optimizer: 'sgd'
   #lr: 2.5
   #lr2: .5
@@ -28,8 +30,8 @@ params:
   #foot_cost: 100
   balance_cost: 0
   #balance_cost: 1e10
-  root_cost: 0
-  joint_cost: 1e6
+  root_cost: 1e2
+  joint_cost: 5e5
   #joint_cost: 0
   foot_cost: 0
   ctrl_cost: 1

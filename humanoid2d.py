@@ -388,6 +388,9 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         else:
             mujoco.mj_resetData(self.model, self.data)
 
+    def reset_sim_time_counter(self):
+        self.mujoco_renderer.data.time = 0
+
     def reset(
         self,
         *,
@@ -408,7 +411,7 @@ class Humanoid2dEnv(MujocoEnv, utils.EzPickle):
         info = self._get_reset_info()
 
         if self.render_mode == "human":
-            self.mujoco_renderer.data.time = 0
+            self.reset_sim_time_counter()
             self.render()
         return ob, info
 

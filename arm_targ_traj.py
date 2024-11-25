@@ -407,7 +407,6 @@ def two_arm_idxs(model):
     laj = body_j['left_arm_dofadrs']
     # laj = opt_utils.convert_dofadr(model, None, joints['left_arm'])
     arm_dofadrs = [k for k in body_j if k in raj or k in body_j['left_arm']]
-    breakpoint()
     two_arm_idx['not_arm_j'] = [i for i in body_j if i not in arm_dofadrs]
     arm_a = [k for k in acts['all'] if k in acts['right_arm'] or
                            k in acts['left_arm']]
@@ -432,7 +431,9 @@ def one_arm_idxs(model, right_or_left='right'):
     
     arm_dofadrs = joints['body'][f'{right_or_left}_arm_dofadrs']
     # not_arm_dofadrs = [i for i in joints['body']['dofadrs'] if i not in arm_dofadrs]
-    one_arm_idx['not_arm_dofadrs'] = [i for i in joints['body']['dofadrs_without_root']
+    # one_arm_idx['not_arm_dofadrs'] = [i for i in joints['body']['dofadrs_without_root']
+                                      # if i not in arm_dofadrs]
+    one_arm_idx['not_arm_dofadrs'] = [i for i in joints['body']['dofadrs']
                                       if i not in arm_dofadrs]
     arm_act = acts[f'{right_or_left}_arm']
     arm_act_without_adh = [k for k in arm_act if k not in acts['adh']]
@@ -457,6 +458,7 @@ def get_idx_sets(env, exp_name):
         site_grad_idxs = [throw_idxs['arm_act_without_adh']]
         stabilize_jnt_idx = throw_idxs['not_arm_dofadrs']
         stabilize_act_idx = throw_idxs['not_arm_act']
+        other_act_idx = throw_idxs['arm_act_without_adh']
     elif exp_name == 'basic_movements_left':
         sites = [LHAND_S]
         throw_idxs = one_arm_idxs(model, 'left')
@@ -528,6 +530,8 @@ def get_idx_sets(env, exp_name):
     out_dict = dict(sites=sites, site_grad_idxs=site_grad_idxs,
                     stabilize_jnt_idx=stabilize_jnt_idx,
                     stabilize_act_idx=stabilize_act_idx,
+                    free_act_idx=other_act_idx,
+                    # free_act_idx=
                     contact_check_list=contact_check_list, adh_ids=adh_ids,
                     let_go_ids=let_go_ids)
     return out_dict
@@ -1067,6 +1071,10 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
 
     qs, qvels, ss = util.forward_sim(model, data, ctrls + noisev)
     util.reset_state(model, data, data0)
+    # while True:
+        # util.reset_state(model, data, data0)
+        # env.reset_sim_time_counter()
+        # util.forward_sim_render(env, ctrls)
 
     ### Gradient descent
     qpos0 = data.qpos.copy()
@@ -1136,6 +1144,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                 if len(lowest_losses_curr_mask.dict) > 0:
                     ctrls = lowest_losses_curr_mask.dict.peekitem(0)[1][1]
 
+            print("k0: ", k0, "check1")
             util.reset_state(model, data, data0)
             k, ctrls, contacts = forward_to_contact(
                 env, ctrls, noisev, False, let_go_times, let_go_ids,
@@ -1150,6 +1159,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             losses_curr_mask = [0] * n_sites
             update_phase = k0 % grad_update_every
             tic = time.time()
+            print("k0: ", k0, "check2")
             for k in range(n_sites):
                 grads[k] = opt_utils.traj_deriv_new(
                     model, data, ctrls + noisev, targ_trajs[k],
@@ -1172,16 +1182,39 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                         losses[k])
 
             ctrls = np.clip(ctrls, -1, 1)
+            print("k0: ", k0, "check3")
+            print("n_sites: ", n_sites)
             try:
+                # ctrls, K = opt_utils.get_stabilized_ctrls(
+                    # model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
+                    # body_dof,
+                    # free_ctrls=np.zeros((Tk, len(acts['adh']))),
+                    # balance_cost=balance_cost,
+                    # joint_cost=joint_cost,
+                    # root_cost=root_cost,
+                    # foot_cost=foot_cost,
+                    # ctrl_cost=ctrl_cost
+                # )[:2]
                 ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-                    model, data, Tk, noisev, qpos0, stabilize_act_idx,
-                    stabilize_jnt_idx, ctrls[:, not_stabilize_act_idx],
-                    K_update_interv=500, balance_cost=balance_cost, 
-                    joint_cost=joint_cost, root_cost=root_cost, foot_cost=foot_cost,
-                    ctrl_cost=ctrl_cost, let_go_times=let_go_times,
+                    model, data, Tk, noisev, qpos0,
+                    stabilize_act_idx,
+                    stabilize_jnt_idx,
+                    ctrls[:, not_stabilize_act_idx],
+                    K_update_interv=500,
+                    balance_cost=balance_cost, 
+                    joint_cost=joint_cost,
+                    root_cost=root_cost,
+                    foot_cost=foot_cost,
+                    ctrl_cost=ctrl_cost,
+                    let_go_times=let_go_times,
                     let_go_ids = let_go_ids,
                     n_steps_adh=n_steps_adh,
                 )
+                print("Testing...")
+                while True:
+                    util.reset_state(model, data, data0)
+                    env.reset_sim_time_counter()
+                    util.forward_sim_render(env, ctrls)
             except np.linalg.LinAlgError:
                 print("LinAlgError in get_stabilized_ctrls")
                 ctrls[:, not_stabilize_act_idx] *= .99

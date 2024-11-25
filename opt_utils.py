@@ -12,6 +12,18 @@ import optimizers as opts
 
 epsilon_grad = 5e-9
 
+body_root_keys = ['Pelvis']
+body_without_root_keys = ['Hip', 'Knee', 'Ankle', 'Toe', 'Torso',
+             'Spine', 'Chest', 'Neck', 'Head', 'Thorax', 'Shoulder',
+             'Elbow', 'Wrist', 'Hand'] 
+body_keys = body_root_keys + body_without_root_keys
+# body_keys = ['human', 'shoulder', 'hand', 'torso', 'hip', 'knee', 'ankle',
+             # 'abdomen', 'elbow', 'arm', 'wrist'] 
+abd_keys = ['Torso', 'Spine', 'Thorax']
+leg_keys = ['Hip', 'Knee', 'Ankle', 'Toe']
+arm_keys = ['Shoulder', 'Elbow', 'Wrist', 'Hand']
+
+
 ### LQR
 def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     # data = copy.deepcopy(data)
@@ -75,17 +87,6 @@ def convert_dofadr(model, data=None, joint_ids=None, concat=False):
 
 def get_body_joints(model, data=None):
     """Get joint names for body."""
-    body_root_keys = ['Pelvis']
-    body_without_root_keys = ['Hip', 'Knee', 'Ankle', 'Toe', 'Torso',
-                 'Spine', 'Chest', 'Neck', 'Head', 'Thorax', 'Shoulder',
-                 'Elbow', 'Wrist', 'Hand'] 
-    body_keys = body_root_keys + body_without_root_keys
-    # body_keys = ['human', 'shoulder', 'hand', 'torso', 'hip', 'knee', 'ankle',
-                 # 'abdomen', 'elbow', 'arm', 'wrist'] 
-    abd_keys = ['Torso', 'Spine', 'Thorax']
-    leg_keys = ['Hip', 'Knee', 'Ankle', 'Toe']
-    arm_keys = ['Shoulder', 'Elbow', 'Wrist', 'Hand']
-
     jntname = lambda k: model.joint(k).name
     dof_conv = lambda li: convert_dofadr(model, None, li, True)
 
@@ -171,13 +172,15 @@ def get_act_ids(model, data=None):
 def get_act_names_left_or_right(model, data=None, left_or_right='right'):
     actn = lambda k: model.actuator(k).name
     act_names = [actn(k) for k in range(model.nu)]
+    direct_dict = {'right': 'R_', 'left': 'L_'}
     acts = {}
     acts[f'{left_or_right}_arm'] = [
-        model.actuator(name).id
-        for name in act_names
-        if ('shoulder' in name or 'elbow' in name or 'hand' in name or 'wrist'
-            in name)
-        and left_or_right in name
+        model.actuator(name).id for name in act_names
+        if key_match(name, arm_keys) and direct_dict[left_or_right] in name
+    ]
+    acts[f'not_{left_or_right}_arm'] = [
+        model.actuator(name).id for name in act_names
+        if model.actuator(name).id not in acts[f'{left_or_right}_arm']
     ]
     acts[f'adh_{left_or_right}_hand'] = [
         k for k in acts[f'{left_or_right}_arm'] if 'adh' in actn(k)
@@ -715,7 +718,8 @@ def reset_with_lqr(env, seed, nsteps1, nsteps2, balance_cost, joint_cost,
     noisev = np.zeros((nsteps2, model.nu))
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
-    body_dof = joints['body']['dofadrs']
+    body_dof = joints['body']['dofadrs_without_root']
+    # breakpoint()
     ctrls = get_stabilized_ctrls(
         model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
         body_dof, free_ctrls=np.ones((nsteps2, len(acts['adh']))),

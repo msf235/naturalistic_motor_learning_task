@@ -33,6 +33,7 @@ out_f = (Path('output') / name).with_suffix('.pkl')
 out_f.parent.mkdir(parents=True, exist_ok=True)
 
 Tf = params['Tf']
+# Tf = 10*Tf
 
 CTRL_STD = 0
 CTRL_RATE = 1
@@ -58,10 +59,11 @@ data = env.data
 dt = model.opt.timestep
 # burn_step = int(.09 / dt)
 # burn_step = int(.001 / dt)
-burn_step = int(.02 / dt)
-reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
-                                          # 8*burn_step,
-                                          500,
+burn_step = int(.01 / dt)
+print(burn_step)
+reset = lambda: opt_utils.reset_with_lqr(env, args.seed, burn_step,
+                                          8*burn_step,
+                                          # 5000,
                                           params['balance_cost'],
                                           params['joint_cost'],
                                           params['root_cost'],
@@ -70,8 +72,8 @@ reset = lambda : opt_utils.reset_with_lqr(env, args.seed, burn_step,
                                          )
 ctrls_burn_in = reset()
 # while True:
-    # env.reset(seed=args.seed, options={'n_steps': 0, 'render': False})
-    # util.forward_sim_render(env, ctrls_burn_in)
+# env.reset(seed=args.seed, options={'n_steps': 0, 'render': False})
+# util.forward_sim_render(env, ctrls_burn_in)
 # breakpoint()
 
 Tk = int(Tf / dt)
@@ -80,6 +82,7 @@ tt = np.arange(0, Tf, dt)
 joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
+# body_dof = joints['body']['dofadrs_without_root']
 body_dof = joints['body']['dofadrs']
 # body_dof_unflat = [joints['dofadr'][k] for k in bodyj_id] # Body dof ids
 # body_dof = [dof for dofs in body_dof_unflat for dof in dofs] # flattened
@@ -89,6 +92,7 @@ out_idx = arm_t.get_idx_sets(env, params['name'])
 sites = out_idx['sites']
 out_time = arm_t.get_times(env, params['name'], Tf)
 
+
 out_traj = arm_t.make_traj_sets(env, params['name'], Tk, seed=args.seed)
 out_traj['q_targ_masks'] = [params['joint_penalty_factor'] * x
                             for x in out_traj['q_targ_masks']]
@@ -97,6 +101,26 @@ targ_trajs = out_traj['targ_trajs']
 # plt.plot(tt, targ_trajs[1][:,1]); plt.show()
 
 noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
+
+# breakpoint()
+
+ctrls, K = opt_utils.get_stabilized_ctrls(
+    model, data, Tk, noisev, data.qpos.copy(),
+    # acts['all'],
+    out_idx['stabilize_act_idx'],
+    # body_dof,
+    out_idx['stabilize_jnt_idx'],
+    # free_ctrls=np.zeros((Tk, len(acts['adh']))),
+    free_ctrls=np.zeros((Tk, len(out_idx['free_act_idx']))),
+    balance_cost=params['balance_cost'],
+    joint_cost=params['joint_cost'],
+    root_cost=params['root_cost'],
+    foot_cost=params['foot_cost'],
+    ctrl_cost=params['ctrl_cost']
+)[:2]
+while True:
+    reset()
+    util.forward_sim_render(env, ctrls)
 
 t_incr = params['t_incr']
 amnt_to_incr = int(t_incr/dt)
@@ -126,11 +150,11 @@ if args.rerun or not out_f.exists():
         ctrl_cost=params['ctrl_cost']
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
-    reset()
-    util.forward_sim_render(env, ctrls_burn_in)
+    # while True:
+    # reset()
+    # util.forward_sim_render(env, ctrls)
     # arm_t.forward_to_contact(env, ctrls, render=True)
     reset()
-    breakpoint()
 
     arm_targ_params = {k: params[k] for k in
                        ['max_its', 'optimizer', 'lr', 'lr2', 'it_lr2',
