@@ -1181,9 +1181,10 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     ctrls[:, site_grad_idxs[k]], grads[k][:Tk-1], 'ctrls',
                         losses[k])
 
-            ctrls = np.clip(ctrls, -1, 1)
+            # ctrls = np.clip(ctrls, -1, 1)
             print("k0: ", k0, "check3")
             print("n_sites: ", n_sites)
+            # breakpoint()
             try:
                 # ctrls, K = opt_utils.get_stabilized_ctrls(
                     # model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
@@ -1195,12 +1196,13 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     # foot_cost=foot_cost,
                     # ctrl_cost=ctrl_cost
                 # )[:2]
+                # ctrls_before = ctrls.copy()
                 ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                     model, data, Tk, noisev, qpos0,
                     stabilize_act_idx,
                     stabilize_jnt_idx,
                     ctrls[:, not_stabilize_act_idx],
-                    K_update_interv=500,
+                    K_update_interv=10000,
                     balance_cost=balance_cost, 
                     joint_cost=joint_cost,
                     root_cost=root_cost,
@@ -1211,14 +1213,16 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     n_steps_adh=n_steps_adh,
                 )
                 print("Testing...")
-                while True:
+                loop = 'r'
+                while loop == 'r':
                     util.reset_state(model, data, data0)
                     env.reset_sim_time_counter()
                     util.forward_sim_render(env, ctrls)
+                    loop = input("Enter 'r' to rerun simulation: ")
             except np.linalg.LinAlgError:
                 print("LinAlgError in get_stabilized_ctrls")
                 ctrls[:, not_stabilize_act_idx] *= .99
-            ctrls = np.clip(ctrls, -1, 1)
+            # ctrls = np.clip(ctrls, -1, 1)
             util.reset_state(model, data, data0)
             render = k0 % render_every == 0
             hxs, qs = forward_with_sites(env, ctrls, sites, render)

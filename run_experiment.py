@@ -149,11 +149,12 @@ if args.rerun or not out_f.exists():
         ctrl_cost=params['ctrl_cost']
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
-    while True:
-        reset()
-        util.forward_sim_render(env, ctrls)
+    # while True:
+        # reset()
+        # util.forward_sim_render(env, ctrls)
     # arm_t.forward_to_contact(env, ctrls, render=True)
-    reset()
+    # reset()
+    del out_idx['free_act_idx']
 
     arm_targ_params = {k: params[k] for k in
                        ['max_its', 'optimizer', 'lr', 'lr2', 'it_lr2',

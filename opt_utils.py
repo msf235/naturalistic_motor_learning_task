@@ -19,9 +19,9 @@ body_without_root_keys = ['Hip', 'Knee', 'Ankle', 'Toe', 'Torso',
 body_keys = body_root_keys + body_without_root_keys
 # body_keys = ['human', 'shoulder', 'hand', 'torso', 'hip', 'knee', 'ankle',
              # 'abdomen', 'elbow', 'arm', 'wrist'] 
-abd_keys = ['Torso', 'Spine', 'Thorax']
+abd_keys = ['Torso', 'Spine', 'Chest']
 leg_keys = ['Hip', 'Knee', 'Ankle', 'Toe']
-arm_keys = ['Shoulder', 'Elbow', 'Wrist', 'Hand']
+arm_keys = ['Thorax', 'Shoulder', 'Elbow', 'Wrist', 'Hand']
 
 
 ### LQR
