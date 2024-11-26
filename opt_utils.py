@@ -335,9 +335,9 @@ def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
     dx = np.concatenate((dq, qvel))
     return ctrl0 - K @ dx
 
-def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
-                         stable_jnt_dofadrs,
-                         free_ctrls=None,
+def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids_dict,
+                         stable_jnt_dofadrs_dict,
+                         free_ctrls_dict=None,
                          K_update_interv=None, free_ctrl_fn=None,
                          balance_cost=1000, joint_cost=100,
                          root_cost=0,
@@ -345,7 +345,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                          ctrl_cost=1,
                          let_go_times=[], let_go_ids=[],
                          n_steps_adh=20,
-                         contact_check_list=[], adh_ids=[]):
+                         contact_check_list=[], adh_ids=[], mask=None):
     """Get stabilized controls.
 
     Args:
@@ -354,13 +354,15 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
         Tk: Number of time steps.
         noisev: Noise vector.
         qpos0: Initial position.
-        ctrl_act_ids: IDs for actuators that will be used for stabilization
-            control.
+        stable_jnt_dofadrs_dict: DOF adrs for joints that will be stabilized (kept
+        from moving). Stored as values in a dict with keys corresponding to the
+        values in mask.
+        ctrl_act_ids_dict: IDs for actuators that will be used for stabilization
+            control. Stored as values in a dict with keys corresponding to the
+            values in mask.
         free_act_ids: IDs for actuators that will not be used for stabilization
             control.
-        stable_jnt_dofadrs: DOF adrs for joints that will be stabilized (kept
-        from moving).
-        free_ctrls: Free controls.
+        free_ctrls_dict: Free controls.
         K_update_interv: Update interval for K.
         """
 
@@ -368,14 +370,20 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
                        contact_check_list, adh_ids)
 
     data0 = copy.deepcopy(data)
-    free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
-    free_jnt_dofadrs = [k for k in range(model.njnt) if k not in stable_jnt_dofadrs]
+    free_act_idx_dict = {}
+    free_jnt_dofadrs_dict = {}
+    for key in stable_jnt_dofadrs_dict:
+        # idx = stable_jnt_dofadrs_dict[key]
+        # free_jnt_dofadrs_dict[key] = [k for k in range(model.njnt) if
+                                      # k not in idx]
+        idx = ctrl_act_ids_dict[key]
+        free_act_ids_dict[key] = [k for k in range(model.nu) if k not in idx]
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
     # bodyj_id = joints['body']['body_dofs']
     # body_dof = convert_dofadr(model, None, bodyj_id, concat=True)
-    if free_ctrls is None:
-        free_ctrls = np.zeros((Tk, len(free_act_ids)))
+    if free_ctrls_dict is None:
+        free_ctrls_dict = {1: np.zeros((Tk, len(free_act_ids)))}
     if K_update_interv is None:
         K_update_interv = Tk+1
     qpos0n = qpos0.copy()
@@ -384,32 +392,42 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids,
     qvels = np.zeros((Tk, model.nv))
     qvels[0] = data.qvel.copy()
     ctrls = np.zeros((Tk-1, model.nu))
+    if mask is None:
+        mask = np.ones(Tk-1)
+    k_K_update = 0
     for k in range(Tk-1):
-        if k % K_update_interv == 0:
+        curr_bit = mask[k]
+        idx1 = stable_jnt_dofadrs_dict[curr_bit]
+        idx2 = ctrl_act_ids_dict[curr_bit]
+        if curr_bit != prev_bit: # If we switch to new type of control
+            k_K_update = 0 # Reset K_update counter
+        if k_K_update % K_update_interv == 0:
             datak0 = copy.deepcopy(data)
-            qpos0n[free_jnt_dofadrs] = data.qpos[free_jnt_dofadrs]
-            ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_dofadrs,
-                              ctrl_act_ids)
+            tmp = data.qpos.copy()
+            tmp[idx1] = qpos0n[idx1].copy()
+            # idx = free_jnt_dofadrs_dict[curr_bit]
+            # qpos0n[idx] = data.qpos[idx].copy()
+            ctrl0 = get_ctrl0(model, data, qpos0n, idx1, idx2)
             util.reset_state(model, data, datak0)
-            K = get_feedback_ctrl_matrix(model, data, ctrl0, stable_jnt_dofadrs,
-                                         ctrl_act_ids, balance_cost,
-                                         joint_cost, root_cost, foot_cost,
-                                         ctrl_cost)
+            K = get_feedback_ctrl_matrix(model, data, ctrl0, idx1, idx2,
+                                         balance_cost, joint_cost, root_cost,
+                                         foot_cost, ctrl_cost)
             util.reset_state(model, data, datak0)
-        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0,
-                                   stable_jnt_dofadrs)
-        ctrls[k][ctrl_act_ids] = ctrl
+            k_K_update += 1
+        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0, idx1)
+        ctrls[k][idx2] = ctrl
         # if free_ctrl_fn is not None:
             # ctrls[k][free_act_ids] = free_ctrl_fn(model, data, free_ctrls[k])
         # else:
             # ctrls[k][free_act_ids] = free_ctrls[k]
-        ctrls[k][free_act_ids] = free_ctrls[k]
+        ctrls[k][free_act_ids_dict[curr_bit]] = free_ctrls_dict[curr_bit][k]
         ctrls[k], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[k])
         mj.mj_step1(model, data)
         data.ctrl[:] = ctrls[k] + noisev[k]
         mj.mj_step2(model, data)
         qs[k+1] = data.qpos.copy()
         qvels[k+1] = data.qvel.copy()
+        prev_bit = curr_bit
     return ctrls, K, qs, qvels
 
 def cum_mat_prod(tuple_of_mat):

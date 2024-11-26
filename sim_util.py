@@ -73,6 +73,11 @@ def reset_state(model, data_to, data_from):
     # state = get_state(data_from)
     # set_state(data_to, state)
 
+def time_trunc(tensor_list, Tk):
+    """Truncate a list of tensors to length Tk. Assume the first dimension
+    is the time dimension."""
+    return [x[:Tk] for x in tensor_list]
+
 def step(model, data, ctrl):
     mj.mj_step1(model, data)
     data.ctrl[:] = ctrl

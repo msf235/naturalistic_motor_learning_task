@@ -875,6 +875,9 @@ class LimLowestDict:
             self.dict.popitem()
 
 class DoubleSidedProgressive:
+    """Generate timepoint mask for a subinterval that moves over the time
+    interval. In addition, there is a "grab phase" that is treated a bit
+    differently."""
     def __init__(self, incr_every, amnt_to_incr, grab_phase_it, grab_phase_tk,
                  phase_2_it, max_idx=1e8):
         self.incr_every = incr_every
@@ -888,25 +891,27 @@ class DoubleSidedProgressive:
         self.grab_phase_tk = grab_phase_tk
         self.grab_end_idx = 0
         self.phase = 'grab'
+        self.start_idx = None
+        self.end_idx = None
 
     def _update_grab_phase(self):
-        start_idx = 0
-        end_idx = self.grab_phase_tk
-        self.grab_end_idx = end_idx
-        return slice(start_idx, end_idx)
+        self.start_idx = 0
+        self.end_idx = self.grab_phase_tk
+        self.grab_end_idx = self.end_idx
+        return slice(self.start_idx, self.end_idx)
     
     def _update_phase_1(self):
-        start_idx = self.grab_end_idx
-        end_idx = self.amnt_to_incr*(self.incr_cnt+1) + start_idx
-        idx = slice(start_idx, end_idx)
+        self.start_idx = self.grab_end_idx
+        self.end_idx = self.amnt_to_incr*(self.incr_cnt+1) + self.start_idx
+        idx = slice(self.start_idx, self.end_idx)
         self.incr_cnt += 1
         return idx
 
     def _update_phase_2(self):
-        start_idx = self.amnt_to_incr*self.incr_cnt2 + self.grab_end_idx
-        end_idx = self.amnt_to_incr*(self.incr_cnt+1) + start_idx
+        self.start_idx = self.amnt_to_incr*self.incr_cnt2 + self.grab_end_idx
+        self.end_idx = self.amnt_to_incr*(self.incr_cnt+1) + self.start_idx
         self.incr_cnt2 += 1
-        idx = slice(start_idx, end_idx)
+        idx = slice(self.start_idx, self.end_idx)
         return idx
 
     def update(self):
@@ -1160,7 +1165,30 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             update_phase = k0 % grad_update_every
             tic = time.time()
             print("k0: ", k0, "check2")
+
+            grad_T = .1
+            # grad_Tk = int(grad_T/dt)
+            # ctrls_trunc = ctrls[:grad_Tk-1]
+            # noisev_trunc = noisev[:grad_Tk-1]
+
             for k in range(n_sites):
+                # targ_trajsk_trunc = targ_traj_mask_currs[k][:grad_Tk]
+                # maskk_trunc = targ_traj_mask_currs[k][:grad_Tk]
+                # q_targsk_trunc = q_targs[k][:grad_Tk]
+                # q_targ_masksk_trunc = q_targ_masks[k][:grad_Tk]
+                # grads[k] = opt_utils.traj_deriv_new(
+                    # model, data, ctrls_trunc + noisev_trunc, targ_trajsk_trunc,
+                    # maskk_trunc, q_targsk_trunc, q_targ_masksk_trunc,
+                    # grad_trunc_tk,
+                    # deriv_ids=site_grad_idxs[k], deriv_site=sites[k],
+                    # update_every=grad_update_every, update_phase=update_phase,
+                    # let_go_times=let_go_times,
+                    # let_go_ids=let_go_ids,
+                    # n_steps_adh=n_steps_adh,
+                    # contact_check_list=contact_check_list,
+                    # adh_ids=adh_ids,
+                    # ctrl_reg_weight=ctrl_reg_weights[k]
+                # )
                 grads[k] = opt_utils.traj_deriv_new(
                     model, data, ctrls + noisev, targ_trajs[k],
                     targ_traj_mask_currs[k],
@@ -1176,10 +1204,13 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     ctrl_reg_weight=ctrl_reg_weights[k]
                 )
                 util.reset_state(model, data, data0)
+            breakpoint()
             for k in range(n_sites):
-                ctrls[:, site_grad_idxs[k]] = optms[k].update(
-                    ctrls[:, site_grad_idxs[k]], grads[k][:Tk-1], 'ctrls',
-                        losses[k])
+                ctrls[:grad_Tk-1, site_grad_idxs[k]] = optms[k].update(
+                    ctrls[:grad_Tk-1, site_grad_idxs[k]],
+                    # grads[k][:Tk-1],
+                    grads[k],
+                    'ctrls', losses[k])
 
             # ctrls = np.clip(ctrls, -1, 1)
             print("k0: ", k0, "check3")
