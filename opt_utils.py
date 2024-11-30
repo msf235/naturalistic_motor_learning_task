@@ -377,13 +377,13 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids_dict,
         # free_jnt_dofadrs_dict[key] = [k for k in range(model.njnt) if
                                       # k not in idx]
         idx = ctrl_act_ids_dict[key]
-        free_act_ids_dict[key] = [k for k in range(model.nu) if k not in idx]
+        free_act_idx_dict[key] = [k for k in range(model.nu) if k not in idx]
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
     # bodyj_id = joints['body']['body_dofs']
     # body_dof = convert_dofadr(model, None, bodyj_id, concat=True)
     if free_ctrls_dict is None:
-        free_ctrls_dict = {1: np.zeros((Tk, len(free_act_ids)))}
+        free_ctrls_dict = {key: np.zeros((Tk, len(item))) for key, item in free_act_idx_dict}
     if K_update_interv is None:
         K_update_interv = Tk+1
     qpos0n = qpos0.copy()
@@ -393,10 +393,11 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids_dict,
     qvels[0] = data.qvel.copy()
     ctrls = np.zeros((Tk-1, model.nu))
     if mask is None:
-        mask = np.ones(Tk-1)
+        mask = np.ones(Tk-1, dtype=bool)
     k_K_update = 0
+    prev_bit = mask[0].item()
     for k in range(Tk-1):
-        curr_bit = mask[k]
+        curr_bit = mask[k].item()
         idx1 = stable_jnt_dofadrs_dict[curr_bit]
         idx2 = ctrl_act_ids_dict[curr_bit]
         if curr_bit != prev_bit: # If we switch to new type of control
@@ -420,7 +421,7 @@ def get_stabilized_ctrls(model, data, Tk, noisev, qpos0, ctrl_act_ids_dict,
             # ctrls[k][free_act_ids] = free_ctrl_fn(model, data, free_ctrls[k])
         # else:
             # ctrls[k][free_act_ids] = free_ctrls[k]
-        ctrls[k][free_act_ids_dict[curr_bit]] = free_ctrls_dict[curr_bit][k]
+        ctrls[k][free_act_idx_dict[curr_bit]] = free_ctrls_dict[curr_bit][k]
         ctrls[k], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[k])
         mj.mj_step1(model, data)
         data.ctrl[:] = ctrls[k] + noisev[k]
@@ -736,13 +737,15 @@ def reset_with_lqr(env, seed, nsteps1, nsteps2, balance_cost, joint_cost,
     noisev = np.zeros((nsteps2, model.nu))
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
-    body_dof = joints['body']['dofadrs_without_root']
+    # body_dof = joints['body']['dofadrs_without_root']
+    body_dof = joints['body']['dofadrs']
     # breakpoint()
+    mask = np.ones((nsteps2,), dtype=bool)
     ctrls = get_stabilized_ctrls(
-        model, data, nsteps2, noisev, data.qpos.copy(), acts['not_adh'],
-        body_dof, free_ctrls=np.ones((nsteps2, len(acts['adh']))),
+        model, data, nsteps2, noisev, data.qpos.copy(), {1: acts['not_adh']},
+        {1: body_dof}, free_ctrls_dict={1: np.ones((nsteps2, len(acts['adh'])))},
         balance_cost=balance_cost, joint_cost=joint_cost, root_cost=root_cost,
-        foot_cost=foot_cost, ctrl_cost=ctrl_cost
+        foot_cost=foot_cost, ctrl_cost=ctrl_cost, mask=mask
     )[0]
     ctrls = np.vstack((np.zeros((nsteps1, model.nu)), ctrls))
     return ctrls

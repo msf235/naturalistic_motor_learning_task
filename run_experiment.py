@@ -72,8 +72,8 @@ reset = lambda: opt_utils.reset_with_lqr(env, args.seed, burn_step,
                                          )
 ctrls_burn_in = reset()
 # while True:
-# env.reset(seed=args.seed, options={'n_steps': 0, 'render': False})
-# util.forward_sim_render(env, ctrls_burn_in)
+    # env.reset(seed=args.seed, options={'n_steps': 0, 'render': False})
+    # util.forward_sim_render(env, ctrls_burn_in)
 # breakpoint()
 
 Tk = int(Tf / dt)
@@ -101,8 +101,6 @@ targ_trajs = out_traj['targ_trajs']
 # plt.plot(tt, targ_trajs[1][:,1]); plt.show()
 
 noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
-
-# breakpoint()
 
 # ctrls, K = opt_utils.get_stabilized_ctrls(
     # model, data, Tk, noisev, data.qpos.copy(),
@@ -164,6 +162,7 @@ if args.rerun or not out_f.exists():
                         'balance_cost', 'joint_cost',
                         # 'grad_window_t'
                        ]}
+    breakpoint()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env,
         **out_traj,
