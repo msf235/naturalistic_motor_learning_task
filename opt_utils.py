@@ -737,8 +737,8 @@ def reset_with_lqr(env, seed, nsteps1, nsteps2, balance_cost, joint_cost,
     noisev = np.zeros((nsteps2, model.nu))
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
-    # body_dof = joints['body']['dofadrs_without_root']
-    body_dof = joints['body']['dofadrs']
+    body_dof = joints['body']['dofadrs_without_root']
+    # body_dof = joints['body']['dofadrs'] # This is unstable for some reason
     # breakpoint()
     mask = np.ones((nsteps2,), dtype=bool)
     ctrls = get_stabilized_ctrls(

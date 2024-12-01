@@ -452,6 +452,10 @@ def get_idx_sets(env, exp_name):
     contact_check_list = []
     adh_ids = []
     let_go_ids = []
+    joints = opt_utils.get_joint_ids(model)
+    acts = opt_utils.get_act_ids(model)
+    body_dof = joints['body']['dofadrs']
+
     if exp_name == 'basic_movements_right':
         sites = [RHAND_S]
         throw_idxs = one_arm_idxs(model, 'right')
@@ -526,11 +530,14 @@ def get_idx_sets(env, exp_name):
                    'adh_left_hand', 'adh_left_hand']
         let_go_ids = []
         let_go_times = []
+
+    stabilize_jnt_idx_dict = {1: stabilize_jnt_idx, 0: body_dof}
+    stabilize_act_idx_dict = {1: stabilize_act_idx, 0: acts['not_adh']}
         
     out_dict = dict(sites=sites, site_grad_idxs=site_grad_idxs,
-                    stabilize_jnt_idx=stabilize_jnt_idx,
-                    stabilize_act_idx=stabilize_act_idx,
-                    free_act_idx=other_act_idx,
+                    stabilize_jnt_idx_dict=stabilize_jnt_idx_dict,
+                    stabilize_act_idx_dict=stabilize_act_idx_dict,
+                    # free_act_idx=other_act_idx,
                     # free_act_idx=
                     contact_check_list=contact_check_list, adh_ids=adh_ids,
                     let_go_ids=let_go_ids)
@@ -1004,8 +1011,8 @@ def show_plot(axs, hxs, tt, target_trajs, targ_traj_mask, site_names=None,
     if save:
         fig.savefig('fig.pdf')
 
-def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
-                    stabilize_act_idx, targ_trajs, targ_traj_masks,
+def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx_dict,
+                    stabilize_act_idx_dict, targ_trajs, targ_traj_masks,
                     targ_traj_mask_types, q_targs, q_targ_masks,
                     q_targ_mask_types, ctrls, grad_trunc_tk, seed,
                     ctrl_rate, ctrl_std, Tk, max_its=30, lr=10, lr2=10,
@@ -1063,8 +1070,10 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
     data = env.data
     nq = model.nq
 
-    not_stabilize_act_idx = [k for k in range(model.nu) if k not in
-                             stabilize_act_idx]
+    not_stabilize_act_idx_dict = {}
+    for key in stabilize_act_idx_dict:
+        not_stabilize_act_idx_dict[key] = [k for k in range(model.nu) if k not
+                                           in stabilize_act_idx_dict[key]]
 
     n_sites = len(sites)
     assert (n_sites == len(targ_trajs) and n_sites == len(targ_traj_masks)
@@ -1167,7 +1176,7 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             print("k0: ", k0, "check2")
 
             grad_T = .1
-            # grad_Tk = int(grad_T/dt)
+            grad_Tk = int(grad_T/dt)
             # ctrls_trunc = ctrls[:grad_Tk-1]
             # noisev_trunc = noisev[:grad_Tk-1]
 
@@ -1204,8 +1213,8 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     ctrl_reg_weight=ctrl_reg_weights[k]
                 )
                 util.reset_state(model, data, data0)
-            breakpoint()
             for k in range(n_sites):
+                breakpoint()
                 ctrls[:grad_Tk-1, site_grad_idxs[k]] = optms[k].update(
                     ctrls[:grad_Tk-1, site_grad_idxs[k]],
                     # grads[k][:Tk-1],
@@ -1228,11 +1237,14 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     # ctrl_cost=ctrl_cost
                 # )[:2]
                 # ctrls_before = ctrls.copy()
+                free_ctrls_dict = {}
+                for key, val in not_stabilize_act_idx_dict.items():
+                    free_ctrls_dict[key] = ctrls[:, val]
                 ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                     model, data, Tk, noisev, qpos0,
-                    stabilize_act_idx,
-                    stabilize_jnt_idx,
-                    ctrls[:, not_stabilize_act_idx],
+                    stabilize_act_idx_dict,
+                    stabilize_jnt_idx_dict,
+                    free_ctrs_dict,
                     K_update_interv=10000,
                     balance_cost=balance_cost, 
                     joint_cost=joint_cost,

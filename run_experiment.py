@@ -128,23 +128,27 @@ grad_trunc_tk = int(params['grad_window_t']/(grad_update_every*dt))
 Tke = int(params['t_after'] / dt)
 
 # TODO: move this out
+free_ctrls_dict = {1: np.zeros((Tk, len(acts['adh'])))}
+ctrls_act_dict = {1: acts['not_adh']}
+stable_jnt_dofadrs_dict = {1: body_dof}
 
 if args.rerun or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
     # stab_ctrls_idx = {k: out_idx[k] for k in
-                      # ['let_go_ids', 'contact_check_list',
+                      # np.zero# ['let_go_ids', 'contact_check_list',
                        # 'adh_ids']}
     # stab_ctrls_idx.update({'let_go_times': out_time['let_go_times']})
     ctrls, K = opt_utils.get_stabilized_ctrls(
-        model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-        body_dof,
-        free_ctrls=np.zeros((Tk, len(acts['adh']))),
+        model, data, Tk, noisev, data.qpos.copy(), ctrls_act_dict,
+        stable_jnt_dofadrs_dict,
+        free_ctrls_dict,
         balance_cost=params['balance_cost'],
         joint_cost=params['joint_cost'],
         root_cost=params['root_cost'],
         foot_cost=params['foot_cost'],
-        ctrl_cost=params['ctrl_cost']
+        ctrl_cost=params['ctrl_cost'],
+        mask=np.ones((Tk,), dtype=bool),
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     # while True:
@@ -152,7 +156,7 @@ if args.rerun or not out_f.exists():
         # util.forward_sim_render(env, ctrls)
     # arm_t.forward_to_contact(env, ctrls, render=True)
     # reset()
-    del out_idx['free_act_idx']
+    # del out_idx['free_act_idx']
 
     arm_targ_params = {k: params[k] for k in
                        ['max_its', 'optimizer', 'lr', 'lr2', 'it_lr2',
@@ -162,7 +166,7 @@ if args.rerun or not out_f.exists():
                         'balance_cost', 'joint_cost',
                         # 'grad_window_t'
                        ]}
-    breakpoint()
+    # breakpoint()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env,
         **out_traj,
