@@ -1214,17 +1214,15 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx_dict,
                 )
                 util.reset_state(model, data, data0)
             for k in range(n_sites):
-                breakpoint()
-                ctrls[:grad_Tk-1, site_grad_idxs[k]] = optms[k].update(
-                    ctrls[:grad_Tk-1, site_grad_idxs[k]],
-                    # grads[k][:Tk-1],
-                    grads[k],
+                ctrls[:, site_grad_idxs[k]] = optms[k].update(
+                    ctrls[:, site_grad_idxs[k]],
+                    grads[k][:Tk-1],
+                    # grads[k],
                     'ctrls', losses[k])
 
             # ctrls = np.clip(ctrls, -1, 1)
             print("k0: ", k0, "check3")
             print("n_sites: ", n_sites)
-            # breakpoint()
             try:
                 # ctrls, K = opt_utils.get_stabilized_ctrls(
                     # model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
@@ -1240,11 +1238,12 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx_dict,
                 free_ctrls_dict = {}
                 for key, val in not_stabilize_act_idx_dict.items():
                     free_ctrls_dict[key] = ctrls[:, val]
+                # breakpoint()
                 ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                     model, data, Tk, noisev, qpos0,
                     stabilize_act_idx_dict,
                     stabilize_jnt_idx_dict,
-                    free_ctrs_dict,
+                    free_ctrls_dict,
                     K_update_interv=10000,
                     balance_cost=balance_cost, 
                     joint_cost=joint_cost,
@@ -1254,14 +1253,16 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx_dict,
                     let_go_times=let_go_times,
                     let_go_ids = let_go_ids,
                     n_steps_adh=n_steps_adh,
+                    mask=targ_traj_mask_currs[0] #TODO: resolve 0 index
                 )
                 print("Testing...")
-                loop = 'r'
-                while loop == 'r':
-                    util.reset_state(model, data, data0)
-                    env.reset_sim_time_counter()
-                    util.forward_sim_render(env, ctrls)
-                    loop = input("Enter 'r' to rerun simulation: ")
+                # loop = 'r'
+                # while loop == 'r':
+                # while True:
+                    # util.reset_state(model, data, data0)
+                    # env.reset_sim_time_counter()
+                    # util.forward_sim_render(env, ctrls)
+                    # loop = input("Enter 'r' to rerun simulation: ")
             except np.linalg.LinAlgError:
                 print("LinAlgError in get_stabilized_ctrls")
                 ctrls[:, not_stabilize_act_idx] *= .99
