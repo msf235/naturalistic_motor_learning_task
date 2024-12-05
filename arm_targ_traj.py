@@ -406,7 +406,7 @@ def two_arm_idxs(model):
     # raj = opt_utils.convert_dofadr(model, None, joints['right_arm'])
     laj = body_j['left_arm_dofadrs']
     # laj = opt_utils.convert_dofadr(model, None, joints['left_arm'])
-    arm_dofadrs = [k for k in body_j if k in raj or k in body_j['left_arm']]
+    arm_dofadrs = [k for k in body_j if k in raj or k in laj]
     two_arm_idx['not_arm_j'] = [i for i in body_j if i not in arm_dofadrs]
     arm_a = [k for k in acts['all'] if k in acts['right_arm'] or
                            k in acts['left_arm']]

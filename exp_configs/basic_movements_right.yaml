@@ -31,7 +31,8 @@ params:
   balance_cost: 0
   #balance_cost: 1e10
   root_cost: 1e2
-  joint_cost: 5e5
+  #joint_cost: 5e5
+  joint_cost: 1e6
   #joint_cost: 0
   foot_cost: 0
   ctrl_cost: 1
