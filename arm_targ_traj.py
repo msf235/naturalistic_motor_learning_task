@@ -979,7 +979,9 @@ def show_plot(axs, hxs, tt, target_trajs, targ_traj_mask, site_names=None,
         for k in nr:
             ax = axs[ax_cntr,k]
             ax.cla()
-            ax.plot(tt[:-1], grads[k])
+            grad = np.zeros((len(tt)-1, grads[0].shape[1]))
+            grad[:grads[k].shape[0]] = grads[k]
+            ax.plot(tt[:-1], grad)
         ax_cntr += 1
     # if ctrls is not None:
         # axs[1,0].plot(tt[:-1], ctrls[:, -2])
@@ -995,9 +997,15 @@ def show_plot(axs, hxs, tt, target_trajs, targ_traj_mask, site_names=None,
     fig.tight_layout()
     if show:
         plt.show(block=False)
+        # plt.show(block=True)
         plt.pause(.05)
     if save:
         fig.savefig('fig.pdf')
+
+
+def get_last_timepoint(mask):
+    """Get index of last nonzero entry in mask."""
+    return np.where(mask)[0][-1].item()
 
 def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     stabilize_act_idx, targ_trajs, targ_traj_masks,
@@ -1143,12 +1151,14 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                 print("End of grab phase. Selecting best ctrls.")
                 if len(lowest_losses_curr_mask.dict) > 0:
                     ctrls = lowest_losses_curr_mask.dict.peekitem(0)[1][1]
-
-            print("k0: ", k0, "check1")
+            Tk_trunc = max([get_last_timepoint(mask) for mask
+                            in targ_traj_mask_currs])
+            ctrls_trunc = ctrls[:Tk_trunc]
+            noisev_trunc = noisev[:Tk_trunc]
             util.reset_state(model, data, data0)
-            k, ctrls, contacts = forward_to_contact(
-                env, ctrls, noisev, False, let_go_times, let_go_ids,
-                n_steps_adh, contact_check_list, adh_ids)
+            k, ctrls_trunc, contacts = forward_to_contact(
+                env, ctrls_trunc, noisev_trunc, False, let_go_times,
+                let_go_ids, n_steps_adh, contact_check_list, adh_ids)
             contact_bool = np.sum(contacts[:, 0]) * np.sum(contacts[:, 1]) > 0
             # if ball_contact:
             util.reset_state(model, data, data0)
@@ -1159,12 +1169,12 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             losses_curr_mask = [0] * n_sites
             update_phase = k0 % grad_update_every
             tic = time.time()
-            print("k0: ", k0, "check2")
             for k in range(n_sites):
                 grads[k] = opt_utils.traj_deriv_new(
-                    model, data, ctrls + noisev, targ_trajs[k],
-                    targ_traj_mask_currs[k],
-                    q_targs[k], q_targ_masks[k],
+                    model, data, ctrls_trunc + noisev_trunc,
+                    targ_trajs[k][:Tk_trunc+1],
+                    targ_traj_mask_currs[k][:Tk_trunc+1],
+                    q_targs[k][:Tk_trunc+1], q_targ_masks[k][:Tk_trunc+1],
                     grad_trunc_tk,
                     deriv_ids=site_grad_idxs[k], deriv_site=sites[k],
                     update_every=grad_update_every, update_phase=update_phase,
@@ -1177,13 +1187,12 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                 )
                 util.reset_state(model, data, data0)
             for k in range(n_sites):
-                ctrls[:, site_grad_idxs[k]] = optms[k].update(
-                    ctrls[:, site_grad_idxs[k]], grads[k][:Tk-1], 'ctrls',
+                ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
+                    ctrls_trunc[:, site_grad_idxs[k]], grads[k], 'ctrls',
                         losses[k])
 
             # ctrls = np.clip(ctrls, -1, 1)
-            print("k0: ", k0, "check3")
-            print("n_sites: ", n_sites)
+            # print("n_sites: ", n_sites)
             # breakpoint()
             try:
                 # ctrls, K = opt_utils.get_stabilized_ctrls(
@@ -1197,11 +1206,11 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     # ctrl_cost=ctrl_cost
                 # )[:2]
                 # ctrls_before = ctrls.copy()
-                ctrls, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-                    model, data, Tk, noisev, qpos0,
+                ctrls_trunc, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+                    model, data, Tk_trunc+1, noisev_trunc, qpos0,
                     stabilize_act_idx,
                     stabilize_jnt_idx,
-                    ctrls[:, not_stabilize_act_idx],
+                    ctrls_trunc[:, not_stabilize_act_idx],
                     K_update_interv=10000,
                     balance_cost=balance_cost, 
                     joint_cost=joint_cost,
@@ -1212,20 +1221,25 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                     let_go_ids = let_go_ids,
                     n_steps_adh=n_steps_adh,
                 )
-                print("Testing...")
-                loop = 'r'
-                while loop == 'r':
-                    util.reset_state(model, data, data0)
-                    env.reset_sim_time_counter()
-                    util.forward_sim_render(env, ctrls)
-                    loop = input("Enter 'r' to rerun simulation: ")
+                # print("Testing...")
+                # loop = 'r'
+                # while loop == 'r':
+                    # util.reset_state(model, data, data0)
+                    # env.reset_sim_time_counter()
+                    # util.forward_sim_render(env, ctrls)
+                    # loop = input("Enter 'r' to rerun simulation: ")
             except np.linalg.LinAlgError:
                 print("LinAlgError in get_stabilized_ctrls")
-                ctrls[:, not_stabilize_act_idx] *= .99
+                ctrls_trunc[:, not_stabilize_act_idx] *= .99
+            ctrls[:Tk_trunc] = ctrls_trunc.copy()
             # ctrls = np.clip(ctrls, -1, 1)
+            if True:
+                tk = Tk_trunc
+            else:
+                tk = Tk
             util.reset_state(model, data, data0)
             render = k0 % render_every == 0
-            hxs, qs = forward_with_sites(env, ctrls, sites, render)
+            hxs, qs = forward_with_sites(env, ctrls[:tk], sites, render)
             q_targs_masked = []
             qs_list = []
             for k in range(n_sites):
@@ -1233,32 +1247,32 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
                 # qs_k = qs * q_targ_masks[k]
                 # q_targ = q_targs[k] * q_targ_masks[k]
                 # diffsq2 =  (qs_k - q_targ)**2
-                diffsq1 = (hx - targ_trajs[k])**2
-                mask = q_targ_masks[k]
+                diffsq1 = (hx - targ_trajs[k][:tk+1])**2
+                mask = q_targ_masks[k][:tk+1]
                 nonzero = np.sum(mask>0)
                 if nonzero > 0:
                     qs_k = qs.copy()
-                    q_targ = q_targs[k]
+                    q_targ = q_targs[k][:tk+1]
                     dq = opt_utils.batch_differentiatePos(model, 1, 
                                            qs_k[:, :nq]*mask[:, :nq],
                                            q_targ[:, :nq]*mask[:, :nq])
                     dvel = (qs_k[:, nq:]-q_targ[:, nq:])*mask[:, nq:]
                     dqfull = np.concatenate((dq, dvel))
                     diffsq2 = dqfull**2
-                    sum2 = np.sum(diffsq2) / np.sum(q_targ_masks[k]>0)
+                    sum2 = np.sum(diffsq2) / np.sum(mask>0)
                 else:
                     sum2 = 0
                 # losses[k] = np.mean(diffsq1) + sum2 
                 losses[k] = np.mean(diffsq1)
-                mask = np.tile((targ_traj_mask_currs[k]>0), (3, 1)).T
+                mask = np.tile((targ_traj_mask_currs[k][:tk+1]>0), (3, 1)).T
                 temp = np.sum(diffsq1*mask) / (np.sum(mask[:,0]))
                 losses_curr_mask[k] = temp
 
-                q_targs_masked_tmp = q_targs[k].copy()
-                q_targs_masked_tmp[q_targ_masks[k] == 0] = np.nan
+                q_targs_masked_tmp = q_targs[k][:tk+1].copy()
+                q_targs_masked_tmp[q_targ_masks[k][:tk+1] == 0] = np.nan
                 q_targs_masked.append(q_targs_masked_tmp)
                 qs_tmp = qs.copy()
-                qs_tmp[q_targ_masks[k] == 0] = np.nan
+                qs_tmp[q_targ_masks[k][:tk+1] == 0] = np.nan
                 qs_list.append(qs_tmp)
             loss = sum([loss.item() for loss in losses]) / n_sites
             lowest_losses.append(loss, (k0, ctrls.copy()))
@@ -1270,19 +1284,29 @@ def arm_target_traj(env, sites, site_grad_idxs, stabilize_jnt_idx,
             nr = range(n_sites)
             if k0 % plot_every == 0:
                 # qs_wr = qs[:, joints['all']['wrist_left']]
-                show_plot(axs, hxs, tt, targ_trajs, targ_traj_mask_currs,
+                # print()
+                # print(ctrls[:10, :5])
+                # print()
+                # print(ctrls_trunc[:10, :5])
+                # print()
+                # print(grads[0][:10, :5])
+                # print()
+                # breakpoint()
+                show_plot(axs, hxs, tt[:tk+1], [x[:tk+1] for x in targ_trajs],
+                          [x[:tk+1] for x in targ_traj_mask_currs],
                           # qs_wr,
                           # q_targs_wr,
-                          sites, site_grad_idxs, ctrls,
-                          grads, qs_list, q_targs_masked, show=False, save=True)
+                          sites, site_grad_idxs, ctrls[:tk],
+                          grads, qs_list, q_targs_masked, show=True, save=False)
                 plt.pause(.1)
                 if k0 == 0: 
 # Plot again to refresh the window so it resizes to a proper size
-                    show_plot(axs, hxs, tt, targ_trajs, targ_traj_mask_currs,
+                    show_plot(axs, hxs, tt[:tk+1], [x[:tk+1] for x in targ_trajs],
+                              [x[:tk+1] for x in targ_traj_mask_currs],
                               # qs_wr,
                               # q_targs_wr,
-                              sites, site_grad_idxs, ctrls,
-                              grads, show=False, save=True)
+                              sites, site_grad_idxs, ctrls[:tk],
+                              grads, qs_list, q_targs_masked, show=False, save=True)
                     plt.pause(.1)
             # util.reset_state(model, data, data0)
             # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
