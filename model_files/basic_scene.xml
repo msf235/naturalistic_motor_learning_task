@@ -58,7 +58,6 @@
         material="grid" condim="3"/>
     </body>
     <camera name="forward" pos="9 0 0" xyaxes="0 1 0 0 0 1"/>
-    <site name="target" pos="0 0 0" size=".1" rgba="1 1 0 .6"/>
 
     <!--<geom name="ballstand" size=".1 .1 .5" pos="0 .2 .5" type="box"-->
       <!--material="obj" condim="3"/>-->
