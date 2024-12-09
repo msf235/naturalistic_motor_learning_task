@@ -1,4 +1,5 @@
-import humanoid2d
+# import humanoid2d
+import basic_env
 import opt_utils
 import numpy as np
 import sim_util as util
@@ -47,7 +48,8 @@ else:
 
 keyframe = "tpose1"
 
-env = humanoid2d.Humanoid2dEnv(
+# env = humanoid2d.Humanoid2dEnv(
+env = basic_env.BasicEnv(
     render_mode=render_mode,
     frame_skip=1,
     default_camera_config=DEFAULT_CAMERA_CONFIG,
@@ -64,7 +66,9 @@ dt = model.opt.timestep
 burn_step = int(0.01 / dt)
 print(burn_step)
 
-breakpoint()
+env.render()
+env.mujoco_renderer.viewer.add_marker()
+env.render()
 
 
 def reset():

@@ -94,7 +94,8 @@ class BaseRender:
         g.objtype = mujoco.mjtObj.mjOBJ_UNKNOWN
         g.objid = -1
         g.category = mujoco.mjtCatBit.mjCAT_DECOR
-        g.texid = -1
+        breakpoint()
+        # g.texid = -1
         g.texuniform = 0
         g.texrepeat[0] = 1
         g.texrepeat[1] = 1
@@ -135,6 +136,50 @@ class BaseRender:
         after env.close() is called.
         """
         raise NotImplementedError
+
+
+class NullViewer(BaseRender):
+    """Null rendering class that does nothing."""
+
+    def __init__(
+        self,
+        model: "mujoco.MjMujoco" = None,
+        data: "mujoco.MjData" = None,
+        width: int = 0,
+        height: int = 0,
+        max_geom: int = 0,
+    ):
+        pass
+        # self.cam = mujoco.MjvCamera()
+
+    def _init_camera(self):
+        pass
+
+    def _get_opengl_backend(self, width: int, height: int):
+        pass
+
+    def _set_mujoco_buffer(self):
+        pass
+
+    def make_context_current(self):
+        pass
+
+    def free(self):
+        pass
+
+    def __del__(self):
+        pass
+
+    def render(
+        self,
+        render_mode: Optional[str] = None,
+        camera_id: Optional[int] = None,
+        segmentation: bool = False,
+    ):
+        pass
+
+    def close(self):
+        pass
 
 
 class OffScreenViewer(BaseRender):
@@ -471,6 +516,9 @@ class WindowViewer(BaseRender):
         elif key == glfw.KEY_RIGHT and self._paused is not None:
             self._advance_by_one_step = True
             self._paused = True
+        elif key == glfw.KEY_P:
+            self._no_render = not self._no_render
+            print("_no_render: ", self._no_render)
         # Slows down simulation
         elif key == glfw.KEY_S:
             self._run_speed /= 2.0
@@ -609,6 +657,7 @@ class WindowViewer(BaseRender):
                 self.add_overlay(
                     topleft, "Advance simulation by one step", "[right arrow]"
                 )
+        self.add_overlay(topleft, "[P]ause/un[p]ause rendering", "")
         self.add_overlay(
             topleft, "Referenc[e] frames", "On" if self.vopt.frame == 1 else "Off"
         )
@@ -747,6 +796,8 @@ class MujocoRenderer:
                     self.max_geom,
                     self._vopt,
                 )
+            elif render_mode == "None":
+                self.viewer = NullViewer()
             else:
                 raise AttributeError(
                     f"Unexpected mode: {render_mode}, expected modes: human, rgb_array, depth_array, or rgbd_tuple"

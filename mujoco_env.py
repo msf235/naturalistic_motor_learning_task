@@ -87,6 +87,7 @@ class MujocoEnv(gym.Env):
             "rgb_array",
             "depth_array",
             "rgbd_tuple",
+            "None",
         ], self.metadata["render_modes"]
         if "render_fps" in self.metadata:
             assert (
@@ -100,7 +101,8 @@ class MujocoEnv(gym.Env):
         self.camera_name = camera_name
         self.camera_id = camera_id
 
-        from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer
+        # from gymnasium.envs.mujoco.mujoco_rendering import MujocoRenderer
+        from mujoco_rendering import MujocoRenderer
 
         self.mujoco_renderer = MujocoRenderer(
             self.model,
