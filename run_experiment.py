@@ -9,6 +9,7 @@ import pickle as pkl
 import arm_targ_traj as arm_t
 from matplotlib import pyplot as plt
 import mujoco as mj
+from mujoco import viewer as mj_viewer
 import time
 import config
 
@@ -63,7 +64,6 @@ dt = model.opt.timestep
 burn_step = int(0.01 / dt)
 print(burn_step)
 
-
 def reset():
     return opt_utils.reset_with_lqr(
         env,
@@ -81,9 +81,22 @@ def reset():
 
 ctrls_burn_in = reset()
 # while True:
-# env.reset(seed=args.seed, options={'n_steps': 0, 'render': False})
-# util.forward_sim_render(env, ctrls_burn_in)
-# breakpoint()
+env.reset(seed=args.seed, options={"n_steps": 0, "render": False})
+with mj_viewer.launch_passive(env.model, env.data) as viewer:
+    while viewer.is_running():
+        with viewer.lock():
+            viewer.scn.ngeom += 1
+            mj.mjv_initGeom(
+                viewer.scn.geoms[viewer.scn.ngeom - 1],
+                mj.mjtGeom.mjGEOM_SPHERE,
+                np.array([0.38, 0.42, 1.0]),
+                np.array([1, 1, 1.0]),
+                np.zeros(9),
+                # rgba.astype(np.float32),
+            )
+        viewer.sync()
+util.forward_sim_render(env, ctrls_burn_in)
+breakpoint()
 
 Tk = int(Tf / dt)
 tt = np.arange(0, Tf, dt)
