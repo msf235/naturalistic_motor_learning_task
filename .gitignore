@@ -1,0 +1,7 @@
+data/*
+data2/*
+data*/*
+.venv/*
+__pycache__/*
+output/*
+screenshots/*
