@@ -1264,6 +1264,18 @@ def arm_target_traj(
     # qs, qvels, ss = util.forward_sim(model, data, ctrls + noisev)
     util.reset_state(model, data, data0)
 
+    def ret_fn(data):
+        site_dict = {}
+        for site in sites:
+            site_dict[site] = data.site(site).xpos.copy()
+        site_dict.update(
+            {
+                "qpos": data.qpos.copy(),
+                "qvel": data.qvel.copy(),
+            }
+        )
+        return site_dict
+
     # def ret_fn(data):
     #     return {
     #         "qpos": data.qpos.copy(),
@@ -1329,7 +1341,6 @@ def arm_target_traj(
     lowest_losses = LimLowestDict(keep_top)
     lowest_losses_curr_mask = LimLowestDict(keep_top)
 
-    contact_bool = False
     grab_phase_switch = True
     dq = np.zeros(model.nv)
     fig, axs = plt.subplots(4, n_sites, figsize=(4 * n_sites, 4 * 3.5))
@@ -1453,13 +1464,18 @@ def arm_target_traj(
                 tk = Tk
             util.reset_state(model, data, data0)
             render = k0 % render_every == 0
-            hxs, qs = forward_with_sites(env, ctrls[:tk], sites, render=False)
-            if render:
-                forward_with_target(env, ctrls[:tk], targ_trajs[0][: tk + 1])
+            # hxs, qs = forward_with_sites(env, ctrls[:tk], sites, render=False)
+            ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, render)
+            qs = ret_dict["qpos"]
+            qvs = ret_dict["qvels"]
+            # if render:
+            #     forward_with_target(env, ctrls[:tk], targ_trajs[0][: tk + 1])
             q_targs_masked = []
             qs_list = []
             for k in range(n_sites):
-                hx = hxs[k]
+                hx = ret_dict[sites[k]]
+                breakpoint()
+                # hx = hxs[k]
                 # qs_k = qs * q_targ_masks[k]
                 # q_targ = q_targs[k] * q_targ_masks[k]
                 # diffsq2 =  (qs_k - q_targ)**2
@@ -1468,14 +1484,15 @@ def arm_target_traj(
                 nonzero = np.sum(mask > 0)
                 if nonzero > 0:
                     qs_k = qs.copy()
+                    qvs_k = qvs.copy()
                     q_targ = q_targs[k][: tk + 1]
                     dq = opt_utils.batch_differentiatePos(
                         model,
                         1,
-                        qs_k[:, :nq] * mask[:, :nq],
+                        qs_k * mask[:, :nq],
                         q_targ[:, :nq] * mask[:, :nq],
                     )
-                    dvel = (qs_k[:, nq:] - q_targ[:, nq:]) * mask[:, nq:]
+                    dvel = (qvs_k - q_targ[:, nq:]) * mask[:, nq:]
                     dqfull = np.concatenate((dq, dvel))
                     diffsq2 = dqfull**2
                     sum2 = np.sum(diffsq2) / np.sum(mask > 0)
