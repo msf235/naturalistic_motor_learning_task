@@ -891,15 +891,39 @@ def forward_with_sites(env, ctrls, site_names, render=False):
     return site_xvs, state_vals
 
 
-def forward_with_target(env, ctrls, target_traj):
-    """Forward simulation, showing also the target trajectory."""
-    for k in range(ctrls.shape[0]):
-        # env.data.site_xpos[env.model.site_nam2id("target")] = target_traj[k]
-        env.data.site_xpos[0] = [1, 1, 1]
-        # env.data.site("target").xpos = target_traj[k]
-        util.step(env.model, env.data, ctrls[k])
-        # print(env.data.site_xpos[0])
-        env.render()
+def forward_and_collect_data(env, ctrls, ret_fn=None, render=False):
+    """Simulate and collect data with ret_fn. ret_fn will take
+    data as an input argument and output a dictionary, and it is called
+    at every timestep."""
+    model = env.model
+    data = env.data
+    if callable(render):
+        render_fn = render
+        render = True
+    elif render:
+        render_fn = env.render
+    else:
+        render_fn = lambda: None
+
+    ret_vals = []
+    Tk = ctrls.shape[0]
+    if ret_fn is not None:
+        ret_vals.append(ret_fn(data))
+    render_fn()
+    for tk in range(Tk):
+        util.step(model, data, ctrls[tk])
+        if ret_fn is not None:
+            ret_vals.append(ret_fn(data))
+        render_fn()
+    if ret_fn is not None:  # Now switch the key and time axes of ret_vals
+        dict_keys = ret_vals[0].keys()
+        ret_dict = {
+            key: np.zeros((Tk + 1, len(val))) for key, val in ret_vals[0].items()
+        }
+        for tk in range(Tk + 1):
+            for key in dict_keys:
+                ret_dict[key][tk] = ret_vals[tk][key]
+        return ret_dict
 
 
 def forward_to_contact(
@@ -913,6 +937,7 @@ def forward_to_contact(
     contact_check_list=[],
     adh_ids=[],
 ):
+    # TODO: possibly remove
     model = env.model
     act = opt_utils.get_act_ids(model)
     data = env.data
@@ -940,6 +965,40 @@ def forward_to_contact(
         # ctrls[k:, act['adh_right_hand']] = .05 * contact_cnt
         # contact_cnt += 1
     return k, ctrls, contacts
+
+
+def forward_with_dynamic_adhesion(
+    env,
+    ctrls,
+    noisev=None,
+    render=True,  # Can also be a callable (function) which will be called to render
+    let_go_times=[],
+    let_go_ids=[],
+    n_steps_adh=10,
+    contact_check_list=[],
+    adh_ids=[],
+):
+    """Simulate dynamics according to ctrls, while performing dynamic adhesion. This adhesion will automatically ramp up adhesion actuators when
+    contacts as defined by contact_check_list are detected."""
+    model = env.model
+    data = env.data
+    if callable(render):
+        render_fn = render
+        render = True
+    else:
+        render_fn = env.render
+    Tk = ctrls.shape[0]
+    adh_ctrl = opt_utils.AdhCtrl(
+        let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids
+    )
+    if noisev is None:
+        noisev = np.zeros((Tk, model.nu))
+    for k in range(Tk):
+        ctrls[k], _, _ = adh_ctrl.get_ctrl(model, data, ctrls[k])
+        util.step(model, data, ctrls[k] + noisev[k])
+        if render:
+            render_fn()
+    return ctrls
 
 
 class LimLowestDict:
@@ -1202,8 +1261,17 @@ def arm_target_traj(
 
     noisev = make_noisev(model, seed, Tk, ctrl_std, ctrl_rate)
 
-    qs, qvels, ss = util.forward_sim(model, data, ctrls + noisev)
+    # qs, qvels, ss = util.forward_sim(model, data, ctrls + noisev)
     util.reset_state(model, data, data0)
+
+    # def ret_fn(data):
+    #     return {
+    #         "qpos": data.qpos.copy(),
+    #         "qvel": data.qvel.copy(),
+    #         "sensordata": data.sensordata.copy(),
+    #     }
+
+    # ret_dict = forward_and_collect_data(env, ctrls + noisev, ret_fn, False)
     # while True:
     # util.reset_state(model, data, data0)
     # env.reset_sim_time_counter()
@@ -1288,7 +1356,7 @@ def arm_target_traj(
             ctrls_trunc = ctrls[:Tk_trunc]
             noisev_trunc = noisev[:Tk_trunc]
             util.reset_state(model, data, data0)
-            k, ctrls_trunc, contacts = forward_to_contact(
+            ctrls_trunc = forward_with_dynamic_adhesion(
                 env,
                 ctrls_trunc,
                 noisev_trunc,
@@ -1299,8 +1367,6 @@ def arm_target_traj(
                 contact_check_list,
                 adh_ids,
             )
-            contact_bool = np.sum(contacts[:, 0]) * np.sum(contacts[:, 1]) > 0
-            # if ball_contact:
             util.reset_state(model, data, data0)
             grads = [0] * n_sites
             hxs = [0] * n_sites
@@ -1389,7 +1455,6 @@ def arm_target_traj(
             render = k0 % render_every == 0
             hxs, qs = forward_with_sites(env, ctrls[:tk], sites, render=False)
             if render:
-                breakpoint()
                 forward_with_target(env, ctrls[:tk], targ_trajs[0][: tk + 1])
             q_targs_masked = []
             qs_list = []
@@ -1487,7 +1552,7 @@ def arm_target_traj(
                     )
                     plt.pause(0.1)
             # util.reset_state(model, data, data0)
-            # k, ctrls = forward_to_contact(env, ctrls, noisev, True)
+            # ctrls = forward_with_dynamic_adhesion(env, ctrls, noisev, True)
             # plt.show()
             # if k0 > phase_2_it:
 

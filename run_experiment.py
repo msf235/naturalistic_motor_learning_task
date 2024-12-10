@@ -67,7 +67,7 @@ burn_step = int(0.01 / dt)
 print(burn_step)
 
 env.render()
-env.mujoco_renderer.viewer.add_marker()
+env.mujoco_renderer.viewer.add_marker(size=np.array([2, 2, 2]))
 env.render()
 
 
@@ -86,26 +86,20 @@ def reset():
     )
 
 
-breakpoint()
-
 ctrls_burn_in = reset()
-# while True:
-env.reset(seed=args.seed, options={"n_steps": 0, "render": False})
-with mj_viewer.launch_passive(env.model, env.data) as viewer:
-    while viewer.is_running():
-        with viewer.lock():
-            viewer.user_scn.ngeom = 0
-            mj.mjv_initGeom(
-                viewer.user_scn.geoms[0],
-                type=mj.mjtGeom.mjGEOM_SPHERE,
-                size=[0.2, 0, 0],
-                pos=[0, 0, 0],
-                mat=np.eye(3).flatten(),
-                rgba=[1, 1, 0, 1],
-            )
-        viewer.sync()
-util.forward_sim_render(env, ctrls_burn_in)
-breakpoint()
+# env.reset(seed=args.seed, options={"n_steps": 0, "render": False})
+#
+#
+# def marker_fn(env, k):
+#     env.mujoco_renderer.viewer.add_marker(
+#         size=np.array([2, 2, 2]) / (k + 100) ** 0.5,
+#         pos=np.array([-1, 0, 0]),
+#         rgba=(1, 1, 0, 1),
+#         type=mj.mjtGeom.mjGEOM_SPHERE,
+#     )
+
+# env.render()
+# util.forward_sim_render(env, ctrls_burn_in, marker_fn)
 
 Tk = int(Tf / dt)
 tt = np.arange(0, Tf, dt)

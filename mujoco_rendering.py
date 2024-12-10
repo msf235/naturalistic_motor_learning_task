@@ -89,16 +89,16 @@ class BaseRender:
             raise RuntimeError("Ran out of geoms. maxgeom: %d" % self.scn.maxgeom)
 
         g = self.scn.geoms[self.scn.ngeom]
+        g = self.scn.geoms[self.scn.ngeom]
         # default values.
         g.dataid = -1
         g.objtype = mujoco.mjtObj.mjOBJ_UNKNOWN
         g.objid = -1
         g.category = mujoco.mjtCatBit.mjCAT_DECOR
-        breakpoint()
         # g.texid = -1
-        g.texuniform = 0
-        g.texrepeat[0] = 1
-        g.texrepeat[1] = 1
+        # g.texuniform = 0
+        # g.texrepeat[0] = 1
+        # g.texrepeat[1] = 1
         g.emission = 0
         g.specular = 0.5
         g.shininess = 0.5
@@ -272,7 +272,7 @@ class OffScreenViewer(BaseRender):
         if segmentation:
             self.scn.flags[mujoco.mjtRndFlag.mjRND_SEGMENT] = 1
             self.scn.flags[mujoco.mjtRndFlag.mjRND_IDCOLOR] = 1
-
+        breakpoint()
         for marker_params in self._markers:
             self._add_marker_to_scene(marker_params)
 

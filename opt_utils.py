@@ -50,7 +50,15 @@ def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
     # breakpoint()
     qfrc0 = qfrc0[stable_jnt_ids]
     # M = data.actuator_moment[:, stable_jnt_ids]
-    M = data.actuator_moment[ctrl_act_ids][:, stable_jnt_ids]
+    M = np.zeros((model.nu, model.nv))
+    mj.mju_sparse2dense(
+        M,
+        data.actuator_moment.reshape(-1),
+        data.moment_rownnz,
+        data.moment_rowadr,
+        data.moment_colind.reshape(-1),
+    )
+    M = M[ctrl_act_ids][:, stable_jnt_ids]
     # Probably much better way to do this
     # ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(M)
     ctrl0 = np.linalg.lstsq(M.T, qfrc0, rcond=None)[0]
@@ -232,6 +240,7 @@ class AdhCtrl:
         self.ks = {k: 1 for k in adh_ids}
 
     def get_ctrl(self, model, data, ctrl):
+        # TODO: resolve contact returns
         if len(self.adh_ids) == 0 or len(self.contact_check_list) == 0:
             return ctrl, None, None
         ctrl = ctrl.copy()

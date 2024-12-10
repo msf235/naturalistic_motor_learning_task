@@ -159,14 +159,15 @@ class BasicEnv(MujocoEnv, utils.EzPickle):
     ):
         if options is not None:
             n_steps = options["n_steps"] if "n_steps" in options else 0
-            render = options["render"] if "render" in options else True
+            # render = options["render"] if "render" in options else True
         else:
             n_steps = 0
-            render = True
+            # render = True
         if seed is not None:
             self._np_random, self._np_random_seed = seeding.np_random(seed)
 
-        ob = self.reset_model(n_steps=n_steps, render=render)
+        # ob = self.reset_model(n_steps=n_steps, render=render)
+        ob = self.reset_model(n_steps=n_steps)
 
         info = self._get_reset_info()
 
