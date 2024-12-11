@@ -1,3 +1,4 @@
+from typing import Dict, List
 import opt_utils as opt_utils
 import optimizers as opts
 import numpy as np
@@ -1143,6 +1144,18 @@ class targetRender:
         self.counter = 0
 
 
+def get_from_interv_dict(
+    interv_dict: Dict[int | float, List | np.ndarray], lookup_idx: int | float
+):
+    dkeys = list(interv_dict.keys())
+    dkeys = sorted(dkeys)
+    key = -1
+    for key in dkeys:
+        if lookup_idx < key:
+            break
+    return interv_dict[key]
+
+
 def arm_target_traj(
     env,
     sites,
@@ -1150,7 +1163,7 @@ def arm_target_traj(
     stabilize_jnt_idx,
     stabilize_act_idx,
     targ_trajs,
-    targ_traj_masks,
+    targ_traj_masks: Dict,
     targ_traj_mask_types,
     q_targs,
     q_targ_masks,
@@ -1198,7 +1211,7 @@ def arm_target_traj(
         stabilize_jnt_idx: list of joint indices
         stabilize_act_idx: list of actuator indices
         target_trajs: list of target trajectories
-        targ_traj_masks: list of target trajectory masks
+        targ_traj_masks: dict of target trajectory masks
         targ_traj_mask_types: list of target trajectory mask types
         ctrls: initial arm controls
         grad_trunc_tk: gradient truncation time
@@ -1220,9 +1233,12 @@ def arm_target_traj(
         render_every = max_its
     if ctrl_reg_weights is None:
         ctrl_reg_weights = [None] * len(site_names)
+
     model = env.model
     data = env.data
     nq = model.nq
+
+    incr_its = sorted(list(targ_traj_masks.keys()))
 
     render_class = targetRender(env, targ_trajs, sites)
     render_fn = render_class.render
@@ -1240,7 +1256,6 @@ def arm_target_traj(
 
     noisev = make_noisev(model, seed, Tk, ctrl_std, ctrl_rate)
 
-    # qs, qvels, ss = util.forward_sim(model, data, ctrls + noisev)
     util.reset_state(model, data, data0)
 
     def ret_fn(data):
@@ -1261,12 +1276,6 @@ def arm_target_traj(
     #         "qvel": data.qvel.copy(),
     #         "sensordata": data.sensordata.copy(),
     #     }
-
-    # ret_dict = forward_and_collect_data(env, ctrls + noisev, ret_fn, False)
-    # while True:
-    # util.reset_state(model, data, data0)
-    # env.reset_sim_time_counter()
-    # util.forward_sim_render(env, ctrls)
 
     ### Gradient descent
     qpos0 = data.qpos.copy()
@@ -1290,227 +1299,207 @@ def arm_target_traj(
             return opts.SGD(lr=lr, momentum=0.2)
 
     optms = []
-    targ_traj_progs = []
-    targ_traj_mask_currs = []
-    incr_cnts = []
-    incr_everys = []
-    amnt_to_incrs = []
-    idxs = [0] * n_sites
-    targ_traj_masks_grab = [0] * n_sites
     for k in range(n_sites):
         optms.append(get_opt(lr))
-        if targ_traj_mask_types[k] == "double_sided_progressive":
-            idxs[k] = DoubleSidedProgressive(
-                incr_every,
-                amnt_to_incr,
-                grab_phase_it,
-                grab_phase_tk,
-                phase_2_it=phase_2_it,
-            )
-        targ_traj_progs.append(
-            (
-                isinstance(targ_traj_mask_types[k], str)
-                and targ_traj_mask_types[k] == "progressive"
-            )
-        )
-        targ_traj_mask_currs.append(targ_traj_masks[k])
-        if targ_traj_progs[k]:
-            targ_traj_mask_currs[k] = np.zeros((Tk,))
-            incr_cnts.append(0)
     lowest_losses = LimLowestDict(keep_top)
     lowest_losses_curr_mask = LimLowestDict(keep_top)
 
-    grab_phase_switch = True
     dq = np.zeros(model.nv)
-    fig, axs = plt.subplots(4, n_sites, figsize=(4 * n_sites, 4 * 3.5))
-    if n_sites == 1:
-        axs = axs.reshape((4, 1))
-    try:
-        for k0 in range(max_its):
-            if k0 >= it_lr2:
-                lr = lr2
-            if k0 % incr_every == 0:
-                for k in range(n_sites):
-                    optms[k] = get_opt(lr)
-            progbar.update(" it: " + str(k0))
+    for k0 in range(max_its):
+        if k0 >= it_lr2:
+            lr = lr2
+        if k0 in incr_its:
             for k in range(n_sites):
-                targ_traj_mask_currs[k] = np.zeros((Tk,))
-                idx = idxs[k].update()
-                targ_traj_mask_currs[k][idx] = targ_traj_masks[k][idx]
-            if idxs[0].phase != "grab" and grab_phase_switch:
-                grab_phase_switch = False
-                print("End of grab phase. Selecting best ctrls.")
-                if len(lowest_losses_curr_mask.dict) > 0:
-                    ctrls = lowest_losses_curr_mask.dict.peekitem(0)[1][1]
-            Tk_trunc = max([get_last_timepoint(mask) for mask in targ_traj_mask_currs])
-            ctrls_trunc = ctrls[:Tk_trunc]
-            noisev_trunc = noisev[:Tk_trunc]
+                optms[k] = get_opt(lr)
+        progbar.update(" it: " + str(k0))
+        targ_traj_mask_curr = get_from_interv_dict(targ_traj_masks, k0)
+        Tk_trunc = get_last_timepoint(targ_traj_mask_curr)
+        ctrls_trunc = ctrls[:Tk_trunc]
+        noisev_trunc = noisev[:Tk_trunc]
+        util.reset_state(model, data, data0)
+        ctrls_trunc = forward_with_dynamic_adhesion(
+            env,
+            ctrls_trunc,
+            noisev_trunc,
+            False,
+            let_go_times,
+            let_go_ids,
+            n_steps_adh,
+            contact_check_list,
+            adh_ids,
+        )
+        util.reset_state(model, data, data0)
+        grads = [0] * n_sites
+        update_phase = k0 % grad_update_every
+        for k in range(n_sites):
+            grads[k] = opt_utils.traj_deriv_new(
+                model,
+                data,
+                ctrls_trunc + noisev_trunc,
+                targ_trajs[k][: Tk_trunc + 1],
+                targ_traj_mask_curr[: Tk_trunc + 1],
+                q_targs[k][: Tk_trunc + 1],
+                q_targ_masks[k][: Tk_trunc + 1],
+                grad_trunc_tk,
+                deriv_ids=site_grad_idxs[k],
+                deriv_site=sites[k],
+                update_every=grad_update_every,
+                update_phase=update_phase,
+                let_go_times=let_go_times,
+                let_go_ids=let_go_ids,
+                n_steps_adh=n_steps_adh,
+                contact_check_list=contact_check_list,
+                adh_ids=adh_ids,
+                ctrl_reg_weight=ctrl_reg_weights[k],
+            )
             util.reset_state(model, data, data0)
-            ctrls_trunc = forward_with_dynamic_adhesion(
-                env,
-                ctrls_trunc,
+        losses = [0] * n_sites
+        for k in range(n_sites):
+            ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
+                ctrls_trunc[:, site_grad_idxs[k]], grads[k], "ctrls", losses[k]
+            )
+
+        # ctrls = np.clip(ctrls, -1, 1)
+        # print("n_sites: ", n_sites)
+        # breakpoint()
+        try:
+            # ctrls, K = opt_utils.get_stabilized_ctrls(
+            # model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
+            # body_dof,
+            # free_ctrls=np.zeros((Tk, len(acts['adh']))),
+            # balance_cost=balance_cost,
+            # joint_cost=joint_cost,
+            # root_cost=root_cost,
+            # foot_cost=foot_cost,
+            # ctrl_cost=ctrl_cost
+            # )[:2]
+            # ctrls_before = ctrls.copy()
+            ctrls_trunc, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+                model,
+                data,
+                Tk_trunc + 1,
                 noisev_trunc,
-                False,
-                let_go_times,
-                let_go_ids,
-                n_steps_adh,
-                contact_check_list,
-                adh_ids,
+                qpos0,
+                stabilize_act_idx,
+                stabilize_jnt_idx,
+                ctrls_trunc[:, not_stabilize_act_idx],
+                K_update_interv=10000,
+                balance_cost=balance_cost,
+                joint_cost=joint_cost,
+                root_cost=root_cost,
+                foot_cost=foot_cost,
+                ctrl_cost=ctrl_cost,
+                let_go_times=let_go_times,
+                let_go_ids=let_go_ids,
+                n_steps_adh=n_steps_adh,
             )
-            util.reset_state(model, data, data0)
-            grads = [0] * n_sites
-            hxs = [0] * n_sites
-            dldss = [0] * n_sites
-            losses = [0] * n_sites
-            losses_curr_mask = [0] * n_sites
-            update_phase = k0 % grad_update_every
-            for k in range(n_sites):
-                grads[k] = opt_utils.traj_deriv_new(
+            # print("Testing...")
+            # loop = 'r'
+            # while loop == 'r':
+            # util.reset_state(model, data, data0)
+            # env.reset_sim_time_counter()
+            # util.forward_sim_render(env, ctrls)
+            # loop = input("Enter 'r' to rerun simulation: ")
+        except np.linalg.LinAlgError:
+            print("LinAlgError in get_stabilized_ctrls")
+            ctrls_trunc[:, not_stabilize_act_idx] *= 0.99
+        ctrls[:Tk_trunc] = ctrls_trunc.copy()
+        # ctrls = np.clip(ctrls, -1, 1)
+        if True:
+            tk = Tk_trunc
+        else:
+            tk = Tk
+        util.reset_state(model, data, data0)
+        render = k0 % render_every == 0
+        if render:
+            ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, render_fn)
+            render_class.reset_counter()
+        else:
+            ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
+        # hxs, qs = forward_with_sites(env, ctrls[:tk], sites, render=False)
+        qs = ret_dict["qpos"]
+        qvs = ret_dict["qvel"]
+        q_targs_masked = []
+        qs_list = []
+        hxs = [0] * n_sites
+        dldss = [0] * n_sites
+        losses_curr_mask = [0] * n_sites
+        for k in range(n_sites):
+            hx = ret_dict[sites[k]]
+            hxs[k] = hx
+            # hx = hxs[k]
+            # qs_k = qs * q_targ_masks[k]
+            # q_targ = q_targs[k] * q_targ_masks[k]
+            # diffsq2 =  (qs_k - q_targ)**2
+            diffsq1 = (hx - targ_trajs[k][: tk + 1]) ** 2
+            mask = q_targ_masks[k][: tk + 1]
+            nonzero = np.sum(mask > 0)
+            if nonzero > 0:
+                qs_k = qs.copy()
+                qvs_k = qvs.copy()
+                q_targ = q_targs[k][: tk + 1]
+                dq = opt_utils.batch_differentiatePos(
                     model,
-                    data,
-                    ctrls_trunc + noisev_trunc,
-                    targ_trajs[k][: Tk_trunc + 1],
-                    targ_traj_mask_currs[k][: Tk_trunc + 1],
-                    q_targs[k][: Tk_trunc + 1],
-                    q_targ_masks[k][: Tk_trunc + 1],
-                    grad_trunc_tk,
-                    deriv_ids=site_grad_idxs[k],
-                    deriv_site=sites[k],
-                    update_every=grad_update_every,
-                    update_phase=update_phase,
-                    let_go_times=let_go_times,
-                    let_go_ids=let_go_ids,
-                    n_steps_adh=n_steps_adh,
-                    contact_check_list=contact_check_list,
-                    adh_ids=adh_ids,
-                    ctrl_reg_weight=ctrl_reg_weights[k],
+                    1,
+                    qs_k * mask[:, :nq],
+                    q_targ[:, :nq] * mask[:, :nq],
                 )
-                util.reset_state(model, data, data0)
-            for k in range(n_sites):
-                ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
-                    ctrls_trunc[:, site_grad_idxs[k]], grads[k], "ctrls", losses[k]
-                )
+                dvel = (qvs_k - q_targ[:, nq:]) * mask[:, nq:]
+                dqfull = np.concatenate((dq, dvel))
+                diffsq2 = dqfull**2
+                sum2 = np.sum(diffsq2) / np.sum(mask > 0)
+            else:
+                sum2 = 0
+            # losses[k] = np.mean(diffsq1) + sum2
+            losses[k] = np.mean(diffsq1)
+            mask = np.tile((targ_traj_mask_curr[: tk + 1] > 0), (3, 1)).T
+            temp = np.sum(diffsq1 * mask) / (np.sum(mask[:, 0]))
+            losses_curr_mask[k] = temp
 
-            # ctrls = np.clip(ctrls, -1, 1)
-            # print("n_sites: ", n_sites)
+            q_targs_masked_tmp = q_targs[k][: tk + 1].copy()
+            q_targs_masked_tmp[q_targ_masks[k][: tk + 1] == 0] = np.nan
+            q_targs_masked.append(q_targs_masked_tmp)
+            qs_tmp = qs.copy()
+            qs_tmp[q_targ_masks[k][: tk + 1, :nq] == 0] = np.nan
+            qs_list.append(qs_tmp)
+        loss = sum([loss.item() for loss in losses]) / n_sites
+        lowest_losses.append(loss, (k0, ctrls.copy()))
+        loss_curr_mask_avg = sum([loss.item() for loss in losses_curr_mask]) / n_sites
+        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
+        toc = time.time()
+        # print(loss, toc-tic)
+
+        nr = range(n_sites)
+        if k0 % plot_every == 0:
+            # qs_wr = qs[:, joints['all']['wrist_left']]
+            # print()
+            # print(ctrls[:10, :5])
+            # print()
+            # print(ctrls_trunc[:10, :5])
+            # print()
+            # print(grads[0][:10, :5])
+            # print()
             # breakpoint()
-            try:
-                # ctrls, K = opt_utils.get_stabilized_ctrls(
-                # model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-                # body_dof,
-                # free_ctrls=np.zeros((Tk, len(acts['adh']))),
-                # balance_cost=balance_cost,
-                # joint_cost=joint_cost,
-                # root_cost=root_cost,
-                # foot_cost=foot_cost,
-                # ctrl_cost=ctrl_cost
-                # )[:2]
-                # ctrls_before = ctrls.copy()
-                ctrls_trunc, __, qs, qvels = opt_utils.get_stabilized_ctrls(
-                    model,
-                    data,
-                    Tk_trunc + 1,
-                    noisev_trunc,
-                    qpos0,
-                    stabilize_act_idx,
-                    stabilize_jnt_idx,
-                    ctrls_trunc[:, not_stabilize_act_idx],
-                    K_update_interv=10000,
-                    balance_cost=balance_cost,
-                    joint_cost=joint_cost,
-                    root_cost=root_cost,
-                    foot_cost=foot_cost,
-                    ctrl_cost=ctrl_cost,
-                    let_go_times=let_go_times,
-                    let_go_ids=let_go_ids,
-                    n_steps_adh=n_steps_adh,
-                )
-                # print("Testing...")
-                # loop = 'r'
-                # while loop == 'r':
-                # util.reset_state(model, data, data0)
-                # env.reset_sim_time_counter()
-                # util.forward_sim_render(env, ctrls)
-                # loop = input("Enter 'r' to rerun simulation: ")
-            except np.linalg.LinAlgError:
-                print("LinAlgError in get_stabilized_ctrls")
-                ctrls_trunc[:, not_stabilize_act_idx] *= 0.99
-            ctrls[:Tk_trunc] = ctrls_trunc.copy()
-            # ctrls = np.clip(ctrls, -1, 1)
-            if True:
-                tk = Tk_trunc
-            else:
-                tk = Tk
-            util.reset_state(model, data, data0)
-            render = k0 % render_every == 0
-            if render:
-                ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, render_fn)
-                render_class.reset_counter()
-            else:
-                ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
-            # hxs, qs = forward_with_sites(env, ctrls[:tk], sites, render=False)
-            qs = ret_dict["qpos"]
-            qvs = ret_dict["qvel"]
-            q_targs_masked = []
-            qs_list = []
-            for k in range(n_sites):
-                hx = ret_dict[sites[k]]
-                hxs[k] = hx
-                # hx = hxs[k]
-                # qs_k = qs * q_targ_masks[k]
-                # q_targ = q_targs[k] * q_targ_masks[k]
-                # diffsq2 =  (qs_k - q_targ)**2
-                diffsq1 = (hx - targ_trajs[k][: tk + 1]) ** 2
-                mask = q_targ_masks[k][: tk + 1]
-                nonzero = np.sum(mask > 0)
-                if nonzero > 0:
-                    qs_k = qs.copy()
-                    qvs_k = qvs.copy()
-                    q_targ = q_targs[k][: tk + 1]
-                    dq = opt_utils.batch_differentiatePos(
-                        model,
-                        1,
-                        qs_k * mask[:, :nq],
-                        q_targ[:, :nq] * mask[:, :nq],
-                    )
-                    dvel = (qvs_k - q_targ[:, nq:]) * mask[:, nq:]
-                    dqfull = np.concatenate((dq, dvel))
-                    diffsq2 = dqfull**2
-                    sum2 = np.sum(diffsq2) / np.sum(mask > 0)
-                else:
-                    sum2 = 0
-                # losses[k] = np.mean(diffsq1) + sum2
-                losses[k] = np.mean(diffsq1)
-                mask = np.tile((targ_traj_mask_currs[k][: tk + 1] > 0), (3, 1)).T
-                temp = np.sum(diffsq1 * mask) / (np.sum(mask[:, 0]))
-                losses_curr_mask[k] = temp
-
-                q_targs_masked_tmp = q_targs[k][: tk + 1].copy()
-                q_targs_masked_tmp[q_targ_masks[k][: tk + 1] == 0] = np.nan
-                q_targs_masked.append(q_targs_masked_tmp)
-                qs_tmp = qs.copy()
-                qs_tmp[q_targ_masks[k][: tk + 1, :nq] == 0] = np.nan
-                qs_list.append(qs_tmp)
-            loss = sum([loss.item() for loss in losses]) / n_sites
-            lowest_losses.append(loss, (k0, ctrls.copy()))
-            loss_curr_mask_avg = (
-                sum([loss.item() for loss in losses_curr_mask]) / n_sites
+            show_plot(
+                axs,
+                hxs,
+                tt[: tk + 1],
+                [x[: tk + 1] for x in targ_trajs],
+                [x[: tk + 1] for x in targ_traj_mask_currs],
+                # qs_wr,
+                # q_targs_wr,
+                sites,
+                site_grad_idxs,
+                ctrls[:tk],
+                grads,
+                qs_list,
+                q_targs_masked,
+                show=True,
+                save=False,
             )
-            lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
-            toc = time.time()
-            # print(loss, toc-tic)
-
-            nr = range(n_sites)
-            if k0 % plot_every == 0:
-                # qs_wr = qs[:, joints['all']['wrist_left']]
-                # print()
-                # print(ctrls[:10, :5])
-                # print()
-                # print(ctrls_trunc[:10, :5])
-                # print()
-                # print(grads[0][:10, :5])
-                # print()
-                # breakpoint()
+            plt.pause(0.1)
+            if k0 == 0:
+                # Plot again to refresh the window so it resizes to a proper size
                 show_plot(
                     axs,
                     hxs,
@@ -1525,39 +1514,17 @@ def arm_target_traj(
                     grads,
                     qs_list,
                     q_targs_masked,
-                    show=True,
-                    save=False,
+                    show=False,
+                    save=True,
                 )
                 plt.pause(0.1)
-                if k0 == 0:
-                    # Plot again to refresh the window so it resizes to a proper size
-                    show_plot(
-                        axs,
-                        hxs,
-                        tt[: tk + 1],
-                        [x[: tk + 1] for x in targ_trajs],
-                        [x[: tk + 1] for x in targ_traj_mask_currs],
-                        # qs_wr,
-                        # q_targs_wr,
-                        sites,
-                        site_grad_idxs,
-                        ctrls[:tk],
-                        grads,
-                        qs_list,
-                        q_targs_masked,
-                        show=False,
-                        save=True,
-                    )
-                    plt.pause(0.1)
-            # util.reset_state(model, data, data0)
-            # ctrls = forward_with_dynamic_adhesion(env, ctrls, noisev, True)
-            # plt.show()
-            # if k0 > phase_2_it:
+        # util.reset_state(model, data, data0)
+        # ctrls = forward_with_dynamic_adhesion(env, ctrls, noisev, True)
+        # plt.show()
+        # if k0 > phase_2_it:
 
-            # util.reset_state(model, data, data0)
-            # hx = forward_with_site(env, ctrls, site_names[0], True)
-    finally:
-        pass
+        # util.reset_state(model, data, data0)
+        # hx = forward_with_site(env, ctrls, site_names[0], True)
     # except KeyboardInterrupt:
     # pass
 
