@@ -8,9 +8,9 @@ params:
   #lr: .001
   #lr2: .0005
   optimizer: 'rmsprop'
-  lr: .2
+  lr: .1
   #lr: 0
-  lr2: .1
+  lr2: .05
   #lr2: 0
   #optimizer: 'sgd'
   #lr: 2.5

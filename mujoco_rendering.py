@@ -99,6 +99,9 @@ class BaseRender:
         # g.texuniform = 0
         # g.texrepeat[0] = 1
         # g.texrepeat[1] = 1
+        g.segid = 0
+        g.texcoord = 0
+        g.transparent = 0
         g.emission = 0
         g.specular = 0.5
         g.shininess = 0.5
@@ -272,7 +275,6 @@ class OffScreenViewer(BaseRender):
         if segmentation:
             self.scn.flags[mujoco.mjtRndFlag.mjRND_SEGMENT] = 1
             self.scn.flags[mujoco.mjtRndFlag.mjRND_IDCOLOR] = 1
-        breakpoint()
         for marker_params in self._markers:
             self._add_marker_to_scene(marker_params)
 
@@ -765,7 +767,6 @@ class MujocoRenderer:
             ), f"The width: {self.width} and height: {self.height} cannot be `None` when the render_mode is not `human`."
 
         viewer = self._get_viewer(render_mode=render_mode)
-
         if render_mode in ["rgb_array", "depth_array", "rgbd_tuple"]:
             return viewer.render(render_mode=render_mode, camera_id=self.camera_id)
         elif render_mode == "human":

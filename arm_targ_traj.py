@@ -1101,19 +1101,40 @@ def get_last_timepoint(mask):
 
 
 class targetRender:
-    def __init__(self, env, target_data_list) -> None:
+    def __init__(self, env, target_data_list, sites) -> None:
         self.counter = 0
         self.target_data_list = target_data_list
         self.env = env
+        self.sites = sites
 
     def render(self):
-        for target_data in self.target_data_list:
+        for k, target_data in enumerate(self.target_data_list):
             marker_pos = target_data[self.counter]
             self.env.mujoco_renderer.viewer.add_marker(
                 size=np.array([0.05, 0.05, 0.05]),
                 pos=marker_pos,
+                matid=0,
                 rgba=(1, 1, 0, 1),
                 type=mj.mjtGeom.mjGEOM_SPHERE,
+                label="targ",
+                emission=0,
+                specular=0.5,
+                shininess=0.5,
+                reflectance=0,
+            )
+            # breakpoint()
+            marker_pos = self.env.data.site(self.sites[k]).xpos
+            self.env.mujoco_renderer.viewer.add_marker(
+                size=np.array([0.05, 0.05, 0.05]),
+                pos=marker_pos,
+                matid=0,
+                rgba=(1, 1, 0, 1),
+                type=mj.mjtGeom.mjGEOM_SPHERE,
+                label="hand",
+                emission=0,
+                specular=0.5,
+                shininess=0.5,
+                reflectance=0,
             )
         self.env.render()
         self.counter += 1
@@ -1203,7 +1224,7 @@ def arm_target_traj(
     data = env.data
     nq = model.nq
 
-    render_class = targetRender(env, targ_trajs)
+    render_class = targetRender(env, targ_trajs, sites)
     render_fn = render_class.render
 
     not_stabilize_act_idx = [k for k in range(model.nu) if k not in stabilize_act_idx]

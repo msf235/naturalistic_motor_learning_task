@@ -3,15 +3,11 @@ import basic_env
 import opt_utils
 import numpy as np
 import sim_util as util
-import sys
 import shutil
 from pathlib import Path
 import pickle as pkl
 import arm_targ_traj as arm_t
 from matplotlib import pyplot as plt
-import mujoco as mj
-from mujoco import viewer as mj_viewer
-import time
 import config
 
 args = config.get_arg_parser().parse_args()
