@@ -109,9 +109,6 @@ acts = opt_utils.get_act_ids(model)
 
 # body_dof = joints['body']['dofadrs_without_root']
 body_dof = joints["body"]["dofadrs"]
-# body_dof_unflat = [joints['dofadr'][k] for k in bodyj_id] # Body dof ids
-# body_dof = [dof for dofs in body_dof_unflat for dof in dofs] # flattened
-# body_dof = opt_utils.convert_dofadr(model, None, bodyj_id, True)
 
 out_idx = arm_t.get_idx_sets(env, params["name"])
 sites = out_idx["sites"]
@@ -127,26 +124,6 @@ targ_trajs = out_traj["targ_trajs"]
 # plt.plot(tt, targ_trajs[1][:,1]); plt.show()
 
 noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
-
-# breakpoint()
-
-# ctrls, K = opt_utils.get_stabilized_ctrls(
-# model, data, Tk, noisev, data.qpos.copy(),
-# # acts['all'],
-# out_idx['stabilize_act_idx'],
-# # body_dof,
-# out_idx['stabilize_jnt_idx'],
-# # free_ctrls=np.zeros((Tk, len(acts['adh']))),
-# free_ctrls=np.zeros((Tk, len(out_idx['free_act_idx']))),
-# balance_cost=params['balance_cost'],
-# joint_cost=params['joint_cost'],
-# root_cost=params['root_cost'],
-# foot_cost=params['foot_cost'],
-# ctrl_cost=params['ctrl_cost']
-# )[:2]
-# while True:
-# reset()
-# util.forward_sim_render(env, ctrls)
 
 t_incr = params["t_incr"]
 amnt_to_incr = int(t_incr / dt)
