@@ -9,6 +9,7 @@ import pickle as pkl
 import arm_targ_traj as arm_t
 from matplotlib import pyplot as plt
 import config
+import masks
 
 args = config.get_arg_parser().parse_args()
 vargs = vars(args)
@@ -110,6 +111,12 @@ out_idx = arm_t.get_idx_sets(env, params["name"])
 sites = out_idx["sites"]
 out_time = arm_t.get_times(env, params["name"], Tf)
 
+t_incr = params["t_incr"]
+amnt_to_incr = int(t_incr / dt)
+incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
+
+test_masks = masks.make_basic_xpos_masks(incr_times, Tk)
+breakpoint()
 
 out_traj = arm_t.make_traj_sets(env, params["name"], Tk, seed=args.seed)
 out_traj["q_targ_masks"] = [
@@ -121,8 +128,6 @@ targ_trajs = out_traj["targ_trajs"]
 
 noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 
-t_incr = params["t_incr"]
-amnt_to_incr = int(t_incr / dt)
 grad_update_every = params["grad_update_every"]
 grad_trunc_tk = int(params["grad_window_t"] / (grad_update_every * dt))
 

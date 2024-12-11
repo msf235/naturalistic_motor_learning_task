@@ -1359,21 +1359,7 @@ def arm_target_traj(
                 ctrls_trunc[:, site_grad_idxs[k]], grads[k], "ctrls", losses[k]
             )
 
-        # ctrls = np.clip(ctrls, -1, 1)
-        # print("n_sites: ", n_sites)
-        # breakpoint()
         try:
-            # ctrls, K = opt_utils.get_stabilized_ctrls(
-            # model, data, Tk, noisev, data.qpos.copy(), acts['not_adh'],
-            # body_dof,
-            # free_ctrls=np.zeros((Tk, len(acts['adh']))),
-            # balance_cost=balance_cost,
-            # joint_cost=joint_cost,
-            # root_cost=root_cost,
-            # foot_cost=foot_cost,
-            # ctrl_cost=ctrl_cost
-            # )[:2]
-            # ctrls_before = ctrls.copy()
             ctrls_trunc, __, qs, qvels = opt_utils.get_stabilized_ctrls(
                 model,
                 data,

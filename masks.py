@@ -1,19 +1,21 @@
-from typing import List, Union
+from typing import List
 import numpy as np
 
 
 def generate_decaying_intervals(
-    interval_end_times: Union[List[int], np.ndarray], Tk: int, decay_factor: float = 0.5
+    interval_end_times: List[int] | np.ndarray, Tk: int, decay_factor: float = 0.5
 ) -> List[List[float]]:
     """
     Generate a matrix where each row introduces a new interval set to 1.0 from
     the previous interval boundary (or zero) to the current interval end time,
-    while all previously introduced intervals decay by the specified factor with
-    each new row.
+    while all previously introduced intervals decay by the specified factor
+    with each new row. After processing all given interval_end_times, one more
+    row is added from interval_end_times[-1] to Tk set to 1.0, applying the
+    same decay logic to previously introduced intervals.
 
     Parameters
     ----------
-    interval_end_times : Union[List[int], np.ndarray]
+    interval_end_times : List[int] | np.ndarray
         A sorted list or array of integer time indices that mark the boundaries
         where intervals end.
     Tk : int
@@ -28,7 +30,8 @@ def generate_decaying_intervals(
         A matrix (list of lists) where each row corresponds to an interval
         setup. The newly introduced interval is set to 1.0, and previously
         introduced intervals are multiplied by decay_factor for each additional
-        row introduced after them.
+        row introduced after them. The last row has an interval from the final
+        boundary to Tk.
     """
     # Convert to a list if a numpy array is provided
     if isinstance(interval_end_times, np.ndarray):
@@ -40,14 +43,13 @@ def generate_decaying_intervals(
     num_rows = len(interval_end_times)
 
     # Initialize the result array with zeros
-    result: List[List[float]] = [[0.0] * Tk for _ in range(num_rows)]
+    # We'll have one extra row beyond the number of interval boundaries
+    result: List[List[float]] = [[0.0] * Tk for _ in range(num_rows + 1)]
 
+    # Main loop for the given intervals
     for i in range(num_rows):
         # Determine the start and end of the current interval
-        if i == 0:
-            current_start = 0
-        else:
-            current_start = interval_end_times[i - 1]
+        current_start = 0 if i == 0 else interval_end_times[i - 1]
         current_end = interval_end_times[i]
 
         # Set previously introduced intervals with decayed values
@@ -62,6 +64,23 @@ def generate_decaying_intervals(
         for idx in range(current_start, current_end):
             result[i][idx] = 1.0
 
+    # Now add the extra row
+    # This row goes from interval_end_times[-1] to Tk and sets it to 1.0
+    extra_row_index = num_rows
+    last_boundary = interval_end_times[-1]
+
+    # Decay previously introduced intervals
+    for j in range(num_rows):
+        prev_start = 0 if j == 0 else interval_end_times[j - 1]
+        prev_end = interval_end_times[j]
+        interval_value = decay_factor ** (extra_row_index - j)
+        for idx in range(prev_start, prev_end):
+            result[extra_row_index][idx] = interval_value
+
+    # Set the final interval to 1.0
+    for idx in range(last_boundary, Tk):
+        result[extra_row_index][idx] = 1.0
+
     return result
 
 
@@ -70,16 +89,19 @@ def generate_decaying_intervals(
 # Tk = 15
 # decay_factor = 0.7
 # matrix = generate_decaying_intervals_matrix(interval_end_times, Tk, decay_factor)
+# for row in matrix:
+#     print(row)
 
 
 def make_basic_xpos_masks(
     interval_end_tks,
-    mask_incr_its,
+    # mask_incr_its,
     Tk,
 ):
     mask_list = generate_decaying_intervals(interval_end_tks, Tk, 0.5)
-    mask_dict = {incr_time: mask_list[k] for k, incr_time in enumerate(mask_incr_its)}
-    return mask_dict
+    # mask_dict = {incr_it: mask_list[k] for k, incr_it in enumerate(mask_incr_its)}
+    # return mask_dict
+    return mask_list
 
 
 def make_basic_qpos_target_and_mask(
@@ -87,14 +109,20 @@ def make_basic_qpos_target_and_mask(
     qpos_targs,
     Tk,
     interval_end_tks,
+    # mask_incr_its,
 ):
     nq = len(qpos_targs[0])
-    target = np.zeros((Tk, nq))
-    for tk in tks:
+    n_it_tks = len(interval_end_tks)
+    target = np.zeros((n_it_tks, nq))
+    for tk in range(n_it_tks):
         target[tk] = qpos_targs[tk]
     masks = np.zeros((len(interval_end_tks), Tk, nq))
+    # mask_dict = {}
     for k, tek in enumerate(interval_end_tks):
+        mask = np.zeros((Tk, nq))
         for tk in tks:
             if tk <= tek:
+                # mask[tk] = 1
                 masks[k][tk] = 1
+        # mask_dict[mask_incr_its[k]] = mask
     return target, masks
