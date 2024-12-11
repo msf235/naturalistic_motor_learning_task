@@ -864,33 +864,6 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
     return out_dict
 
 
-def show_forward_sim(env, ctrls):
-    for k in range(ctrls.shape[0] - 1):
-        util.step(env.model, env.data, ctrls[k])
-        env.render()
-
-
-def forward_with_sites(env, ctrls, site_names, render=False):
-    n = len(site_names)
-    site_xvs = np.zeros((n, ctrls.shape[0] + 1, 3))
-    nq = env.model.nq
-    nv = env.model.nv
-    state_vals = np.zeros((ctrls.shape[0] + 1, nq + nv))
-    state_vals[0, :nq] = env.data.qpos.copy()
-    state_vals[0, nq:] = env.data.qvel.copy()
-    for k2 in range(n):
-        site_xvs[k2, 0] = env.data.site(site_names[k2]).xpos
-    for k in range(ctrls.shape[0]):
-        util.step(env.model, env.data, ctrls[k])
-        state_vals[k + 1, :nq] = env.data.qpos.copy()
-        state_vals[k + 1, nq:] = env.data.qvel.copy()
-        for k2 in range(n):
-            site_xvs[k2, k + 1] = env.data.site(site_names[k2]).xpos
-        if render:
-            env.render()
-    return site_xvs, state_vals
-
-
 def forward_and_collect_data(env, ctrls, ret_fn=None, render=False):
     """Simulate and collect data with ret_fn. ret_fn will take
     data as an input argument and output a dictionary, and it is called
@@ -924,47 +897,6 @@ def forward_and_collect_data(env, ctrls, ret_fn=None, render=False):
             for key in dict_keys:
                 ret_dict[key][tk] = ret_vals[tk][key]
         return ret_dict
-
-
-def forward_to_contact(
-    env,
-    ctrls,
-    noisev=None,
-    render=True,
-    let_go_times=[],
-    let_go_ids=[],
-    n_steps_adh=10,
-    contact_check_list=[],
-    adh_ids=[],
-):
-    # TODO: possibly remove
-    model = env.model
-    act = opt_utils.get_act_ids(model)
-    data = env.data
-    ball_contact = False
-    Tk = ctrls.shape[0]
-    contact_cnt = 0
-    contact = False
-    adh_ctrl = opt_utils.AdhCtrl(
-        let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids
-    )
-    if noisev is None:
-        noisev = np.zeros((Tk, model.nu))
-    contacts = np.zeros((Tk, 2))
-    for k in range(Tk):
-        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
-        contacts[k] = [cont_k1, cont_k2]  # TODO: address this
-        util.step(model, data, ctrls[k] + noisev[k])
-        if render:
-            env.render()
-        # contact_pairs = util.get_contact_pairs(model, data)
-        # for cp in contact_pairs:
-        # if 'racket_handle' in cp and 'hand_right1' in cp or 'hand_right2' in cp:
-        # contact = True
-        # if contact_cnt <= 20:
-        # ctrls[k:, act['adh_right_hand']] = .05 * contact_cnt
-        # contact_cnt += 1
-    return k, ctrls, contacts
 
 
 def forward_with_dynamic_adhesion(
@@ -1167,6 +1099,28 @@ def get_last_timepoint(mask):
     return np.where(mask)[0][-1].item()
 
 
+class targetRender:
+    def __init__(self, env, target_data_list) -> None:
+        self.counter = 0
+        self.target_data_list = target_data_list
+        self.env = env
+
+    def render(self):
+        for target_data in self.target_data_list:
+            marker_pos = target_data[self.counter]
+            self.env.mujoco_renderer.viewer.add_marker(
+                size=np.array([0.05, 0.05, 0.05]),
+                pos=marker_pos,
+                rgba=(1, 1, 0, 1),
+                type=mj.mjtGeom.mjGEOM_SPHERE,
+            )
+        self.env.render()
+        self.counter += 1
+
+    def reset_counter(self):
+        self.counter = 0
+
+
 def arm_target_traj(
     env,
     sites,
@@ -1247,6 +1201,9 @@ def arm_target_traj(
     model = env.model
     data = env.data
     nq = model.nq
+
+    render_class = targetRender(env, targ_trajs)
+    render_fn = render_class.render
 
     not_stabilize_act_idx = [k for k in range(model.nu) if k not in stabilize_act_idx]
 
@@ -1464,17 +1421,19 @@ def arm_target_traj(
                 tk = Tk
             util.reset_state(model, data, data0)
             render = k0 % render_every == 0
+            if render:
+                ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, render_fn)
+                render_class.reset_counter()
+            else:
+                ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
             # hxs, qs = forward_with_sites(env, ctrls[:tk], sites, render=False)
-            ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, render)
             qs = ret_dict["qpos"]
-            qvs = ret_dict["qvels"]
-            # if render:
-            #     forward_with_target(env, ctrls[:tk], targ_trajs[0][: tk + 1])
+            qvs = ret_dict["qvel"]
             q_targs_masked = []
             qs_list = []
             for k in range(n_sites):
                 hx = ret_dict[sites[k]]
-                breakpoint()
+                hxs[k] = hx
                 # hx = hxs[k]
                 # qs_k = qs * q_targ_masks[k]
                 # q_targ = q_targs[k] * q_targ_masks[k]
@@ -1508,7 +1467,7 @@ def arm_target_traj(
                 q_targs_masked_tmp[q_targ_masks[k][: tk + 1] == 0] = np.nan
                 q_targs_masked.append(q_targs_masked_tmp)
                 qs_tmp = qs.copy()
-                qs_tmp[q_targ_masks[k][: tk + 1] == 0] = np.nan
+                qs_tmp[q_targ_masks[k][: tk + 1, :nq] == 0] = np.nan
                 qs_list.append(qs_tmp)
             loss = sum([loss.item() for loss in losses]) / n_sites
             lowest_losses.append(loss, (k0, ctrls.copy()))

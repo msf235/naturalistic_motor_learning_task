@@ -66,9 +66,9 @@ dt = model.opt.timestep
 burn_step = int(0.01 / dt)
 print(burn_step)
 
-env.render()
-env.mujoco_renderer.viewer.add_marker(size=np.array([2, 2, 2]))
-env.render()
+# env.render()
+# env.mujoco_renderer.viewer.add_marker(size=np.array([2, 2, 2]))
+# env.render()
 
 
 def reset():
