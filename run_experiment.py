@@ -115,16 +115,41 @@ t_incr = params["t_incr"]
 amnt_to_incr = int(t_incr / dt)
 incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
 
-test_masks = masks.make_basic_xpos_masks(incr_times, Tk)
-breakpoint()
+targ_traj_masks = masks.make_basic_xpos_masks(incr_times, Tk)
 
-out_traj = arm_t.make_traj_sets(env, params["name"], Tk, seed=args.seed)
-out_traj["q_targ_masks"] = [
-    params["joint_penalty_factor"] * x for x in out_traj["q_targ_masks"]
+target_data_exists_tks = [200, 400]
+q_opt_ids = [2, 3, 4]
+q_pos_targ_masks = masks.make_basic_qpos_masks(
+    target_data_exists_tks,
+    q_opt_ids,
+    incr_times,
+    env.model.nq,
+    Tk,
+)
+shift = model.nq - model.nv
+q_opt_ids = [id - shift for id in q_opt_ids]
+q_vel_targ_masks = masks.make_basic_qpos_masks(
+    target_data_exists_tks,
+    q_opt_ids,
+    incr_times,
+    model.nv,
+    Tk,
+)
+
+traj_and_masks = arm_t.make_traj_sets(
+    env,
+    params["name"],
+    Tk,
+    params["t_incr"],
+    params["incr_every"],
+    params["max_its"],
+    seed=args.seed,
+)
+traj_and_masks["q_targ_masks"] = [
+    params["joint_penalty_factor"] * x for x in traj_and_masks["q_targ_masks"]
 ]
-targ_trajs = out_traj["targ_trajs"]
-# plt.plot(tt, targ_trajs[0][:,1])
-# plt.plot(tt, targ_trajs[1][:,1]); plt.show()
+targ_trajs = traj_and_masks["targ_trajs"]
+targ_traj_masks = traj_and_masks["targ_traj_masks"]
 
 noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -164,6 +189,7 @@ if args.rerun or not out_f.exists():
     # arm_t.forward_to_contact(env, ctrls, render=True)
     # reset()
     del out_idx["free_act_idx"]
+    breakpoint()
 
     arm_targ_params = {
         k: params[k]
@@ -184,8 +210,11 @@ if args.rerun or not out_f.exists():
     }
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env,
-        **out_traj,
-        **arm_targ_params,
+        targ_traj_masks=targ_traj_masks,
+        q_pos_targ_masks=q_pos_targ_masks,
+        q_vel_targ_masks=q_vel_targ_masks,
+        **traj_and_masks,
+        # **arm_targ_params,
         **out_idx,
         **out_time,
         ctrls=ctrls,
@@ -230,18 +259,18 @@ if len(sites) == 1:
 q_targs_masked = []
 qs_list = []
 for k in range(len(sites)):
-    q_targs_masked_tmp = out_traj["q_targs"][k].copy()
-    q_targs_masked_tmp[out_traj["q_targ_masks"][k] == 0] = np.nan
+    q_targs_masked_tmp = traj_and_masks["q_targs"][k].copy()
+    q_targs_masked_tmp[traj_and_masks["q_targ_masks"][k] == 0] = np.nan
     q_targs_masked.append(q_targs_masked_tmp)
     qs_tmp = qs.copy()
-    qs_tmp[out_traj["q_targ_masks"][k] == 0] = np.nan
+    qs_tmp[traj_and_masks["q_targ_masks"][k] == 0] = np.nan
     qs_list.append(qs_tmp)
 arm_t.show_plot(
     axs,
     hxs,
     tt,
-    out_traj["targ_trajs"],
-    out_traj["targ_traj_masks"],
+    traj_and_masks["targ_trajs"],
+    traj_and_masks["targ_traj_masks"],
     sites,
     out_idx["site_grad_idxs"],
     qvals=qs_list,

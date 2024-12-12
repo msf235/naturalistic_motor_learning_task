@@ -9,6 +9,7 @@ import sortedcontainers as sc
 from matplotlib import pyplot as plt
 import time
 import basic_movements
+import masks
 
 # Site names
 RHAND_S = "R_Hand"
@@ -628,7 +629,29 @@ def get_times(env, exp_name, Tf):
     return out_dict
 
 
-def make_traj_sets(env, exp_name, Tk, seed=2):
+def get_data_from_qtarg_file(file_loc, dt=None):
+    file_conts = []
+    with open(file_loc, "r") as fid:
+        for line in fid:
+            file_conts.append(line.split("|"))
+    joint_names = file_conts[0][1:]
+    joint_names[-1] = joint_names[-1].strip("\n")  # Remove \n character
+    joint_names = [j.strip(" ") for j in joint_names]
+    q_pos_targs = {}
+    q_data_time_tks = []
+    for row in file_conts[1:]:
+        vals = [float(x.strip(" ").strip("\n")) for x in row[1:]]
+        tv = float(row[0].strip(" "))
+        if dt is not None:
+            tk = int(tv / dt)
+        else:
+            tk = tv
+        q_pos_targs[tk] = vals
+        q_data_time_tks.append(tk)
+    return q_pos_targs, q_data_time_tks, joint_names
+
+
+def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
     model = env.model
     data = env.data
     # smoothing_sigma = int(.1 / model.opt.timestep)
@@ -652,7 +675,46 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
     syssize = model.nq + model.nv
     syssize2 = 2 * model.nv
     # TODO: qposadr versus id versus dofadr
+    # t_incr = params["t_incr"]
+    dt = model.opt.timestep
+    amnt_to_incr = int(t_incr / dt)
+    incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
+    incr_its = range(incr_every, max_its, incr_every)
+
+    targ_traj_mask_mat = masks.make_basic_xpos_masks(incr_times, Tk)
+    targ_traj_mask = {incr_its[k]: mask for k, mask in enumerate(targ_traj_mask_mat)}
+
+    def get_qpos_data(joint_targs_file):
+        q_pos_targs, q_data_time_tks, joint_names = get_data_from_qtarg_file(
+            joint_targs_file, dt
+        )
+        q_pos_opt_ids = [model.joint(n).dofadr.item() for n in joint_names]
+        q_pos_masks = masks.make_basic_qpos_masks(
+            q_data_time_tks,
+            q_pos_opt_ids,
+            incr_times,
+            model.nq,
+            Tk,
+        )
+        q_pos_mask_dict = {incr_its[k]: mask for k, mask in enumerate(q_pos_masks)}
+        q_vel_mask = np.zeros((Tk, model.nv))
+        q_vel_mask_dict = {incr_it: q_vel_mask for incr_it in incr_its}
+        return (
+            q_pos_targs,
+            q_pos_mask_dict,
+            q_vel_mask_dict,
+            q_pos_opt_ids,
+        )
+
     if exp_name == "basic_movements_right":
+        joint_targs_file = "exp_configs/basic_movements_right_joint_targs.csv"
+        (
+            q_pos_targs,
+            q_pos_mask_dict,
+            q_vel_mask_dict,
+            q_pos_opt_ids,
+        ) = get_qpos_data(joint_targs_file)
+
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site(RHAND_S).xpos, smoothing_time, arc_std, seed
         )
@@ -660,19 +722,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         traj1_xs[:, 1] = rs * np.cos(thetas)
         traj1_xs[:, 2] = rs * np.sin(thetas)
         traj1_xs += data.site(RSHOULD_S).xpos
-        full_traj = traj1_xs
-        targ_traj_mask = np.ones((Tk,))
-        targ_traj_mask_type = "double_sided_progressive"
-
-        targ_trajs = [full_traj]
-        masks = [targ_traj_mask]
-        mask_types = [targ_traj_mask_type]
-
-        q_targs = [np.zeros((Tk, syssize))]
-        q_targ_mask = np.zeros((Tk, syssize))
-        q_targ_mask[:, right_arm_vel_id] = 1
-        q_targ_masks = [q_targ_mask]
-        q_targ_mask_types = ["const"]
+        targ_trajs = traj1_xs
         ctrl_reg_weights = [None]
     elif exp_name == "basic_movements_left":
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
@@ -690,7 +740,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         # plt.show()
 
         targ_trajs = [full_traj]
-        masks = [targ_traj_mask]
+        targ_traj_masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
         q_targs = [np.zeros((Tk, syssize))]
@@ -699,6 +749,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         q_targ_masks = [q_targ_mask]
         q_targ_mask_types = ["const"]
         ctrl_reg_weights = [None]
+        breakpoint()
     elif exp_name == "basic_movements_both":
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site(RHAND_S).xpos, smoothing_time, arc_std
@@ -712,7 +763,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         targ_traj_mask_type = "double_sided_progressive"
 
         targ_trajs = [full_traj]
-        masks = [targ_traj_mask]
+        targ_traj_masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
@@ -729,7 +780,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         # plt.show()
 
         targ_trajs += [full_traj]
-        masks += [targ_traj_mask]
+        targ_traj_masks += [targ_traj_mask]
         mask_types = ["double_sided_progressive", "double_sided_progressive"]
 
         q_targs = [np.zeros((Tk, model.nq)), np.zeros((Tk, model.nq))]
@@ -745,7 +796,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         bodyj = joints["body"]["body_dofs"]
 
         targ_trajs = [full_traj]
-        masks = [targ_traj_mask]
+        targ_traj_masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
         q_targs = [np.zeros((Tk, syssize))]
@@ -774,7 +825,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         # let_go_times = [Tk]
         let_go_times = []
         targ_trajs = [full_traj]
-        masks = [targ_traj_mask]
+        targ_traj_masks = [targ_traj_mask]
         mask_types = [targ_traj_mask_type]
 
         q_targs = [np.zeros((Tk, syssize))]
@@ -802,7 +853,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         out = tennis_traj(model, data, Tk)
         right_hand_traj, left_hand_traj, ball_traj, time_dict = out
         targ_trajs = [right_hand_traj, left_hand_traj]
-        masks = [targ_traj_mask, targ_traj_mask]
+        targ_traj_masks = [targ_traj_mask, targ_traj_mask]
         mask_types = [targ_traj_mask_type] * 2
         # q_targ = np.zeros((Tk, 2*model.nq))
         bot = 0.6
@@ -837,7 +888,7 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         out = tennis_grab_traj(model, data, Tk)
         right_hand_traj, left_hand_traj, ball_traj, time_dict = out
         targ_trajs = [right_hand_traj, left_hand_traj]
-        masks = [targ_traj_mask, targ_traj_mask]
+        targ_traj_masks = [targ_traj_mask, targ_traj_mask]
         mask_types = [targ_traj_mask_type] * 2
         q_targs = [np.zeros((Tk, syssize))]
         q_targ_mask = np.zeros((Tk, syssize))
@@ -857,9 +908,10 @@ def make_traj_sets(env, exp_name, Tk, seed=2):
         targ_trajs=targ_trajs,
         targ_traj_masks=masks,
         targ_traj_mask_types=mask_types,
-        q_targs=q_targs,
-        q_targ_masks=q_targ_masks,
-        q_targ_mask_types=q_targ_mask_types,
+        q_pos_targs=q_pos_targs,
+        q_vel_targs=q_vel_targs,
+        q_pos_masks=q_pos_masks,
+        q_vel_masks=q_vel_masks,
         ctrl_reg_weights=ctrl_reg_weights,
     )
 
@@ -1166,8 +1218,8 @@ def arm_target_traj(
     targ_traj_masks: Dict,
     targ_traj_mask_types,
     q_targs,
-    q_targ_masks,
-    q_targ_mask_types,
+    q_pos_targ_masks,
+    q_vel_targ_masks,
     ctrls,
     grad_trunc_tk,
     seed,

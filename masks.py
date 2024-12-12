@@ -104,25 +104,17 @@ def make_basic_xpos_masks(
     return mask_list
 
 
-def make_basic_qpos_target_and_mask(
-    tks,
-    qpos_targs,
+def make_basic_qpos_masks(
+    target_data_exists_tks,
+    q_opt_ids,
+    interval_end_its,
+    nq,
     Tk,
-    interval_end_tks,
-    # mask_incr_its,
 ):
-    nq = len(qpos_targs[0])
-    n_it_tks = len(interval_end_tks)
-    target = np.zeros((n_it_tks, nq))
-    for tk in range(n_it_tks):
-        target[tk] = qpos_targs[tk]
-    masks = np.zeros((len(interval_end_tks), Tk, nq))
-    # mask_dict = {}
-    for k, tek in enumerate(interval_end_tks):
-        mask = np.zeros((Tk, nq))
-        for tk in tks:
+    masks = np.zeros((len(interval_end_its), Tk, nq))
+    for k, tek in enumerate(interval_end_its):
+        for tk in target_data_exists_tks:
             if tk <= tek:
-                # mask[tk] = 1
-                masks[k][tk] = 1
-        # mask_dict[mask_incr_its[k]] = mask
-    return target, masks
+                for id in q_opt_ids:
+                    masks[k][tk][id] = 1
+    return masks
