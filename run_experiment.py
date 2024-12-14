@@ -113,7 +113,8 @@ out_time = arm_t.get_times(env, params["name"], Tf)
 
 t_incr = params["t_incr"]
 amnt_to_incr = int(t_incr / dt)
-incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
+# incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
+incr_times = np.arange(0, Tk, amnt_to_incr)
 
 targ_traj_masks = masks.make_basic_xpos_masks(incr_times, Tk)
 
