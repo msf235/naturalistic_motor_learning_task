@@ -630,6 +630,12 @@ def get_times(env, exp_name, Tf):
 
 
 def get_data_from_qtarg_file(file_loc, dt=None):
+    """The output datastructure assumes that the number
+    of timepoints where joint targets is specified is
+    relatively small in number; else a different structure
+    would probably be better. This also assumes that every
+    joint named in the input file has exactly one degree of
+    freedom."""
     file_conts = []
     with open(file_loc, "r") as fid:
         for line in fid:
@@ -646,8 +652,9 @@ def get_data_from_qtarg_file(file_loc, dt=None):
             tk = int(tv / dt)
         else:
             tk = tv
-        q_pos_targs[tk] = vals
+        q_pos_targs[tk] = {"qpos": vals, "joint_names": joint_names}
         q_data_time_tks.append(tk)
+    breakpoint()
     return q_pos_targs, q_data_time_tks, joint_names
 
 
@@ -657,6 +664,7 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
     # smoothing_sigma = int(.1 / model.opt.timestep)
     # arc_std = 0.0001 / model.opt.timestep
     arc_std = 0.02
+
     # smoothing_time = 0.1
     smoothing_time = 0.2
     joints = opt_utils.get_joint_ids(model)
@@ -682,9 +690,9 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
     max_incr_its = len(incr_time_left_endpoints)
     incr_it_left_endpoints = list(range(0, max_incr_its * incr_every, incr_every))
 
-    targ_traj_masks = masks.make_basic_xpos_masks(incr_time_left_endpoints, Tk)
-    targ_traj_mask_dict = {
-        incr_it_left_endpoints[k]: mask for k, mask in enumerate(targ_traj_masks)
+    targ_traj_mask_lists = masks.make_basic_xpos_masks(incr_time_left_endpoints, Tk)
+    targ_traj_masks = {
+        incr_it_left_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
     }
 
     def get_qpos_data(joint_targs_file):
@@ -699,14 +707,17 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
             model.nq,
             Tk,
         )
-        q_pos_mask_dict = {incr_its[k]: mask for k, mask in enumerate(q_pos_masks)}
+        # q_pos_mask_dict = {
+        #     incr_it_left_endpoints[k]: mask for k, mask in enumerate(q_pos_masks)
+        # }
         q_vel_mask = np.zeros((Tk, model.nv))
-        q_vel_mask_dict = {incr_it: q_vel_mask for incr_it in incr_its}
+        q_vel_mask_dict = {incr_it: q_vel_mask for incr_it in incr_it_left_endpoints}
         q_vel_targs = {}
+        breakpoint()
         return (
             q_pos_targs,
             q_vel_targs,
-            q_pos_mask_dict,
+            q_pos_masks,
             q_vel_mask_dict,
             q_pos_opt_ids,
         )
@@ -753,7 +764,7 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
         traj1_xs += data.site(RSHOULD_S).xpos
         targ_trajs = traj1_xs
         ctrl_reg_weights = [None]
-        targ_traj_masks = masks.make_basic_xpos_masks(incr_time_right_endpoints, Tk)
+        breakpoint()
         return make_return_dict(
             targ_trajs,
             targ_traj_masks,
@@ -763,7 +774,6 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
             q_vel_masks,
             ctrl_reg_weights,
         )
-        breakpoint()
     elif exp_name == "basic_movements_left":
         rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
             model, data, Tk, data.site(LHAND_S).xpos, smoothing_time, arc_std, seed
