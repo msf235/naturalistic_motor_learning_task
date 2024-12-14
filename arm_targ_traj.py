@@ -753,6 +753,7 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
             q_vel_masks,
             q_pos_opt_ids,
         ) = get_qpos_data(joint_targs_file)
+        breakpoint()
 
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site(RHAND_S).xpos, smoothing_time, arc_std, seed
