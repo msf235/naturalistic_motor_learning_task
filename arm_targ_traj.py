@@ -695,7 +695,7 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
         q_pos_masks = masks.make_basic_qpos_masks(
             q_data_time_tks,
             q_pos_opt_ids,
-            incr_time_right_endpoints,
+            incr_time_left_endpoints,
             model.nq,
             Tk,
         )
