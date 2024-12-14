@@ -678,8 +678,9 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
     # t_incr = params["t_incr"]
     dt = model.opt.timestep
     amnt_to_incr = int(t_incr / dt)
-    incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
     incr_its = range(incr_every, max_its, incr_every)
+    incr_times = range(amnt_to_incr, Tk, amnt_to_incr)
+    breakpoint()
 
     targ_traj_mask_mat = masks.make_basic_xpos_masks(incr_times, Tk)
     targ_traj_mask = {incr_its[k]: mask for k, mask in enumerate(targ_traj_mask_mat)}
@@ -699,6 +700,7 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
         q_pos_mask_dict = {incr_its[k]: mask for k, mask in enumerate(q_pos_masks)}
         q_vel_mask = np.zeros((Tk, model.nv))
         q_vel_mask_dict = {incr_it: q_vel_mask for incr_it in incr_its}
+        breakpoint()
         return (
             q_pos_targs,
             q_pos_mask_dict,
@@ -714,6 +716,7 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
             q_vel_mask_dict,
             q_pos_opt_ids,
         ) = get_qpos_data(joint_targs_file)
+        breakpoint()
 
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site(RHAND_S).xpos, smoothing_time, arc_std, seed

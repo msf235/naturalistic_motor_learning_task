@@ -117,4 +117,5 @@ def make_basic_qpos_masks(
             if tk <= tek:
                 for id in q_opt_ids:
                     masks[k][tk][id] = 1
+    breakpoint()
     return masks
