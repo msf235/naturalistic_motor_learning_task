@@ -75,13 +75,12 @@ def generate_decaying_intervals(
 
 
 def make_basic_xpos_masks(
-    interval_start_tks: list | np.ndarray,
-    Tk,
+    interval_end_tks: list | np.ndarray,
 ):
-    if isinstance(interval_start_tks, np.ndarray):
-        interval_start_tks = interval_start_tks.tolist()
-    interval_end_tks = interval_start_tks[1:].copy()
-    interval_end_tks.append(Tk)
+    """We assume that the first interval starts at tk=0."""
+    # if isinstance(interval_start_tks, np.ndarray):
+    #     interval_start_tks = interval_start_tks.tolist()
+    # interval_end_tks = interval_start_tks[1:].copy()
     mask_list = generate_decaying_intervals(interval_end_tks, 0.5)
     return mask_list
 
@@ -89,15 +88,14 @@ def make_basic_xpos_masks(
 def make_basic_qpos_masks(
     target_data_exists_tks,
     q_opt_ids,
-    interval_end_its,
+    interval_end_tks,
     nq,
-    Tk,
 ):
-    masks = np.zeros((len(interval_end_its), Tk, nq))
-    for k, tek in enumerate(interval_end_its):
+    Tk = interval_end_tks[-1]
+    masks = np.zeros((len(interval_end_tks), Tk, nq))
+    for k, tek in enumerate(interval_end_tks):
         for tk in target_data_exists_tks:
             if tk <= tek:
                 for id in q_opt_ids:
                     masks[k][tk][id] = 1
-    breakpoint()
     return masks

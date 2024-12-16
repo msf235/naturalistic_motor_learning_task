@@ -111,36 +111,14 @@ out_idx = arm_t.get_idx_sets(env, params["name"])
 sites = out_idx["sites"]
 out_time = arm_t.get_times(env, params["name"], Tf)
 
+
 t_incr = params["t_incr"]
 amnt_to_incr = int(t_incr / dt)
 # incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
-incr_times = np.arange(0, Tk, amnt_to_incr)
+# incr_tk_left_intervals = np.arange(0, Tk, amnt_to_incr)
+# incr_tk_end_intervals = np.arange(amnt_to_incr, Tk + 1, amnt_to_incr)
 
-
-def asome():
-    pass
-
-
-targ_traj_masks = masks.make_basic_xpos_masks(incr_times, Tk)
-
-target_data_exists_tks = [200, 400]
-q_opt_ids = [2, 3, 4]
-q_pos_targ_masks = masks.make_basic_qpos_masks(
-    target_data_exists_tks,
-    q_opt_ids,
-    incr_times,
-    env.model.nq,
-    Tk,
-)
-shift = model.nq - model.nv
-q_opt_ids = [id - shift for id in q_opt_ids]
-q_vel_targ_masks = masks.make_basic_qpos_masks(
-    target_data_exists_tks,
-    q_opt_ids,
-    incr_times,
-    model.nv,
-    Tk,
-)
+# targ_traj_masks = masks.make_basic_xpos_masks(incr_tk_end_intervals)
 
 traj_and_masks = arm_t.make_traj_sets(
     env,
@@ -151,9 +129,9 @@ traj_and_masks = arm_t.make_traj_sets(
     params["max_its"],
     seed=args.seed,
 )
-traj_and_masks["q_targ_masks"] = [
-    params["joint_penalty_factor"] * x for x in traj_and_masks["q_targ_masks"]
-]
+# traj_and_masks["q_pos_masks"] = [
+#     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
+# ]
 targ_trajs = traj_and_masks["targ_trajs"]
 targ_traj_masks = traj_and_masks["targ_traj_masks"]
 
@@ -163,6 +141,7 @@ grad_update_every = params["grad_update_every"]
 grad_trunc_tk = int(params["grad_window_t"] / (grad_update_every * dt))
 
 Tke = int(params["t_after"] / dt)
+breakpoint()
 
 # TODO: move this out
 
@@ -195,7 +174,6 @@ if args.rerun or not out_f.exists():
     # arm_t.forward_to_contact(env, ctrls, render=True)
     # reset()
     del out_idx["free_act_idx"]
-    breakpoint()
 
     arm_targ_params = {
         k: params[k]
@@ -214,15 +192,17 @@ if args.rerun or not out_f.exists():
             # 'grad_window_t'
         ]
     }
+    breakpoint()
     ctrls, lowest_losses = arm_t.arm_target_traj(
         env,
+        sites=sites,
+        site_grad_idxs=site_grad_idxs,
+        targ_trajs=targ_trajs,
         targ_traj_masks=targ_traj_masks,
-        q_pos_targ_masks=q_pos_targ_masks,
-        q_vel_targ_masks=q_vel_targ_masks,
+        q_pos_masks=q_pos_masks,
+        q_vel_masks=q_vel_masks,
         **traj_and_masks,
         # **arm_targ_params,
-        **out_idx,
-        **out_time,
         ctrls=ctrls,
         grad_trunc_tk=grad_trunc_tk,
         seed=args.seed,

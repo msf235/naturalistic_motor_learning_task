@@ -644,7 +644,7 @@ def get_data_from_qtarg_file(file_loc, dt=None):
     joint_names[-1] = joint_names[-1].strip("\n")  # Remove \n character
     joint_names = [j.strip(" ") for j in joint_names]
     q_pos_targs = {}
-    q_data_time_tks = []
+    # q_data_time_tks = []
     for row in file_conts[1:]:
         vals = [float(x.strip(" ").strip("\n")) for x in row[1:]]
         tv = float(row[0].strip(" "))
@@ -652,13 +652,29 @@ def get_data_from_qtarg_file(file_loc, dt=None):
             tk = int(tv / dt)
         else:
             tk = tv
-        q_pos_targs[tk] = {"qpos": vals, "joint_names": joint_names}
-        q_data_time_tks.append(tk)
-    breakpoint()
-    return q_pos_targs, q_data_time_tks, joint_names
+        q_pos_targs[tk] = vals
+        # q_data_time_tks.append(tk)
+    return q_pos_targs, joint_names
 
 
 def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
+    """
+    TODO: This would perhaps be easier to understand if there was a
+    datatype for interval dictionaries with its own description.
+    Returns dictionary with keys:
+        targ_trajs:  Target trajectories in cartesion coordinates.
+        targ_traj_masks:  Masks for target trajectories. Has keys corresponding
+            to the start point for iteration intervals, so that the mask can
+            change over iterations.
+        q_pos_targs:  Target trajectories for joints positions.
+        q_vel_targs:  Target trajectories for joint velocities.
+        q_pos_masks:  Masks for joint positions. Has keys corresponding to the
+            start point for iteration intervals, so that the mask can change
+            over iterations.
+        q_vel_masks:  Masks for joint velocities.
+        ctrl_reg_weights:  Unused TODO: address this.
+    """
+
     model = env.model
     data = env.data
     # smoothing_sigma = int(.1 / model.opt.timestep)
@@ -668,11 +684,11 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
     # smoothing_time = 0.1
     smoothing_time = 0.2
     joints = opt_utils.get_joint_ids(model)
-    left_arm_dofadr = joints["body"]["left_arm_dofadrs"]
+    # left_arm_dofadr = joints["body"]["left_arm_dofadrs"]
     # right_arm_dofadr = opt_utils.convert_dofadr(
     # model, None, joints['body']['right_arm'], True)
-    right_arm_dofadr = joints["body"]["right_arm_dofadrs"]
-    dof_offset = model.nq - model.nv
+    # right_arm_dofadr = joints["body"]["right_arm_dofadrs"]
+    # dof_offset = model.nq - model.nv
     # TODO: check
     # left_arm_vel_id = [x+model.nq-dof_offset for x in left_arm_dofadr]
     # left_arm_vel_id = [x + model.nv for x in left_arm_dofadr]
@@ -682,47 +698,44 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
     out_idx = get_idx_sets(env, exp_name)
     syssize = model.nq + model.nv
     syssize2 = 2 * model.nv
-    # TODO: qposadr versus id versus dofadr
     # t_incr = params["t_incr"]
     dt = model.opt.timestep
     amnt_to_incr = int(t_incr / dt)
-    incr_time_left_endpoints = list(range(0, Tk, amnt_to_incr))
+    incr_time_left_endpoints = list(range(0, Tk + 1, amnt_to_incr))
     max_incr_its = len(incr_time_left_endpoints)
     incr_it_left_endpoints = list(range(0, max_incr_its * incr_every, incr_every))
 
-    targ_traj_mask_lists = masks.make_basic_xpos_masks(incr_time_left_endpoints, Tk)
+    targ_traj_mask_lists = masks.make_basic_xpos_masks(incr_time_left_endpoints)
     targ_traj_masks = {
         incr_it_left_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
     }
 
     def get_qpos_data(joint_targs_file):
-        q_pos_targs, q_data_time_tks, joint_names = get_data_from_qtarg_file(
-            joint_targs_file, dt
-        )
-        q_pos_opt_ids = [model.joint(n).dofadr.item() for n in joint_names]
-        q_pos_masks = masks.make_basic_qpos_masks(
+        q_pos_targs, joint_names = get_data_from_qtarg_file(joint_targs_file, dt)
+        q_data_time_tks = list(q_pos_targs.keys())
+        q_pos_opt_dofadrs = [model.joint(n).dofadr.item() for n in joint_names]
+        q_pos_mask_list = masks.make_basic_qpos_masks(
             q_data_time_tks,
-            q_pos_opt_ids,
+            q_pos_opt_dofadrs,
             incr_time_left_endpoints,
             model.nq,
-            Tk,
         )
+        q_pos_mask_dict = {
+            incr_it_left_endpoints[k]: mask for k, mask in enumerate(q_pos_mask_list)
+        }
         # q_pos_mask_dict = {
         #     incr_it_left_endpoints[k]: mask for k, mask in enumerate(q_pos_masks)
         # }
-        q_vel_mask = np.zeros((Tk, model.nv))
-        q_vel_mask_dict = {incr_it: q_vel_mask for incr_it in incr_it_left_endpoints}
+        q_vel_mask_dict = {0: np.zeros((Tk, model.nv))}
         q_vel_targs = {}
-        breakpoint()
         return (
             q_pos_targs,
             q_vel_targs,
-            q_pos_masks,
+            q_pos_mask_dict,
             q_vel_mask_dict,
-            q_pos_opt_ids,
+            q_pos_opt_dofadrs,
+            joint_names,
         )
-
-    # def get_traj_mask()
 
     def make_return_dict(
         targ_trajs,
@@ -736,7 +749,7 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
         return dict(
             targ_trajs=targ_trajs,
             targ_traj_masks=targ_traj_masks,
-            targ_traj_mask_types=mask_types,
+            # targ_traj_mask_types=mask_types,
             q_pos_targs=q_pos_targs,
             q_vel_targs=q_vel_targs,
             q_pos_masks=q_pos_masks,
@@ -751,9 +764,9 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
             q_vel_targs,
             q_pos_masks,
             q_vel_masks,
-            q_pos_opt_ids,
+            q_pos_opt_dofadrs,
+            joint_names,
         ) = get_qpos_data(joint_targs_file)
-        breakpoint()
 
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site(RHAND_S).xpos, smoothing_time, arc_std, seed
@@ -764,7 +777,6 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
         traj1_xs += data.site(RSHOULD_S).xpos
         targ_trajs = traj1_xs
         ctrl_reg_weights = [None]
-        breakpoint()
         return make_return_dict(
             targ_trajs,
             targ_traj_masks,
