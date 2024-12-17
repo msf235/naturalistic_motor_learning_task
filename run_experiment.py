@@ -13,6 +13,7 @@ import masks
 
 args = config.get_arg_parser().parse_args()
 vargs = vars(args)
+config_name = args.configfile.split("/")[-1].split(".")[0]
 params = config.get_config(args.configfile)["params"]
 # Since numbers in scientific notation are converted to a string from yaml,
 # need to convert these to a number.
@@ -109,31 +110,21 @@ body_dof = joints["body"]["dofadrs"]
 
 out_idx = arm_t.get_idx_sets(env, params["name"])
 sites = out_idx["sites"]
+site_grad_idxs = out_idx["site_grad_idxs"]
+stabilize_jnt_idx = out_idx["stabilize_jnt_idx"]
+stabilize_act_idx = out_idx["stabilize_act_idx"]
 out_time = arm_t.get_times(env, params["name"], Tf)
 
 
 t_incr = params["t_incr"]
 amnt_to_incr = int(t_incr / dt)
+incr_every = params["incr_every"]
 # incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
 # incr_tk_left_intervals = np.arange(0, Tk, amnt_to_incr)
 # incr_tk_end_intervals = np.arange(amnt_to_incr, Tk + 1, amnt_to_incr)
 
 # targ_traj_masks = masks.make_basic_xpos_masks(incr_tk_end_intervals)
 
-traj_and_masks = arm_t.make_traj_sets(
-    env,
-    params["name"],
-    Tk,
-    params["t_incr"],
-    params["incr_every"],
-    params["max_its"],
-    seed=args.seed,
-)
-# traj_and_masks["q_pos_masks"] = [
-#     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
-# ]
-targ_trajs = traj_and_masks["targ_trajs"]
-targ_traj_masks = traj_and_masks["targ_traj_masks"]
 
 noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 
@@ -141,9 +132,7 @@ grad_update_every = params["grad_update_every"]
 grad_trunc_tk = int(params["grad_window_t"] / (grad_update_every * dt))
 
 Tke = int(params["t_after"] / dt)
-breakpoint()
 
-# TODO: move this out
 
 if args.rerun or not out_f.exists():
     ### Get initial stabilizing controls
@@ -192,16 +181,18 @@ if args.rerun or not out_f.exists():
             # 'grad_window_t'
         ]
     }
-    breakpoint()
     ctrls, lowest_losses = arm_t.arm_target_traj(
-        env,
-        sites=sites,
+        config_name=config_name,
+        env=env,
+        site_names=sites,
         site_grad_idxs=site_grad_idxs,
-        targ_trajs=targ_trajs,
-        targ_traj_masks=targ_traj_masks,
-        q_pos_masks=q_pos_masks,
-        q_vel_masks=q_vel_masks,
-        **traj_and_masks,
+        stabilize_jnt_idx=stabilize_jnt_idx,
+        stabilize_act_idx=stabilize_act_idx,
+        # targ_trajs=targ_trajs,
+        # targ_traj_masks=targ_traj_masks,
+        # q_pos_masks=q_pos_masks,
+        # q_vel_masks=q_vel_masks,
+        # **traj_and_masks,
         # **arm_targ_params,
         ctrls=ctrls,
         grad_trunc_tk=grad_trunc_tk,

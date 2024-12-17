@@ -479,27 +479,27 @@ def one_arm_idxs(model, right_or_left="right"):
     return one_arm_idx
 
 
-def get_idx_sets(env, exp_name):
+def get_idx_sets(env, config_name):
     model = env.model
     data = env.data
     acts = opt_utils.get_act_ids(model)
     contact_check_list = []
     adh_ids = []
     let_go_ids = []
-    if exp_name == "basic_movements_right":
+    if config_name == "basic_movements_right":
         sites = [RHAND_S]
         throw_idxs = one_arm_idxs(model, "right")
         site_grad_idxs = [throw_idxs["arm_act_without_adh"]]
         stabilize_jnt_idx = throw_idxs["not_arm_dofadrs"]
         stabilize_act_idx = throw_idxs["not_arm_act"]
         other_act_idx = throw_idxs["arm_act_without_adh"]
-    elif exp_name == "basic_movements_left":
+    elif config_name == "basic_movements_left":
         sites = [LHAND_S]
         throw_idxs = one_arm_idxs(model, "left")
         site_grad_idxs = [throw_idxs["arm_a_without_adh"]]
         stabilize_jnt_idx = throw_idxs["not_arm_j"]
         stabilize_act_idx = throw_idxs["not_arm_a"]
-    elif exp_name == "basic_movements_both":
+    elif config_name == "basic_movements_both":
         sites = [RHAND_S, LHAND_S]
         tennis_idxs = two_arm_idxs(model)
         site_grad_idxs = [
@@ -508,7 +508,7 @@ def get_idx_sets(env, exp_name):
         ]
         stabilize_jnt_idx = tennis_idxs["not_arm_j"]
         stabilize_act_idx = tennis_idxs["not_arm_a"]
-    elif exp_name == "throw_ball":
+    elif config_name == "throw_ball":
         sites = [RHAND_S]
         throw_idxs = one_arm_idxs(model)
         site_grad_idxs = [throw_idxs["arm_a_without_adh"]]
@@ -517,7 +517,7 @@ def get_idx_sets(env, exp_name):
         contact_check_list = [["ball", "hand_right1"], ["ball", "hand_right2"]]
         adh_ids = [acts["adh_right_hand"][0], acts["adh_right_hand"][0]]
         let_go_ids = [acts["adh_right_hand"][0]]
-    elif exp_name == "grab_ball":
+    elif config_name == "grab_ball":
         sites = [RHAND_S]
         throw_idxs = one_arm_idxs(model)
         site_grad_idxs = [throw_idxs["arm_a_without_adh"]]
@@ -527,7 +527,7 @@ def get_idx_sets(env, exp_name):
         adh_ids = [acts["adh_right_hand"][0], acts["adh_right_hand"][0]]
         let_go_ids = []
         let_go_times = []
-    elif exp_name == "tennis_serve":
+    elif config_name == "tennis_serve":
         sites = [RHAND_S, LHAND_S]  # Move
         tennis_idxs = two_arm_idxs(model)
         site_grad_idxs = [
@@ -555,7 +555,7 @@ def get_idx_sets(env, exp_name):
         ]
         act_ids = ["adh_right_hand", "adh_right_hand", "adh_left_hand", "adh_left_hand"]
         let_go_ids = [acts["adh_left_hand"][0]]
-    elif exp_name == "tennis_grab":
+    elif config_name == "tennis_grab":
         sites = [RHAND_S, LHAND_S]
         tennis_idxs = two_arm_idxs(model)
         site_grad_idxs = [
@@ -657,13 +657,23 @@ def get_data_from_qtarg_file(file_loc, dt=None):
     return q_pos_targs, joint_names
 
 
-def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
+def make_traj_sets(env, exp_name, Tk, amnt_to_incr, incr_every, seed=2):
     """
+    params:
+        env: Gymnasium environment.
+        exp_name: Name of the experiment, corresponding with file to be loaded for
+            the joint targets.
+        Tk: Final time index.
+        amnt_to_incr: The amount of timesteps that the mask increments every
+        time it increments.
+        incr_every: The number of iterations between mask incrments.
+        seed: rng seed.
+
     TODO: This would perhaps be easier to understand if there was a
     datatype for interval dictionaries with its own description.
     Returns dictionary with keys:
-        targ_trajs:  Target trajectories in cartesion coordinates.
-        targ_traj_masks:  Masks for target trajectories. Has keys corresponding
+        traj_targs:  Target trajectories in cartesion coordinates.
+        traj_masks:  Masks for target trajectories. Has keys corresponding
             to the start point for iteration intervals, so that the mask can
             change over iterations.
         q_pos_targs:  Target trajectories for joints positions.
@@ -700,14 +710,17 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
     syssize2 = 2 * model.nv
     # t_incr = params["t_incr"]
     dt = model.opt.timestep
-    amnt_to_incr = int(t_incr / dt)
-    incr_time_left_endpoints = list(range(0, Tk + 1, amnt_to_incr))
-    max_incr_its = len(incr_time_left_endpoints)
-    incr_it_left_endpoints = list(range(0, max_incr_its * incr_every, incr_every))
+    # amnt_to_incr = int(t_incr / dt)
+    incr_time_right_endpoints = list(range(amnt_to_incr, Tk + 1, amnt_to_incr))
+    max_incr_its = len(incr_time_right_endpoints)
+    # incr_it_left_endpoints = list(range(0, max_incr_its * incr_every, incr_every))
+    incr_it_right_endpoints = list(
+        range(incr_every, max_incr_its * incr_every + 1, incr_every)
+    )
 
-    targ_traj_mask_lists = masks.make_basic_xpos_masks(incr_time_left_endpoints)
+    targ_traj_mask_lists = masks.make_basic_xpos_masks(incr_time_right_endpoints)
     targ_traj_masks = {
-        incr_it_left_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
+        incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
     }
 
     def get_qpos_data(joint_targs_file):
@@ -717,11 +730,11 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
         q_pos_mask_list = masks.make_basic_qpos_masks(
             q_data_time_tks,
             q_pos_opt_dofadrs,
-            incr_time_left_endpoints,
+            incr_time_right_endpoints,
             model.nq,
         )
         q_pos_mask_dict = {
-            incr_it_left_endpoints[k]: mask for k, mask in enumerate(q_pos_mask_list)
+            incr_it_right_endpoints[k]: mask for k, mask in enumerate(q_pos_mask_list)
         }
         # q_pos_mask_dict = {
         #     incr_it_left_endpoints[k]: mask for k, mask in enumerate(q_pos_masks)
@@ -738,17 +751,17 @@ def make_traj_sets(env, exp_name, Tk, t_incr, incr_every, max_its, seed=2):
         )
 
     def make_return_dict(
-        targ_trajs,
-        targ_traj_masks,
+        trag_targs,
+        traj_masks,
         q_pos_targs,
         q_vel_targs,
         q_pos_masks,
         q_vel_masks,
         ctrl_reg_weights,
     ):
-        return dict(
-            targ_trajs=targ_trajs,
-            targ_traj_masks=targ_traj_masks,
+        return dict(  # TODO: make naming consistent
+            traj_targs=trag_targs,
+            traj_masks=traj_masks,
             # targ_traj_mask_types=mask_types,
             q_pos_targs=q_pos_targs,
             q_vel_targs=q_vel_targs,
@@ -1267,17 +1280,20 @@ def get_from_interv_dict(interv_dict: dict[int | float, Any], lookup_idx: int | 
 
 
 def arm_target_traj(
+    config_name,
     env,
-    sites,
+    site_names,
     site_grad_idxs,
     stabilize_jnt_idx,
     stabilize_act_idx,
-    targ_trajs,
-    targ_traj_masks: Dict,
-    targ_traj_mask_types,
-    q_targs,
-    q_pos_targ_masks,
-    q_vel_targ_masks,
+    # targ_trajs,
+    # targ_traj_masks: Dict,
+    # targ_traj_mask_types,
+    # q_targs,
+    # q_pos_targs,
+    # q_vel_targs,
+    # q_pos_masks,
+    # q_vel_masks,
     ctrls,
     grad_trunc_tk,
     seed,
@@ -1289,7 +1305,7 @@ def arm_target_traj(
     lr2=10,
     it_lr2=31,
     keep_top=1,
-    incr_every=5,
+    incr_every=10,
     amnt_to_incr=5,
     grad_update_every=1,
     grab_phase_it=0,
@@ -1322,7 +1338,9 @@ def arm_target_traj(
         stabilize_act_idx: list of actuator indices
         target_trajs: list of target trajectories
         targ_traj_masks: dict of target trajectory masks
-        targ_traj_mask_types: list of target trajectory mask types
+        incr_every: number of iterations between mask increments
+        amnt_to_incr: number of timesteps to increment the mask by each
+            time it is incremented
         ctrls: initial arm controls
         grad_trunc_tk: gradient truncation time
         seed: random seed
@@ -1332,8 +1350,6 @@ def arm_target_traj(
         max_its: maximum number of gradient steps
         lr: learning rate
         keep_top: number of lowest losses to keep
-        incr_every: number of gradient steps between increments
-        amnt_to_incr: number of timesteps to increment the mask by each time
     """
     if phase_2_it is None:
         phase_2_it = max_its
@@ -1347,20 +1363,30 @@ def arm_target_traj(
     model = env.model
     data = env.data
     nq = model.nq
+    breakpoint()
+    traj_and_masks = make_traj_sets(
+        env,
+        config_name,
+        Tk,
+        amnt_to_incr,
+        incr_every,
+        seed,
+    )
+    # traj_and_masks["q_pos_masks"] = [
+    #     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
+    # ]
+    traj_targs = traj_and_masks["traj_targs"]
+    traj_masks = traj_and_masks["traj_masks"]
+    q_pos_targs = traj_and_masks["q_pos_masks"]
 
-    incr_its = sorted(list(targ_traj_masks.keys()))
+    incr_its = sorted(list(traj_masks.keys()))
 
-    render_class = targetRender(env, targ_trajs, sites)
+    render_class = targetRender(env, traj_targs, site_names)
     render_fn = render_class.render
 
     not_stabilize_act_idx = [k for k in range(model.nu) if k not in stabilize_act_idx]
 
-    n_sites = len(sites)
-    assert (
-        n_sites == len(targ_trajs)
-        and n_sites == len(targ_traj_masks)
-        and n_sites == len(targ_traj_mask_types)
-    )
+    n_sites = len(site_names)
 
     data0 = copy.deepcopy(data)
 
@@ -1422,8 +1448,8 @@ def arm_target_traj(
             for k in range(n_sites):
                 optms[k] = get_opt(lr)
         progbar.update(" it: " + str(k0))
-        targ_traj_mask_curr = get_from_interv_dict(targ_traj_masks, k0)
-        Tk_trunc = get_last_timepoint(targ_traj_mask_curr)
+        traj_mask_curr = get_from_interv_dict(traj_masks, k0)
+        Tk_trunc = get_last_timepoint(traj_mask_curr)
         ctrls_trunc = ctrls[:Tk_trunc]
         noisev_trunc = noisev[:Tk_trunc]
         util.reset_state(model, data, data0)
@@ -1438,6 +1464,7 @@ def arm_target_traj(
             contact_check_list,
             adh_ids,
         )
+        breakpoint()
         util.reset_state(model, data, data0)
         grads = [0] * n_sites
         update_phase = k0 % grad_update_every
@@ -1446,10 +1473,10 @@ def arm_target_traj(
                 model,
                 data,
                 ctrls_trunc + noisev_trunc,
-                targ_trajs[k][: Tk_trunc + 1],
-                targ_traj_mask_curr[: Tk_trunc + 1],
-                q_targs[k][: Tk_trunc + 1],
-                q_targ_masks[k][: Tk_trunc + 1],
+                traj_targs[k][: Tk_trunc + 1],
+                traj_mask_curr[: Tk_trunc + 1],
+                q_pos_targs[k0][: Tk_trunc + 1],
+                q_pos_masks[k0][: Tk_trunc + 1],
                 grad_trunc_tk,
                 deriv_ids=site_grad_idxs[k],
                 deriv_site=sites[k],
@@ -1527,7 +1554,7 @@ def arm_target_traj(
             # qs_k = qs * q_targ_masks[k]
             # q_targ = q_targs[k] * q_targ_masks[k]
             # diffsq2 =  (qs_k - q_targ)**2
-            diffsq1 = (hx - targ_trajs[k][: tk + 1]) ** 2
+            diffsq1 = (hx - traj_targs[k][: tk + 1]) ** 2
             mask = q_targ_masks[k][: tk + 1]
             nonzero = np.sum(mask > 0)
             if nonzero > 0:
@@ -1548,7 +1575,7 @@ def arm_target_traj(
                 sum2 = 0
             # losses[k] = np.mean(diffsq1) + sum2
             losses[k] = np.mean(diffsq1)
-            mask = np.tile((targ_traj_mask_curr[: tk + 1] > 0), (3, 1)).T
+            mask = np.tile((traj_mask_curr[: tk + 1] > 0), (3, 1)).T
             temp = np.sum(diffsq1 * mask) / (np.sum(mask[:, 0]))
             losses_curr_mask[k] = temp
 
@@ -1580,7 +1607,7 @@ def arm_target_traj(
                 axs,
                 hxs,
                 tt[: tk + 1],
-                [x[: tk + 1] for x in targ_trajs],
+                [x[: tk + 1] for x in traj_targs],
                 [x[: tk + 1] for x in targ_traj_mask_currs],
                 # qs_wr,
                 # q_targs_wr,
@@ -1600,7 +1627,7 @@ def arm_target_traj(
                     axs,
                     hxs,
                     tt[: tk + 1],
-                    [x[: tk + 1] for x in targ_trajs],
+                    [x[: tk + 1] for x in traj_targs],
                     [x[: tk + 1] for x in targ_traj_mask_currs],
                     # qs_wr,
                     # q_targs_wr,
