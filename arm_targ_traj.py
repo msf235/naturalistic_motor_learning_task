@@ -1185,7 +1185,7 @@ def show_plot(
     ax_cntr = 0
     for k in nr:
         hx = hxs[k]
-        tm = np.tile(targ_traj_mask[k], (3, 1)).T
+        tm = np.tile(targ_traj_mask[k] > 0, (3, 1)).T
         tm[tm == 0] = np.nan
         ft = target_trajs[k] * tm
         loss = np.mean((hx - target_trajs[k]) ** 2)
@@ -1301,6 +1301,25 @@ def get_from_interv_dict(interv_dict: dict[int | float, Any], lookup_idx: int | 
     return interv_dict[prev_key]
 
 
+def get_from_right_endpoint_interv_dict(
+    interv_dict: dict[int | float, Any], lookup_idx: int | float
+):
+    """
+    If right_endpoint_interv_dict = {30: 'A', 50: 'B'} then:
+        key = 0 -> return 'A'
+        key = 30 -> return 'B'
+        key = 40 -> return 'B'
+        key = 60 -> return 'B'
+    """
+    dkeys = list(interv_dict.keys())
+    dkeys = sorted(dkeys)
+    key = -1
+    for key in dkeys:
+        if lookup_idx < key:
+            break
+    return interv_dict[key]
+
+
 def arm_target_traj(
     config_name,
     env,
@@ -1347,6 +1366,7 @@ def arm_target_traj(
     let_go_ids=[],
     n_steps_adh=10,
     ctrl_reg_weights=None,
+    joint_penalty_factor=0,
 ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
@@ -1402,6 +1422,8 @@ def arm_target_traj(
     q_pos_masks = traj_and_masks["q_pos_masks"]
     q_vel_targs = traj_and_masks["q_vel_targs"]
     q_vel_masks = traj_and_masks["q_vel_masks"]
+    for key in q_vel_masks:
+        q_vel_masks[key] = joint_penalty_factor * q_vel_masks[key]
 
     incr_its = sorted(list(traj_masks.keys()))
 
@@ -1476,9 +1498,9 @@ def arm_target_traj(
                 optms[k] = get_opt(lr)
         progbar.update(" it: " + str(k0))
 
-        traj_mask_curr = np.array(get_from_interv_dict(traj_masks, k0))
-        q_pos_mask_curr = get_from_interv_dict(q_pos_masks, k0)
-        q_vel_mask_curr = get_from_interv_dict(q_vel_masks, k0)
+        traj_mask_curr = np.array(get_from_right_endpoint_interv_dict(traj_masks, k0))
+        q_pos_mask_curr = get_from_right_endpoint_interv_dict(q_pos_masks, k0)
+        q_vel_mask_curr = get_from_right_endpoint_interv_dict(q_vel_masks, k0)
 
         Tk_trunc = get_last_timepoint(traj_mask_curr)
         ctrls_trunc = ctrls[:Tk_trunc]
@@ -1641,7 +1663,6 @@ def arm_target_traj(
             # print()
             # print(grads[0][:10, :5])
             # print()
-            # breakpoint()
             show_plot(
                 axs,
                 hxs,

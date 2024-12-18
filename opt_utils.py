@@ -731,12 +731,13 @@ def traj_deriv_new(
     q_targ_mask_flat = np.sum(q_pos_mask, axis=1) > 0
 
     qs = np.zeros((Tk, syssize1))
+    tk = 0
     for tk in range(Tk):
-        if tk in grad_range and targ_traj_mask[tk]:
+        if tk in grad_range and targ_traj_mask[tk] > 0:
             mj.mj_forward(model, data)
             mj.mj_jacSite(model, data, C, None, site=data.site(f"{deriv_site}").id)
             site_xpos = data.site(f"{deriv_site}").xpos
-            dlds = site_xpos - targ_traj[tk]
+            dlds = (site_xpos - targ_traj[tk]) * targ_traj_mask[tk]
             dldss[tk] = dlds
             hxs[tk] = site_xpos
             dldq = C.T @ dlds
@@ -755,7 +756,10 @@ def traj_deriv_new(
             model,
             dq,
             1,
-            data.qpos * q_pos_mask[tk],
+            data.qpos
+            * q_pos_mask[
+                tk
+            ],  # TODO: fix this to account for case where q_pos_mask is not binary
             q_pos_targ[tk] * q_pos_mask[tk],
         )
         dqvel = (q_vel_now - q_vel_targ[tk]) * q_vel_mask[tk]
@@ -772,10 +776,10 @@ def traj_deriv_new(
             sim_util.step(model, data, ctrls[tk])
     # qdots = qs[:, nq:]
     # qaccs = np.gradient(qdots, axis=0)
-    qsfft = np.fft.fft(qs[:, :nq], axis=0)
-    freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, nq))
+    # qsfft = np.fft.fft(qs[:, :nq], axis=0)
+    # freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, nq))
     # regularizer = np.sum((freqs**2) * np.abs(qsfft)**2)
-    grad_regularizer = np.fft.ifft(2 * (freqs**2) * qsfft, axis=0).real
+    # grad_regularizer = np.fft.ifft(2 * (freqs**2) * qsfft, axis=0).real
     # dldqs[:, :nq] += 1e3*grad_regularizer
     lams[tk] = dldqs[tk]
     grads = np.zeros((Tk - 1, nuderiv))
@@ -783,11 +787,11 @@ def traj_deriv_new(
     ctrls_clip = np.delete(ctrls, fixed_act_ids, axis=1)
     loss_u = 1e-6 * ctrls_clip.copy() * ctrl_reg_weight
 
-    ufft = np.fft.fft(ctrls_clip, axis=0)
+    # ufft = np.fft.fft(ctrls_clip, axis=0)
     # freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, nq))
     # regularizer = np.sum((freqs**2) * np.abs(ufft)**2)
-    freqs = np.tile(np.fft.fftfreq(Tk - 1).reshape(-1, 1), (1, nuderiv))
-    grad_regularizer = np.fft.ifft(2 * (freqs**2) * ufft, axis=0).real
+    # freqs = np.tile(np.fft.fftfreq(Tk - 1).reshape(-1, 1), (1, nuderiv))
+    # grad_regularizer = np.fft.ifft(2 * (freqs**2) * ufft, axis=0).real
     # loss_u += grad_regularizer # endpoints large -- maybe remove
 
     dt = model.opt.timestep
@@ -818,13 +822,14 @@ def traj_deriv_new(
     mat_block[:, 0] = v[::-1]
     mat_block[1:, update_every] = v[:-1]
     # if update_phase > 0:
-    n_complete_blocks = (Tk - 1) // update_every + 1
-    last_block_size = (Tk - 1) % update_every - update_phase
-    first_block_size = update_phase
+    # n_complete_blocks = (Tk - 1) // update_every + 1
+    # last_block_size = (Tk - 1) % update_every - update_phase
+    # first_block_size = update_phase
     # As = n_complete_blocks * update_every + last_block_size + first_block_size
     An = Tk - 1
     A = np.zeros((An, An))
     A[:update_phase, update_phase] = 1
+    ks = 0
     for k in range(0, An - update_every - update_phase, update_every):
         ks = k + update_phase
         A[ks : ks + update_every, ks : ks + update_every + 1] = mat_block

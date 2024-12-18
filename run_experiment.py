@@ -226,6 +226,7 @@ if args.rerun or not out_f.exists():
         let_go_ids=out_idx["let_go_ids"],
         n_steps_adh=10,
         ctrl_reg_weights=[None],
+        joint_penalty_factor=params["joint_penalty_factor"],
     )
     ctrls = np.vstack((ctrls, ctrls_burn_in))
     ctrls_end = np.zeros((Tke, model.nu))

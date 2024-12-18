@@ -18,6 +18,22 @@ def test_arm_targ_traj__get_from_interv_dict():
     print("Test passed.")
 
 
+def test_arm_targ_traj__get_from_right_endpoint_interv_dict():
+    print("Testing test_arm_targ_traj.get_from_right_endpoint_interv_dict")
+    test_interv_dict: dict[int | float, Any] = {30: "A", 50: "B"}
+    test_keys = [0, 30, 40, 60]
+    results = [
+        arm_targ_traj.get_from_right_endpoint_interv_dict(test_interv_dict, key)
+        for key in test_keys
+    ]
+    print(
+        f'Using test dictionary "{test_interv_dict}" with keys "{test_keys}",',
+        f'get the values "{results}".',
+    )
+    assert results == ["A", "B", "B", "B"]
+    print("Test passed.")
+
+
 def masks_generate_decaying_intervals():
     interval_end_times = [2, 5, 7, 10]
     Tk = 10
@@ -37,4 +53,5 @@ def masks_generate_decaying_intervals():
 
 if __name__ == "__main__":
     # test_arm_targ_traj__get_from_interv_dict()
-    masks_generate_decaying_intervals()
+    test_arm_targ_traj__get_from_right_endpoint_interv_dict()
+    # masks_generate_decaying_intervals()
