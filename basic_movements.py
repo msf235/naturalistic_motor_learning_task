@@ -200,8 +200,8 @@ def random_arcs_right_arm(
         seed,
     )
 
-    xs = rs * np.cos(thetas)
-    ys = rs * np.sin(thetas)
+    # xs = rs * np.cos(thetas)
+    # ys = rs * np.sin(thetas)
     # plt.plot(xs+shouldx[1], ys+shouldx[2])
     # plt.scatter(shouldx[1], shouldx[2], color='red')
     # plt.scatter(handx[1], handx[2], color='blue')

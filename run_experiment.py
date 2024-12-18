@@ -157,7 +157,7 @@ if args.rerun or not out_f.exists():
     )[:2]
     # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
     # while True:
-    # reset()
+    reset()
     # util.forward_sim_render(env, ctrls)
     # arm_t.forward_to_contact(env, ctrls, render=True)
     # reset()
@@ -199,12 +199,33 @@ if args.rerun or not out_f.exists():
         ctrl_rate=CTRL_RATE,
         ctrl_std=CTRL_STD,
         Tk=Tk,
+        max_its=params["max_its"],
+        lr=params["lr"],
+        lr2=params["lr2"],
+        it_lr2=params["it_lr2"],
         keep_top=10,
-        amnt_to_incr=amnt_to_incr,
         incr_every=incr_every,
+        amnt_to_incr=amnt_to_incr,
+        grad_update_every=params["grad_update_every"],
+        grab_phase_it=params["grab_phase_it"],
+        grab_phase_tk=out_time["grab_phase_tk"],
         phase_2_it=params["max_its"] + 1,
         plot_every=args.plot_every,
         render_every=args.render_every,
+        optimizer=params["optimizer"],
+        contact_check_list=out_idx["contact_check_list"],
+        adh_ids=out_idx["adh_ids"],
+        balance_cost=params["balance_cost"],
+        joint_cost=params["joint_cost"],
+        # root_cost=params["root_cost"],
+        root_cost=0,  # For comparision. TODO: use line above instead
+        # foot_cost=params["foot_cost"],
+        foot_cost=1000,
+        ctrl_cost=params["ctrl_cost"],
+        let_go_times=out_time["let_go_times"],
+        let_go_ids=out_idx["let_go_ids"],
+        n_steps_adh=10,
+        ctrl_reg_weights=[None],
     )
     ctrls = np.vstack((ctrls, ctrls_burn_in))
     ctrls_end = np.zeros((Tke, model.nu))
