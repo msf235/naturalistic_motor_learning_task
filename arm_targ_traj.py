@@ -810,7 +810,7 @@ def make_traj_sets(env, exp_name, Tk, amnt_to_incr, incr_every, seed=2):
         traj1_xs[:, 1] = rs * np.cos(thetas)
         traj1_xs[:, 2] = rs * np.sin(thetas)
         traj1_xs += data.site(RSHOULD_S).xpos
-        targ_trajs = traj1_xs
+        targ_trajs = [traj1_xs]
         ctrl_reg_weights = [None]
         return make_return_dict(
             targ_trajs,
@@ -1465,6 +1465,9 @@ def arm_target_traj(
     lowest_losses_curr_mask = LimLowestDict(keep_top)
 
     dq = np.zeros(model.nv)
+    fig, axs = plt.subplots(4, n_sites, figsize=(4 * n_sites, 4 * 3.5))
+    if n_sites == 1:
+        axs = axs.reshape((4, 1))
     for k0 in range(max_its):
         if k0 >= it_lr2:
             lr = lr2
@@ -1500,7 +1503,7 @@ def arm_target_traj(
                 model,
                 data,
                 ctrls_trunc + noisev_trunc,
-                traj_targs[: Tk_trunc + 1],
+                traj_targs[k][: Tk_trunc + 1],
                 traj_mask_curr[: Tk_trunc + 1],
                 q_pos_targs[: Tk_trunc + 1],
                 q_pos_mask_curr[: Tk_trunc + 1],
@@ -1563,7 +1566,7 @@ def arm_target_traj(
             tk = Tk
         util.reset_state(model, data, data0)
         render = k0 % render_every == 0
-        if render:
+        if env.render_mode == "human" and render:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, render_fn)
             render_class.reset_counter()
         else:
@@ -1577,42 +1580,49 @@ def arm_target_traj(
         dldss = [0] * n_sites
         losses_curr_mask = [0] * n_sites
         for k in range(n_sites):
-            hx = ret_dict[sites[k]]
+            hx = ret_dict[site_names[k]]
             hxs[k] = hx
             # hx = hxs[k]
             # qs_k = qs * q_targ_masks[k]
             # q_targ = q_targs[k] * q_targ_masks[k]
             # diffsq2 =  (qs_k - q_targ)**2
             diffsq1 = (hx - traj_targs[k][: tk + 1]) ** 2
-            mask = q_targ_masks[k][: tk + 1]
+            pos_mask = q_pos_mask_curr[: tk + 1]
+            vel_mask = q_vel_mask_curr[: tk + 1]
+            mask = np.hstack((pos_mask, vel_mask))
             nonzero = np.sum(mask > 0)
             if nonzero > 0:
                 qs_k = qpos.copy()
                 qvs_k = qvs.copy()
-                q_targ = q_targs[k][: tk + 1]
+                q_pos_targ = q_pos_targs[: tk + 1]
+                q_vel_targ = q_vel_targs[: tk + 1]
+                q_targ = np.hstack((q_pos_targ, q_vel_targ))
                 dq = opt_utils.batch_differentiatePos(
                     model,
                     1,
-                    qs_k * mask[:, :nq],
-                    q_targ[:, :nq] * mask[:, :nq],
+                    qs_k * pos_mask,
+                    q_pos_targ * pos_mask,
                 )
-                dvel = (qvs_k - q_targ[:, nq:]) * mask[:, nq:]
-                dqfull = np.concatenate((dq, dvel))
+                dvel = (qvs_k - q_vel_targ) * vel_mask
+                dqfull = np.hstack((dq, dvel))
                 diffsq2 = dqfull**2
                 sum2 = np.sum(diffsq2) / np.sum(mask > 0)
             else:
                 sum2 = 0
             # losses[k] = np.mean(diffsq1) + sum2
             losses[k] = np.mean(diffsq1)
-            mask = np.tile((traj_mask_curr[: tk + 1] > 0), (3, 1)).T
-            temp = np.sum(diffsq1 * mask) / (np.sum(mask[:, 0]))
+            # mask = np.tile((traj_mask_curr[: tk + 1] > 0), (3, 1)).T
+            mask = traj_mask_curr[: tk + 1] > 0
+            mask_tiled = np.tile(mask, (3, 1)).T
+            temp = np.sum(diffsq1 * mask_tiled) / (np.sum(mask))
             losses_curr_mask[k] = temp
+            q_targs = np.hstack((q_pos_targs, q_vel_targs))
 
-            q_targs_masked_tmp = q_targs[k][: tk + 1].copy()
-            q_targs_masked_tmp[q_targ_masks[k][: tk + 1] == 0] = np.nan
+            q_targs_masked_tmp = q_targs[: tk + 1].copy()
+            q_targs_masked_tmp[mask == 0] = np.nan
             q_targs_masked.append(q_targs_masked_tmp)
             qs_tmp = qpos.copy()
-            qs_tmp[q_targ_masks[k][: tk + 1, :nq] == 0] = np.nan
+            qs_tmp[pos_mask == 0] = np.nan
             qs_list.append(qs_tmp)
         loss = sum([loss.item() for loss in losses]) / n_sites
         lowest_losses.append(loss, (k0, ctrls.copy()))
@@ -1637,10 +1647,10 @@ def arm_target_traj(
                 hxs,
                 tt[: tk + 1],
                 [x[: tk + 1] for x in traj_targs],
-                [x[: tk + 1] for x in targ_traj_mask_currs],
+                [traj_mask_curr[: tk + 1]],
                 # qs_wr,
                 # q_targs_wr,
-                sites,
+                site_names,
                 site_grad_idxs,
                 ctrls[:tk],
                 grads,
@@ -1657,10 +1667,10 @@ def arm_target_traj(
                     hxs,
                     tt[: tk + 1],
                     [x[: tk + 1] for x in traj_targs],
-                    [x[: tk + 1] for x in targ_traj_mask_currs],
+                    [traj_mask_curr[: tk + 1]],
                     # qs_wr,
                     # q_targs_wr,
-                    sites,
+                    site_names,
                     site_grad_idxs,
                     ctrls[:tk],
                     grads,

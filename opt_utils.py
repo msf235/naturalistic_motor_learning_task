@@ -758,7 +758,6 @@ def traj_deriv_new(
             data.qpos * q_pos_mask[tk],
             q_pos_targ[tk] * q_pos_mask[tk],
         )
-        breakpoint()
         dqvel = (q_vel_now - q_vel_targ[tk]) * q_vel_mask[tk]
         dqfull = np.concatenate((dq, dqvel))
         dldqs[tk] += dqfull
