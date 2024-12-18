@@ -643,8 +643,9 @@ def get_data_from_qtarg_file(file_loc, dt=None):
     joint_names = file_conts[0][1:]
     joint_names[-1] = joint_names[-1].strip("\n")  # Remove \n character
     joint_names = [j.strip(" ") for j in joint_names]
-    q_pos_targs = {}
-    # q_data_time_tks = []
+    # q_pos_targs = {}
+    q_pos_targs = []
+    q_data_time_tks = []
     for row in file_conts[1:]:
         vals = [float(x.strip(" ").strip("\n")) for x in row[1:]]
         tv = float(row[0].strip(" "))
@@ -652,9 +653,10 @@ def get_data_from_qtarg_file(file_loc, dt=None):
             tk = int(tv / dt)
         else:
             tk = tv
-        q_pos_targs[tk] = vals
-        # q_data_time_tks.append(tk)
-    return q_pos_targs, joint_names
+        q_pos_targs.append(vals)
+        q_data_time_tks.append(tk)
+    q_pos = {"targ_val": q_pos_targs, "tk": q_data_time_tks, "joint_names": joint_names}
+    return q_pos
 
 
 def make_traj_sets(env, exp_name, Tk, amnt_to_incr, incr_every, seed=2):
@@ -723,30 +725,50 @@ def make_traj_sets(env, exp_name, Tk, amnt_to_incr, incr_every, seed=2):
         incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
     }
 
-    def get_qpos_data(joint_targs_file):
-        q_pos_targs, joint_names = get_data_from_qtarg_file(joint_targs_file, dt)
-        q_data_time_tks = list(q_pos_targs.keys())
-        q_pos_opt_dofadrs = [model.joint(n).dofadr.item() for n in joint_names]
+    def get_q_pos_and_vel_data(joint_targs_file):
+        q_pos_data = get_data_from_qtarg_file(joint_targs_file, dt)
+        q_pos_targs = q_pos_data["targ_val"]
+        q_pos_time_tks = q_pos_data["tk"]
+        joint_names = q_pos_data["joint_names"]
+        # q_data_time_tks = list(q_pos_targs.keys())
+        q_pos_dofadrs = [model.joint(n).dofadr.item() for n in joint_names]
+        q_pos_targs_expanded = np.zeros((Tk, model.nq))
+        for tk, targ in zip(q_pos_time_tks, q_pos_targs):
+            q_pos_targs_expanded[tk][q_pos_dofadrs] = targ
         q_pos_mask_list = masks.make_basic_qpos_masks(
-            q_data_time_tks,
-            q_pos_opt_dofadrs,
+            q_pos_time_tks,
+            q_pos_dofadrs,
             incr_time_right_endpoints,
             model.nq,
         )
-        q_pos_mask_dict = {
-            incr_it_right_endpoints[k]: mask for k, mask in enumerate(q_pos_mask_list)
-        }
         # q_pos_mask_dict = {
-        #     incr_it_left_endpoints[k]: mask for k, mask in enumerate(q_pos_masks)
+        #     incr_it_right_endpoints[k]: mask for k, mask in enumerate(q_pos_mask_list)
         # }
-        q_vel_mask_dict = {0: np.zeros((Tk, model.nv))}
-        q_vel_targs = {}
+        q_pos_mask_dict = {
+            it: mask for it, mask in zip(incr_it_right_endpoints, q_pos_mask_list)
+        }
+        q_vel_mask_list = masks.make_basic_qpos_masks(
+            list(range(0, Tk)),
+            list(range(0, model.nv)),
+            incr_time_right_endpoints,
+            model.nv,
+        )
+        q_vel_mask_dict = {
+            it: mask for it, mask in zip(incr_it_right_endpoints, q_vel_mask_list)
+        }
+        # This is for velocity penalization (l2 regularization)
+        # TODO: add an additional dict to allow for target velocities as well
+        # as velocity penalties
+        # q_vel_mask_dict = {
+        #     it: np.ones_like((Tk, model.nv)) for it in incr_it_right_endpoints
+        # }
+        q_vel_targs_expanded = np.zeros((Tk, model.nv))
         return (
-            q_pos_targs,
-            q_vel_targs,
+            q_pos_targs_expanded,
+            q_vel_targs_expanded,
             q_pos_mask_dict,
             q_vel_mask_dict,
-            q_pos_opt_dofadrs,
+            q_pos_dofadrs,
             joint_names,
         )
 
@@ -779,7 +801,7 @@ def make_traj_sets(env, exp_name, Tk, amnt_to_incr, incr_every, seed=2):
             q_vel_masks,
             q_pos_opt_dofadrs,
             joint_names,
-        ) = get_qpos_data(joint_targs_file)
+        ) = get_q_pos_and_vel_data(joint_targs_file)
 
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site(RHAND_S).xpos, smoothing_time, arc_std, seed
@@ -1363,7 +1385,6 @@ def arm_target_traj(
     model = env.model
     data = env.data
     nq = model.nq
-    breakpoint()
     traj_and_masks = make_traj_sets(
         env,
         config_name,
@@ -1377,7 +1398,10 @@ def arm_target_traj(
     # ]
     traj_targs = traj_and_masks["traj_targs"]
     traj_masks = traj_and_masks["traj_masks"]
-    q_pos_targs = traj_and_masks["q_pos_masks"]
+    q_pos_targs = traj_and_masks["q_pos_targs"]
+    q_pos_masks = traj_and_masks["q_pos_masks"]
+    q_vel_targs = traj_and_masks["q_vel_targs"]
+    q_vel_masks = traj_and_masks["q_vel_masks"]
 
     incr_its = sorted(list(traj_masks.keys()))
 
@@ -1396,7 +1420,7 @@ def arm_target_traj(
 
     def ret_fn(data):
         site_dict = {}
-        for site in sites:
+        for site in site_names:
             site_dict[site] = data.site(site).xpos.copy()
         site_dict.update(
             {
@@ -1448,7 +1472,11 @@ def arm_target_traj(
             for k in range(n_sites):
                 optms[k] = get_opt(lr)
         progbar.update(" it: " + str(k0))
-        traj_mask_curr = get_from_interv_dict(traj_masks, k0)
+
+        traj_mask_curr = np.array(get_from_interv_dict(traj_masks, k0))
+        q_pos_mask_curr = get_from_interv_dict(q_pos_masks, k0)
+        q_vel_mask_curr = get_from_interv_dict(q_vel_masks, k0)
+
         Tk_trunc = get_last_timepoint(traj_mask_curr)
         ctrls_trunc = ctrls[:Tk_trunc]
         noisev_trunc = noisev[:Tk_trunc]
@@ -1464,7 +1492,6 @@ def arm_target_traj(
             contact_check_list,
             adh_ids,
         )
-        breakpoint()
         util.reset_state(model, data, data0)
         grads = [0] * n_sites
         update_phase = k0 % grad_update_every
@@ -1473,13 +1500,15 @@ def arm_target_traj(
                 model,
                 data,
                 ctrls_trunc + noisev_trunc,
-                traj_targs[k][: Tk_trunc + 1],
+                traj_targs[: Tk_trunc + 1],
                 traj_mask_curr[: Tk_trunc + 1],
-                q_pos_targs[k0][: Tk_trunc + 1],
-                q_pos_masks[k0][: Tk_trunc + 1],
+                q_pos_targs[: Tk_trunc + 1],
+                q_pos_mask_curr[: Tk_trunc + 1],
+                q_vel_targs[: Tk_trunc + 1],
+                q_vel_mask_curr[: Tk_trunc + 1],
                 grad_trunc_tk,
                 deriv_ids=site_grad_idxs[k],
-                deriv_site=sites[k],
+                deriv_site=site_names[k],
                 update_every=grad_update_every,
                 update_phase=update_phase,
                 let_go_times=let_go_times,
@@ -1497,7 +1526,7 @@ def arm_target_traj(
             )
 
         try:
-            ctrls_trunc, __, qs, qvels = opt_utils.get_stabilized_ctrls(
+            ctrls_trunc, __, qpos, qvels = opt_utils.get_stabilized_ctrls(
                 model,
                 data,
                 Tk_trunc + 1,
@@ -1540,7 +1569,7 @@ def arm_target_traj(
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
         # hxs, qs = forward_with_sites(env, ctrls[:tk], sites, render=False)
-        qs = ret_dict["qpos"]
+        qpos = ret_dict["qpos"]
         qvs = ret_dict["qvel"]
         q_targs_masked = []
         qs_list = []
@@ -1558,7 +1587,7 @@ def arm_target_traj(
             mask = q_targ_masks[k][: tk + 1]
             nonzero = np.sum(mask > 0)
             if nonzero > 0:
-                qs_k = qs.copy()
+                qs_k = qpos.copy()
                 qvs_k = qvs.copy()
                 q_targ = q_targs[k][: tk + 1]
                 dq = opt_utils.batch_differentiatePos(
@@ -1582,7 +1611,7 @@ def arm_target_traj(
             q_targs_masked_tmp = q_targs[k][: tk + 1].copy()
             q_targs_masked_tmp[q_targ_masks[k][: tk + 1] == 0] = np.nan
             q_targs_masked.append(q_targs_masked_tmp)
-            qs_tmp = qs.copy()
+            qs_tmp = qpos.copy()
             qs_tmp[q_targ_masks[k][: tk + 1, :nq] == 0] = np.nan
             qs_list.append(qs_tmp)
         loss = sum([loss.item() for loss in losses]) / n_sites

@@ -678,8 +678,10 @@ def traj_deriv_new(
     ctrls,
     targ_traj,
     targ_traj_mask,
-    q_targ,
-    q_targ_mask,
+    q_pos_targ,
+    q_pos_mask,
+    q_vel_targ,
+    q_vel_mask,
     grad_trunc_tk,
     deriv_ids=[],
     deriv_site="hand_right",
@@ -726,7 +728,7 @@ def traj_deriv_new(
         let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids
     )
 
-    q_targ_mask_flat = np.sum(q_targ_mask, axis=1) > 0
+    q_targ_mask_flat = np.sum(q_pos_mask, axis=1) > 0
 
     qs = np.zeros((Tk, syssize1))
     for tk in range(Tk):
@@ -745,23 +747,25 @@ def traj_deriv_new(
                 )
                 Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
         # if tk in grad_range and q_targ_mask_flat[tk]:
-        qnow = np.concatenate((data.qpos[:], data.qvel[:]))
-        qs[tk] = qnow
+        q_pos_now = data.qpos.copy()
+        q_vel_now = data.qvel.copy()
+        # qs[tk] = qnow
         # dldq = qnow - q_targ[tk]
         mj.mj_differentiatePos(
             model,
             dq,
             1,
-            data.qpos * q_targ_mask[tk, :nq],
-            q_targ[tk, :nq] * q_targ_mask[tk, :nq],
+            data.qpos * q_pos_mask[tk],
+            q_pos_targ[tk] * q_pos_mask[tk],
         )
-        dqvel = (qnow[nq:] - q_targ[tk, nq:]) * q_targ_mask[tk, nq:]
+        breakpoint()
+        dqvel = (q_vel_now - q_vel_targ[tk]) * q_vel_mask[tk]
         dqfull = np.concatenate((dq, dqvel))
         dldqs[tk] += dqfull
 
         if tk < Tk - 1:
             if contact_check_list is not None:
-                ctrls[tk], __, __ = adh_ctrl.get_ctrl(
+                ctrls[tk], _, _ = adh_ctrl.get_ctrl(
                     model,
                     data,
                     ctrls[tk],

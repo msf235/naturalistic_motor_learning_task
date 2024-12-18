@@ -62,7 +62,6 @@ dt = model.opt.timestep
 # burn_step = int(.09 / dt)
 # burn_step = int(.001 / dt)
 burn_step = int(0.01 / dt)
-print(burn_step)
 
 # env.render()
 # env.mujoco_renderer.viewer.add_marker(size=np.array([2, 2, 2]))
@@ -118,7 +117,7 @@ out_time = arm_t.get_times(env, params["name"], Tf)
 
 t_incr = params["t_incr"]
 amnt_to_incr = int(t_incr / dt)
-incr_every = params["incr_every"]
+incr_every: int = params["incr_every"]
 # incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
 # incr_tk_left_intervals = np.arange(0, Tk, amnt_to_incr)
 # incr_tk_end_intervals = np.arange(amnt_to_incr, Tk + 1, amnt_to_incr)
@@ -202,6 +201,7 @@ if args.rerun or not out_f.exists():
         Tk=Tk,
         keep_top=10,
         amnt_to_incr=amnt_to_incr,
+        incr_every=incr_every,
         phase_2_it=params["max_its"] + 1,
         plot_every=args.plot_every,
         render_every=args.render_every,
