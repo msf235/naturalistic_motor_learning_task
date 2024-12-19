@@ -39,9 +39,7 @@ arm_keys = ["Thorax", "Shoulder", "Elbow", "Wrist", "Hand"]
 
 
 ### LQR
-def get_ctrl0(model, data, qpos0, stable_jnt_ids, ctrl_act_ids):
-    # data = copy.deepcopy(data)
-    # data.qpos[:] = qpos0.copy()
+def get_ctrl0(model, data, stable_jnt_ids, ctrl_act_ids):
     mj.mj_forward(model, data)
     data.qacc[:] = 0
     data.qvel[:] = 0
@@ -397,7 +395,7 @@ def get_feedback_ctrl_matrix(
 
 def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
     dq = np.zeros(model.nv)
-    mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)
+    mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)  # type: ignore
     dq = dq[stable_jnt_ids]
     qvel = data.qvel[stable_jnt_ids]
     dx = np.concatenate((dq, qvel))
@@ -466,7 +464,7 @@ def get_stabilized_ctrls(
         if k % K_update_interv == 0:
             datak0 = copy.deepcopy(data)
             qpos0n[free_jnt_dofadrs] = data.qpos[free_jnt_dofadrs]
-            ctrl0 = get_ctrl0(model, data, qpos0n, stable_jnt_dofadrs, ctrl_act_ids)
+            ctrl0 = get_ctrl0(model, data, stable_jnt_dofadrs, ctrl_act_ids)
             util.reset_state(model, data, datak0)
             K = get_feedback_ctrl_matrix(
                 model,
@@ -488,10 +486,10 @@ def get_stabilized_ctrls(
         # else:
         # ctrls[k][free_act_ids] = free_ctrls[k]
         ctrls[k][free_act_ids] = free_ctrls[k]
-        ctrls[k], __, __ = adh_ctrl.get_ctrl(model, data, ctrls[k])
-        mj.mj_step1(model, data)
+        ctrls[k], _, _ = adh_ctrl.get_ctrl(model, data, ctrls[k])
+        mj.mj_step1(model, data)  # type: ignore
         data.ctrl[:] = ctrls[k] + noisev[k]
-        mj.mj_step2(model, data)
+        mj.mj_step2(model, data)  # type: ignore
         qs[k + 1] = data.qpos.copy()
         qvels[k + 1] = data.qvel.copy()
     return ctrls, K, qs, qvels
@@ -688,7 +686,6 @@ def traj_deriv_new(
     update_every=1,
     update_phase=0,
     grad_filter=True,
-    grab_time=None,
     let_go_times=None,
     let_go_ids=None,
     n_steps_adh=10,
@@ -698,29 +695,22 @@ def traj_deriv_new(
 ):
     """deriv_inds specifies the indices of the actuators that will be
     updated (for instance, the actuators related to the right arm)."""
-    # data = copy.deepcopy(data)
     assert update_phase < update_every
-    nq = model.nq
     nv = model.nv
-    syssize1 = nv + nq
-    syssize2 = 2 * nv + model.na
-    syssize3 = 2 * nq
+    syssize = 2 * nv + model.na
     nuderiv = len(deriv_ids)
     if ctrl_reg_weight is None:
         ctrl_reg_weight = np.ones((ctrls.shape[0], nuderiv))
     Tk = ctrls.shape[0] + 1
     grad_range = range(update_phase, Tk, update_every)
-    Tkn = grad_range[-1]
-    As = np.zeros((Tk - 1, syssize2, syssize2))
-    Bs = np.zeros((Tk - 1, syssize2, nuderiv))
-    B = np.zeros((syssize2, model.nu))
+    As = np.zeros((Tk - 1, syssize, syssize))
+    Bs = np.zeros((Tk - 1, syssize, nuderiv))
+    B = np.zeros((syssize, model.nu))
     C = np.zeros((3, nv))
     dq = np.zeros(nv)
-    dldqs = np.zeros((Tk, syssize2))
+    dldqs = np.zeros((Tk, syssize))
     dldss = np.zeros((Tk, 3))
-    lams = np.zeros((Tk, syssize2))
-    lams2 = np.zeros((Tk, syssize2))
-    lams3 = np.zeros((Tk, syssize2))
+    lams = np.zeros((Tk, syssize))
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     hxs = np.zeros((Tk, 3))
 
@@ -728,14 +718,11 @@ def traj_deriv_new(
         let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids
     )
 
-    q_targ_mask_flat = np.sum(q_pos_mask, axis=1) > 0
-
-    qs = np.zeros((Tk, syssize1))
     tk = 0
     for tk in range(Tk):
         if tk in grad_range and targ_traj_mask[tk] > 0:
-            mj.mj_forward(model, data)
-            mj.mj_jacSite(model, data, C, None, site=data.site(f"{deriv_site}").id)
+            mj.mj_forward(model, data)  # type: ignore
+            mj.mj_jacSite(model, data, C, None, site=data.site(f"{deriv_site}").id)  # type: ignore
             site_xpos = data.site(f"{deriv_site}").xpos
             dlds = (site_xpos - targ_traj[tk]) * targ_traj_mask[tk]
             dldss[tk] = dlds
@@ -743,15 +730,11 @@ def traj_deriv_new(
             dldq = C.T @ dlds
             dldqs[tk, :nv] = dldq
             if tk < Tk - 1:
-                mj.mjd_transitionFD(
+                mj.mjd_transitionFD(  # type: ignore
                     model, data, epsilon_grad, True, As[tk], B, None, None
                 )
                 Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
-        # if tk in grad_range and q_targ_mask_flat[tk]:
-        q_pos_now = data.qpos.copy()
         q_vel_now = data.qvel.copy()
-        # qs[tk] = qnow
-        # dldq = qnow - q_targ[tk]
         mj.mj_differentiatePos(
             model,
             dq,
@@ -821,11 +804,6 @@ def traj_deriv_new(
     v = np.arange(dk, 1 + dk, dk)
     mat_block[:, 0] = v[::-1]
     mat_block[1:, update_every] = v[:-1]
-    # if update_phase > 0:
-    # n_complete_blocks = (Tk - 1) // update_every + 1
-    # last_block_size = (Tk - 1) % update_every - update_phase
-    # first_block_size = update_phase
-    # As = n_complete_blocks * update_every + last_block_size + first_block_size
     An = Tk - 1
     A = np.zeros((An, An))
     A[:update_phase, update_phase] = 1
@@ -858,7 +836,6 @@ def reset_with_lqr(
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
     body_dof = joints["body"]["dofadrs_without_root"]
-    # breakpoint()
     ctrls = get_stabilized_ctrls(
         model,
         data,
