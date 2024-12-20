@@ -1,15 +1,11 @@
 import mujoco as mj
-import time
-import sys
 import numpy as np
 import scipy
 
 # import control_logic as cl
 import sim_util as util
-import humanoid2d as h2d
 import copy
 import sim_util
-import optimizers as opts
 
 epsilon_grad = 5e-9
 
@@ -20,8 +16,8 @@ body_without_root_keys = [
     "Ankle",
     "Toe",
     "Torso",
-    "Spine",
     "Chest",
+    "Spine",
     "Neck",
     "Head",
     "Thorax",
@@ -81,7 +77,7 @@ def batch_differentiatePos(model, dt, qpos1_list, qpos2_list):
     return np.array(res)
 
 
-def convert_dofadr(model, data=None, joint_ids=None, concat=False):
+def convert_dofadr(model, joint_ids=None, concat=False):
     """Convert joint ids to dofadr. A list of dofadr is associated with each
     joint id; hence, this function returns a list of lists of dofard."""
     # WARNING: I'm not totally sure that len(bodyid) is always the number of
@@ -107,10 +103,10 @@ def convert_dofadr(model, data=None, joint_ids=None, concat=False):
     return dofadrs
 
 
-def get_body_joints(model, data=None):
+def get_body_joints(model):
     """Get joint names for body."""
     jntname = lambda k: model.joint(k).name
-    dof_conv = lambda li: convert_dofadr(model, None, li, True)
+    dof_conv = lambda li: convert_dofadr(model, li, True)
 
     bod_jnts = {}
     bod_jnts["ids"] = [k for k in range(model.njnt) if key_match(jntname(k), body_keys)]
@@ -175,25 +171,25 @@ def get_joint_ids(model, data=None):
     joints["all_id_dict"] = {jntn(k): k for k in range(model.njnt)}
     # joints['all_dofadr_dict'] = convert_dofadr(model, data,
     # joints['all_id_dict'].values())
-    joints["body"] = get_body_joints(model, data)
+    joints["body"] = get_body_joints(model)
     joints["ball"] = [k for k in range(model.njnt) if "ball" in jntn(k)]
     joints["tennis"] = [k for k in range(model.njnt) if "tennis" in jntn(k)]
     return joints
 
 
-def get_act_ids(model, data=None):
+def get_act_ids(model):
     acts = {}
     acts["act_names"] = [model.actuator(i).name for i in range(model.nu)]
     acts["all"] = [i for i in range(model.nu)]
-    acts.update(get_act_names_left_or_right(model, data, "right"))
-    acts.update(get_act_names_left_or_right(model, data, "left"))
+    acts.update(get_act_names_left_or_right(model, "right"))
+    acts.update(get_act_names_left_or_right(model, "left"))
     acts["adh"] = acts[f"adh_left_hand"] + acts[f"adh_right_hand"]
     acts["adh"].sort()
     acts[f"not_adh"] = [k for k in acts["all"] if k not in acts["adh"]]
     return acts
 
 
-def get_act_names_left_or_right(model, data=None, left_or_right="right"):
+def get_act_names_left_or_right(model, left_or_right="right"):
     actn = lambda k: model.actuator(k).name
     act_names = [actn(k) for k in range(model.nu)]
     direct_dict = {"right": "R_", "left": "L_"}
@@ -342,13 +338,11 @@ def get_feedback_ctrl_matrix_from_QR(
 ):
     # Assumes that data.ctrl has been set to ctrl0 and data.qpos has been set
     # to qpos0.
-    # data = copy.deepcopy(data)
-    qvel = data.qvel.copy()
     nv = model.nv
     A = np.zeros((2 * nv, 2 * nv))
     B = np.zeros((2 * nv, model.nu))
     flg_centered = True
-    mj.mjd_transitionFD(model, data, epsilon_grad, flg_centered, A, B, None, None)
+    mj.mjd_transitionFD(model, data, epsilon_grad, flg_centered, A, B, None, None)  # type: ignore
     stable_ids = stable_jnt_ids + [i + nv for i in stable_jnt_ids]
     A = A[stable_ids][:, stable_ids]
     B = B[stable_ids][:, active_ctrl_ids]
@@ -376,8 +370,6 @@ def get_feedback_ctrl_matrix(
     # What about data.qpos, data.qvel, data.qacc?
     # data = copy.deepcopy(data)
     data.ctrl[active_ctrl_ids] = ctrl0
-    nq = model.nq
-    nu = model.nu
     R = ctrl_cost * np.eye(len(active_ctrl_ids))
     Q = get_Q_matrix(
         model,

@@ -1,22 +1,8 @@
-import humanoid2d as h2d
-
 # import baseball_lqr as lqr
 import opt_utils as opt_utils
-import optimizers as opts
 import numpy as np
 import sim_util as util
-import mujoco as mj
-import sys
-import os
-import copy
-import time
-import pickle as pkl
-import sortedcontainers as sc
-from matplotlib import pyplot as plt
 
-
-import numpy as np
-import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
 
 # Site names
@@ -35,8 +21,8 @@ def reflective_random_walk(
     initial_position=0.5,
     step_std=0.02,
     smoothing_sigma=10,
-    lower_lim=0,
-    upper_lim=1,
+    lower_lim: float = 0,
+    upper_lim: float = 1,
     rng=None,
 ):
     # n_steps: Number of steps in the random walk
@@ -149,7 +135,7 @@ def random_arcs(
     rng = np.random.default_rng(seed)
 
     # Random walk for radius
-    positions, smoothed_positions = reflective_random_walk(
+    _, smoothed_positions = reflective_random_walk(
         n_steps=n_steps,
         initial_position=r0,
         step_std=step_std,
@@ -162,7 +148,7 @@ def random_arcs(
     rs = smoothed_positions - smoothed_positions[0] + r0
 
     # Random walk for angles
-    positions, smoothed_positions = reflective_random_walk(
+    _, smoothed_positions = reflective_random_walk(
         n_steps=n_steps,
         initial_position=th0,
         step_std=step_std,
@@ -245,15 +231,15 @@ def random_arcs_left_arm(
         seed,
     )
 
-    xs = rs * np.cos(thetas)
-    ys = rs * np.sin(thetas)
+    # xs = rs * np.cos(thetas)
+    # ys = rs * np.sin(thetas)
     # plt.plot(xs+shouldx[1], ys+shouldx[2])
     # plt.scatter(shouldx[1], shouldx[2], color='red')
     # plt.scatter(handx[1], handx[2], color='blue')
     # plt.axis('equal')
     # plt.show()
 
-    positions, wrist_qs = reflective_random_walk(
+    _, wrist_qs = reflective_random_walk(
         n_steps=n_steps,
         initial_position=0,
         step_std=0.02,

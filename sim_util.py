@@ -1,6 +1,5 @@
 import numpy as np
 import mujoco as mj
-import copy
 import time
 import sys
 
