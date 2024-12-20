@@ -760,7 +760,7 @@ def traj_deriv_new(
     grads = np.zeros((Tk - 1, nuderiv))
     # tau_loss_factor = 1e-7
     ctrls_clip = np.delete(ctrls, fixed_act_ids, axis=1)
-    loss_u = 1e-6 * ctrls_clip.copy() * ctrl_reg_weight
+    loss_u = ctrls_clip.copy() * ctrl_reg_weight
 
     # ufft = np.fft.fft(ctrls_clip, axis=0)
     # freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, nq))
@@ -769,11 +769,11 @@ def traj_deriv_new(
     # grad_regularizer = np.fft.ifft(2 * (freqs**2) * ufft, axis=0).real
     # loss_u += grad_regularizer # endpoints large -- maybe remove
 
-    dt = model.opt.timestep
+    # dt = model.opt.timestep
 
     # shift ctrls two places
-    deriv = centered_diff_2_norm_der(ctrls_clip, dt) * ctrl_reg_weight
-    loss_u += 1e-5 * deriv
+    # deriv = centered_diff_2_norm_der(ctrls_clip, dt) * ctrl_reg_weight
+    # loss_u += 1e-5 * deriv
 
     # deriv = centered_diff_2_norm_der(qs[:, :nq], dt)
     # deriv *= (q_targ_mask[:, :nq]>0)

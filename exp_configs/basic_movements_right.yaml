@@ -35,4 +35,5 @@ params:
   #joint_cost: 0
   foot_cost: 0
   ctrl_cost: 1
+  ctrl_reg_weight: 1e-6
 

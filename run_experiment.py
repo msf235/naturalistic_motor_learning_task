@@ -204,7 +204,7 @@ if args.rerun or not out_f.exists():
         let_go_times=out_time["let_go_times"],
         let_go_ids=out_idx["let_go_ids"],
         n_steps_adh=10,
-        ctrl_reg_weights=[None],
+        ctrl_reg_weight=params["ctrl_reg_weight"],
         joint_penalty_factor=params["joint_penalty_factor"],
     )
     ctrls = np.vstack((ctrls, ctrls_burn_in))

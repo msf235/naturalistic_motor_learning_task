@@ -1179,7 +1179,6 @@ def show_plot(
         tm = np.tile(targ_traj_mask[k] > 0, (3, 1)).T
         tm[tm == 0] = np.nan
         ft = target_trajs[k] * tm
-        loss = np.mean((hx - target_trajs[k]) ** 2)
         ax = axs[0, k]
         ax.cla()
         ax.plot(tt, hx[:, 1], color="blue", label="x")
@@ -1196,6 +1195,7 @@ def show_plot(
             ax = axs[ax_cntr, k]
             ax.cla()
             ax.plot(tt[:-1], ctrls[:, site_grad_idxs[k]])
+            ax.set_ylabel("ctrls")
         ax_cntr += 1
     if grads is not None:
         for k in nr:
@@ -1204,6 +1204,7 @@ def show_plot(
             grad = np.zeros((len(tt) - 1, grads[0].shape[1]))
             grad[: grads[k].shape[0]] = grads[k]
             ax.plot(tt[:-1], grad)
+            ax.set_ylabel("grads")
         ax_cntr += 1
     # if ctrls is not None:
     # axs[1,0].plot(tt[:-1], ctrls[:, -2])
@@ -1216,6 +1217,7 @@ def show_plot(
             ax.set_prop_cycle(None)
             ax.plot(tt, qtargs[k], "--")
             ax.set_xlim(lims)
+            ax.set_ylabel("q_pos")
     fig.tight_layout()
     if show:
         plt.show(block=False)
@@ -1345,7 +1347,7 @@ def arm_target_traj(
     let_go_times=[],
     let_go_ids=[],
     n_steps_adh=10,
-    ctrl_reg_weights=None,
+    ctrl_reg_weight=None,
     joint_penalty_factor=0,
 ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
@@ -1379,8 +1381,6 @@ def arm_target_traj(
         update_plot_every = max_its
     if render_every is None:
         render_every = max_its
-    if ctrl_reg_weights is None:
-        ctrl_reg_weights = [None] * len(site_names)
 
     model = env.model
     data = env.data
@@ -1511,7 +1511,7 @@ def arm_target_traj(
                 n_steps_adh=n_steps_adh,
                 contact_check_list=contact_check_list,
                 adh_ids=adh_ids,
-                ctrl_reg_weight=ctrl_reg_weights[k],
+                ctrl_reg_weight=ctrl_reg_weight,
             )
             util.reset_state(model, data, data0)
         losses = [0] * n_sites
@@ -1521,7 +1521,7 @@ def arm_target_traj(
             )
 
         try:
-            ctrls_trunc, __, qpos, qvels = opt_utils.get_stabilized_ctrls(
+            ctrls_trunc, _, qpos, _ = opt_utils.get_stabilized_ctrls(
                 model,
                 data,
                 Tk_trunc + 1,
