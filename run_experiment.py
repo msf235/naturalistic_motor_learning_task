@@ -9,7 +9,6 @@ import pickle as pkl
 import arm_targ_traj as arm_t
 from matplotlib import pyplot as plt
 import config
-import masks
 
 args = config.get_arg_parser().parse_args()
 vargs = vars(args)
@@ -161,25 +160,7 @@ if args.rerun or not out_f.exists():
     # util.forward_sim_render(env, ctrls)
     # arm_t.forward_to_contact(env, ctrls, render=True)
     # reset()
-    del out_idx["free_act_idx"]
 
-    arm_targ_params = {
-        k: params[k]
-        for k in [
-            "max_its",
-            "optimizer",
-            "lr",
-            "lr2",
-            "it_lr2",
-            "grad_update_every",
-            "incr_every",
-            # 't_incr',
-            "grab_phase_it",
-            "balance_cost",
-            "joint_cost",
-            # 'grad_window_t'
-        ]
-    }
     ctrls, lowest_losses = arm_t.arm_target_traj(
         config_name=config_name,
         env=env,
@@ -207,8 +188,6 @@ if args.rerun or not out_f.exists():
         incr_every=incr_every,
         amnt_to_incr=amnt_to_incr,
         grad_update_every=params["grad_update_every"],
-        grab_phase_it=params["grab_phase_it"],
-        grab_phase_tk=out_time["grab_phase_tk"],
         phase_2_it=params["max_its"] + 1,
         plot_every=args.plot_every,
         render_every=args.render_every,
