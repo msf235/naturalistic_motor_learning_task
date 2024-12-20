@@ -196,10 +196,10 @@ if args.rerun or not out_f.exists():
         adh_ids=out_idx["adh_ids"],
         balance_cost=params["balance_cost"],
         joint_cost=params["joint_cost"],
-        # root_cost=params["root_cost"],
-        root_cost=0,  # For comparision. TODO: use line above instead
-        # foot_cost=params["foot_cost"],
-        foot_cost=1000,
+        root_cost=params["root_cost"],
+        # root_cost=0,  # For comparision. TODO: use line above instead
+        foot_cost=params["foot_cost"],
+        # foot_cost=1000,
         ctrl_cost=params["ctrl_cost"],
         let_go_times=out_time["let_go_times"],
         let_go_ids=out_idx["let_go_ids"],
