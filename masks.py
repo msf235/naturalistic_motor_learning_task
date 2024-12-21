@@ -75,13 +75,13 @@ def generate_decaying_intervals(
 
 
 def make_basic_xpos_masks(
-    interval_end_tks: list | np.ndarray,
+    interval_end_tks: list | np.ndarray, mask_decay_factor: float = 0.9
 ):
     """We assume that the first interval starts at tk=0."""
     # if isinstance(interval_start_tks, np.ndarray):
     #     interval_start_tks = interval_start_tks.tolist()
     # interval_end_tks = interval_start_tks[1:].copy()
-    mask_list = generate_decaying_intervals(interval_end_tks, 0.5)
+    mask_list = generate_decaying_intervals(interval_end_tks, mask_decay_factor)
     return mask_list
 
 

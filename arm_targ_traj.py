@@ -6,10 +6,16 @@ import sim_util as util
 import mujoco as mj
 import copy
 import sortedcontainers as sc
+
+# import seaborn as sns
 from matplotlib import pyplot as plt
 import time
 import basic_movements
 import masks
+
+plt.style.use("tableau-colorblind10")
+
+# sns.color_palette("colorblind")
 
 # Site names
 RHAND_S = "R_Hand"
@@ -651,7 +657,9 @@ def get_data_from_qtarg_file(file_loc, dt=None):
     return q_pos
 
 
-def make_traj_sets(env, exp_name, Tk, amnt_to_incr, incr_every, seed=2):
+def make_traj_sets(
+    env, exp_name, Tk, amnt_to_incr, incr_every, seed=2, mask_decay_factor=0.9
+):
     """
     params:
         env: Gymnasium environment.
@@ -1194,8 +1202,11 @@ def show_plot(
         for k in nr:
             ax = axs[ax_cntr, k]
             ax.cla()
-            ax.plot(tt[:-1], ctrls[:, site_grad_idxs[k]])
+            # ax.plot(tt[:-1], ctrls[:, site_grad_idxs[k]])
+            for id in site_grad_idxs[k]:
+                ax.plot(tt[:-1], ctrls[:, id], label=f"{id}")
             ax.set_ylabel("ctrls")
+            ax.legend()
         ax_cntr += 1
     if grads is not None:
         for k in nr:
@@ -1293,6 +1304,9 @@ def get_from_interv_dict(interv_dict: dict[int | float, Any], lookup_idx: int | 
     return interv_dict[prev_key]
 
 
+from collections import abc
+
+
 def get_from_right_endpoint_interv_dict(
     interv_dict: dict[int | float, Any], lookup_idx: int | float
 ):
@@ -1310,6 +1324,25 @@ def get_from_right_endpoint_interv_dict(
         if lookup_idx < key:
             break
     return interv_dict[key]
+
+
+class RightEndpointDict(abc.Mapping):
+    def __init__(self, inp_dict: dict[float, Any]) -> None:
+        self.dict = inp_dict
+        self.right_endpoints = sorted(list(inp_dict.keys()))
+        self.intervals = []
+        self.intervals.append([0, inp_dict[self.right_endpoints[0]]])
+        for k in range(len(self.right_endpoints) - 1):
+            self.intervals.append(
+                [self.right_endpoints[k], self.right_endpoints[k + 1]]
+            )
+
+    def __get_item__(self, key):
+        endpoint = -1
+        for endpoint in self.right_endpoints:
+            if key < endpoint:
+                break
+        return self.dict[endpoint]
 
 
 def arm_target_traj(
@@ -1349,6 +1382,7 @@ def arm_target_traj(
     n_steps_adh=10,
     ctrl_reg_weight=None,
     joint_penalty_factor=0,
+    mask_decay_factor=0.9,
 ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
@@ -1392,6 +1426,7 @@ def arm_target_traj(
         amnt_to_incr,
         incr_every,
         seed,
+        mask_decay_factor,
     )
     # traj_and_masks["q_pos_masks"] = [
     #     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
@@ -1460,6 +1495,7 @@ def arm_target_traj(
     _, axs = plt.subplots(4, n_sites, figsize=(4 * n_sites, 4 * 3.5))
     if n_sites == 1:
         axs = axs.reshape((4, 1))
+    tmp = np.zeros((100, len(site_grad_idxs[0])))
     for k0 in range(max_its):
         if k0 >= it_lr2:
             lr = lr2
@@ -1515,10 +1551,16 @@ def arm_target_traj(
             )
             util.reset_state(model, data, data0)
         losses = [0] * n_sites
+        ctrls_prev = ctrls_trunc.copy()
         for k in range(n_sites):
             ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
                 ctrls_trunc[:, site_grad_idxs[k]], grads[k], "ctrls", losses[k]
             )
+        # print()
+        # print(ctrls_trunc[:10, :10])
+        # print(ctrls_trunc[-10:, -10:])
+        # print()
+        ctrls_pre_stab = ctrls_trunc.copy()
 
         try:
             ctrls_trunc, _, qpos, _ = opt_utils.get_stabilized_ctrls(
@@ -1544,6 +1586,7 @@ def arm_target_traj(
             print("LinAlgError in get_stabilized_ctrls")
             ctrls_trunc[:, not_stabilize_act_idx] *= 0.99
         ctrls[:Tk_trunc] = ctrls_trunc.copy()
+        # tmp[k0] = ctrls[50, site_grad_idxs[0]]
         if True:
             tk = Tk_trunc
         else:
@@ -1559,63 +1602,70 @@ def arm_target_traj(
         q_targs_masked = []
         qs_list = []
         hxs = [ret_dict[site] for site in site_names]
+        # print(ctrls[Tk_trunc - 1, site_grad_idxs])
+        # breakpoint()
+        hx_prev = hxs[0].copy()
         losses_curr_mask = [0] * n_sites
-        for k in range(n_sites):
-            hx = hxs[k]
-            diffsq1 = (hx - traj_targs[k][: tk + 1]) ** 2
-            pos_mask = q_pos_mask_curr[: tk + 1]
-            vel_mask = q_vel_mask_curr[: tk + 1]
-            mask = np.hstack((pos_mask, vel_mask))
-            losses[k] = np.mean(diffsq1)
-            mask = traj_mask_curr[: tk + 1] > 0
-            mask_tiled = np.tile(mask, (3, 1)).T
-            temp = np.sum(diffsq1 * mask_tiled) / (np.sum(mask))
-            losses_curr_mask[k] = temp
-            q_targs = np.hstack((q_pos_targs, q_vel_targs))
+        # 56, 59
+        if False:
+            # breakpoint()
+            print()
+            print()
+            fig, ax = plt.subplots()
+            m = len(site_grad_idxs[0])
+            # for k in range(int(m / 2)):
+            for k in range(m):
+                # if k == int(m / 4):
+                #     fig, ax = plt.subplots()
+                # print(tmp[:20, k])
+                # ax.plot(range(20), tmp[:20, k], label=f"{site_grad_idxs[0][k]}")
+                ax.plot(
+                    range(20),
+                    tmp[:20, k],
+                    label=f"{model.actuator(site_grad_idxs[0][k]).name}",
+                )
+                ax.legend()
+            plt.show()
+            breakpoint()
+        if True:
+            for k in range(n_sites):
+                hx = hxs[k]
+                diffsq1 = (hx - traj_targs[k][: tk + 1]) ** 2
+                pos_mask = q_pos_mask_curr[: tk + 1]
+                vel_mask = q_vel_mask_curr[: tk + 1]
+                mask = np.hstack((pos_mask, vel_mask))
+                losses[k] = np.mean(diffsq1)
+                mask = traj_mask_curr[: tk + 1] > 0
+                mask_tiled = np.tile(mask, (3, 1)).T
+                temp = np.sum(diffsq1 * mask_tiled) / (np.sum(mask))
+                losses_curr_mask[k] = temp
+                q_targs = np.hstack((q_pos_targs, q_vel_targs))
 
-            q_targs_masked_tmp = q_targs[: tk + 1].copy()
-            q_targs_masked_tmp[mask == 0] = np.nan
-            q_targs_masked.append(q_targs_masked_tmp)
-            qs_tmp = qpos.copy()
-            qs_tmp[pos_mask == 0] = np.nan
-            qs_list.append(qs_tmp)
-        loss = sum([loss.item() for loss in losses]) / n_sites
-        lowest_losses.append(loss, (k0, ctrls.copy()))
-        loss_curr_mask_avg = sum([loss.item() for loss in losses_curr_mask]) / n_sites
-        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
-        toc = time.time()
-        # print(loss, toc-tic)
-
-        nr = range(n_sites)
-        if k0 % plot_every == 0:
-            # qs_wr = qs[:, joints['all']['wrist_left']]
-            # print()
-            # print(ctrls[:10, :5])
-            # print()
-            # print(ctrls_trunc[:10, :5])
-            # print()
-            # print(grads[0][:10, :5])
-            # print()
-            show_plot(
-                axs,
-                hxs,
-                tt[: tk + 1],
-                [x[: tk + 1] for x in traj_targs],
-                [traj_mask_curr[: tk + 1]],
-                # qs_wr,
-                # q_targs_wr,
-                site_names,
-                site_grad_idxs,
-                ctrls[:tk],
-                grads,
-                qs_list,
-                q_targs_masked,
-                show=True,
-                save=False,
+                q_targs_masked_tmp = q_targs[: tk + 1].copy()
+                q_targs_masked_tmp[mask == 0] = np.nan
+                q_targs_masked.append(q_targs_masked_tmp)
+                qs_tmp = qpos.copy()
+                qs_tmp[pos_mask == 0] = np.nan
+                qs_list.append(qs_tmp)
+            loss = sum([loss.item() for loss in losses]) / n_sites
+            lowest_losses.append(loss, (k0, ctrls.copy()))
+            loss_curr_mask_avg = (
+                sum([loss.item() for loss in losses_curr_mask]) / n_sites
             )
-            plt.pause(0.1)
-            if k0 == 0:
-                # Plot again to refresh the window so it resizes to a proper size
+            lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
+            toc = time.time()
+            # print(loss, toc-tic)
+
+            nr = range(n_sites)
+            if k0 % plot_every == 0:
+                # qs_wr = qs[:, joints['all']['wrist_left']]
+                # print()
+                # print(ctrls[:10, :5])
+                # print()
+                # print(ctrls_trunc[:10, :5])
+                # print()
+                # print(grads[0][:10, :5])
+                # print()
                 show_plot(
                     axs,
                     hxs,
@@ -1630,10 +1680,30 @@ def arm_target_traj(
                     grads,
                     qs_list,
                     q_targs_masked,
-                    show=False,
-                    save=True,
+                    show=True,
+                    save=False,
                 )
                 plt.pause(0.1)
+                if k0 == 0:
+                    # Plot again to refresh the window so it resizes to a proper size
+                    show_plot(
+                        axs,
+                        hxs,
+                        tt[: tk + 1],
+                        [x[: tk + 1] for x in traj_targs],
+                        [traj_mask_curr[: tk + 1]],
+                        # qs_wr,
+                        # q_targs_wr,
+                        site_names,
+                        site_grad_idxs,
+                        ctrls[:tk],
+                        grads,
+                        qs_list,
+                        q_targs_masked,
+                        show=False,
+                        save=True,
+                    )
+                    plt.pause(0.1)
         # util.reset_state(model, data, data0)
         # ctrls = forward_with_dynamic_adhesion(env, ctrls, noisev, True)
         # plt.show()

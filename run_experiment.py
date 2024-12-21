@@ -206,6 +206,7 @@ if args.rerun or not out_f.exists():
         n_steps_adh=10,
         ctrl_reg_weight=params["ctrl_reg_weight"],
         joint_penalty_factor=params["joint_penalty_factor"],
+        mask_decay_factor=params["mask_decay_factor"],
     )
     ctrls = np.vstack((ctrls, ctrls_burn_in))
     ctrls_end = np.zeros((Tke, model.nu))
