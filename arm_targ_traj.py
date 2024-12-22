@@ -1,4 +1,5 @@
 from typing import Dict, List, Any
+from collections import abc
 import opt_utils as opt_utils
 import optimizers as opts
 import numpy as np
@@ -720,7 +721,9 @@ def make_traj_sets(
         range(incr_every, max_incr_its * incr_every + 1, incr_every)
     )
 
-    targ_traj_mask_lists = masks.make_basic_xpos_masks(incr_time_right_endpoints)
+    targ_traj_mask_lists = masks.make_basic_xpos_masks(
+        incr_time_right_endpoints, mask_decay_factor
+    )
     targ_traj_masks = {
         incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
     }
@@ -1083,86 +1086,6 @@ class LimLowestDict:
             self.dict.popitem()
 
 
-class DoubleSidedProgressive:
-    def __init__(
-        self,
-        incr_every,
-        amnt_to_incr,
-        grab_phase_it,
-        grab_phase_tk,
-        phase_2_it,
-        max_idx=1e8,
-    ):
-        self.incr_every = incr_every
-        self.amnt_to_incr = amnt_to_incr
-        self.k = 0
-        self.incr_k = 0
-        self.incr_cnt = 0
-        self.incr_cnt2 = 0
-        self.phase_2_it = phase_2_it
-        self.grab_phase_it = grab_phase_it
-        self.grab_phase_tk = grab_phase_tk
-        self.grab_end_idx = 0
-        self.phase = "grab"
-
-    def _update_grab_phase(self):
-        start_idx = 0
-        end_idx = self.grab_phase_tk
-        self.grab_end_idx = end_idx
-        return slice(start_idx, end_idx)
-
-    def _update_phase_1(self):
-        start_idx = self.grab_end_idx
-        end_idx = self.amnt_to_incr * (self.incr_cnt + 1) + start_idx
-        idx = slice(start_idx, end_idx)
-        self.incr_cnt += 1
-        return idx
-
-    def _update_phase_2(self):
-        start_idx = self.amnt_to_incr * self.incr_cnt2 + self.grab_end_idx
-        end_idx = self.amnt_to_incr * (self.incr_cnt + 1) + start_idx
-        self.incr_cnt2 += 1
-        idx = slice(start_idx, end_idx)
-        return idx
-
-    def update(self):
-        if self.k < self.grab_phase_it:
-            self.idx = self._update_grab_phase()
-        elif self.k == self.grab_phase_it:
-            self.phase = "phase_1"
-            self.incr_k = 0
-        if self.phase != "grab" and self.incr_k % self.incr_every == 0:
-            if self.k >= self.phase_2_it:
-                self.phase = "phase_2"
-                self.idx = self._update_phase_2()
-            else:
-                self.phase = "phase_1"
-                self.idx = self._update_phase_1()
-        self.k += 1
-        self.incr_k += 1
-        return self.idx
-
-
-class WindowedIdx:
-    def __init__(self, incr_every, amnt_to_incr, window_size, max_idx=1e8):
-        self.incr_every = incr_every
-        self.amnt_to_incr = amnt_to_incr
-        self.k = 0
-        self.incr_cnt = 0
-        self.incr_cnt2 = 0
-        self.window_size = window_size
-        self.idx = None
-
-    def update(self):
-        end_idx = self.amnt_to_incr * (self.incr_cnt + 1)
-        start_idx = max(0, end_idx - self.window_size)
-        if self.k % self.incr_every == 0:
-            self.idx = slice(start_idx, end_idx)
-            self.incr_cnt += 1
-        self.k += 1
-        return self.idx
-
-
 def show_plot(
     axs,
     hxs,
@@ -1285,50 +1208,17 @@ class targetRender:
         self.counter = 0
 
 
-def get_from_interv_dict(interv_dict: dict[int | float, Any], lookup_idx: int | float):
-    """
-    If interv_dict = {0: 'A', 30: 'B', 50: 'C'} then:
-        key = 0 -> return 'A'
-        key = 10 -> return 'A'
-        key = 30 -> return 'B'
-        key = 60 -> return 'C'
-    """
-    dkeys = list(interv_dict.keys())
-    dkeys = sorted(dkeys)
-    key = -1
-    prev_key = dkeys[0]
-    for key in dkeys:
-        if lookup_idx < key:
-            break
-        prev_key = key
-    return interv_dict[prev_key]
-
-
-from collections import abc
-
-
-def get_from_right_endpoint_interv_dict(
-    interv_dict: dict[int | float, Any], lookup_idx: int | float
-):
-    """
-    If right_endpoint_interv_dict = {30: 'A', 50: 'B'} then:
-        key = 0 -> return 'A'
-        key = 30 -> return 'B'
-        key = 40 -> return 'B'
-        key = 60 -> return 'B'
-    """
-    dkeys = list(interv_dict.keys())
-    dkeys = sorted(dkeys)
-    key = -1
-    for key in dkeys:
-        if lookup_idx < key:
-            break
-    return interv_dict[key]
-
-
-class RightEndpointDict(abc.Mapping):
+class RightEndpointDict(abc.MutableMapping):
     def __init__(self, inp_dict: dict[float, Any]) -> None:
-        self.dict = inp_dict
+        """
+        If inp_dict = {30: 'A', 50: 'B'} then:
+            key = -1 -> return 'A'
+            key = 30 -> return 'A'
+            key = 35 -> return 'B'
+            key = 50 -> return 'B'
+            key = 51 -> raise KeyError
+        """
+        self.dict = copy.deepcopy(inp_dict)
         self.right_endpoints = sorted(list(inp_dict.keys()))
         self.intervals = []
         self.intervals.append([-np.inf, self.right_endpoints[0]])
@@ -1336,48 +1226,72 @@ class RightEndpointDict(abc.Mapping):
             self.intervals.append(
                 [self.right_endpoints[k], self.right_endpoints[k + 1]]
             )
-        self.intervals.append([self.right_endpoints[-1], np.inf])
+        # self.intervals.append([self.right_endpoints[-1], np.inf])
+        #
+
+    def keys(self):
+        return self.right_endpoints
+
+    def values(self):
+        return [
+            self.dict[key] for key in self.right_endpoints
+        ]  # List is in correct order
+
+    def __getitem__(self, key):
+        if key > self.right_endpoints[-1]:
+            raise KeyError(
+                f"key must be less than rightmost endpoint {self.right_endpoints[-1]}"
+            )
+        endpoint = -1
+        for endpoint in self.right_endpoints:
+            if key <= endpoint:
+                break
+        return self.dict[endpoint]
+
+    def __setitem__(self, key, val):
+        if key not in self.right_endpoints:
+            raise KeyError(f"key must be in {self.right_endpoints}")
+        self.dict[key] = val
+
+    def __delitem__(self, key):
+        if key not in self.right_endpoints:
+            raise KeyError(f"key must be in {self.right_endpoints}")
+        del self.dict[key]
+
+    def get_interval(self, key):
+        for interval in self.intervals:
+            if key > interval[0] and key <= interval[1]:
+                return interval
+        return None
 
     def __repr__(self):
         str1 = (
             f"(-np.inf, {self.intervals[0][1]}"
-            + "): "
+            + "]:\n"
             + str(self.dict[self.intervals[0][1]])
-            + "\n"
+            + "\n\n"
         )
         for interval in self.intervals[1:-1]:
             str1 += (
-                "["
+                "("
                 + str(interval[0])
                 + ","
                 + str(interval[1])
-                + "): "
+                + "]:\n"
                 + str(self.dict[interval[1]])
-                + "\n"
+                + "\n\n"
             )
         str1 += (
-            "["
+            "("
             + str(self.intervals[-1][0])
             + ","
             + str(self.intervals[-1][1])
-            + "): "
-            + str(self.dict[self.intervals[-1][0]])
-            + "\n"
+            + "]:\n"
+            + str(self.dict[self.intervals[-1][1]])
+            + "\n\n"
         )
+        str1 += f"RightEndpointDict with keys {self.right_endpoints}"
         return str1
-
-    def __getitem__(self, key):
-        endpoint = -1
-        for endpoint in self.right_endpoints:
-            if key < endpoint:
-                break
-        return self.dict[endpoint]
-
-    def get_interval(self, key):
-        for interval in self.intervals:
-            if key >= interval[0] and key < interval[1]:
-                return interval
-        return None
 
     def __iter__(self):
         return iter(self.right_endpoints)
@@ -1473,10 +1387,13 @@ def arm_target_traj(
     #     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
     # ]
     traj_targs = traj_and_masks["traj_targs"]
+    # traj_masks = RightEndpointDict(traj_and_masks["traj_masks"])
     traj_masks = traj_and_masks["traj_masks"]
     q_pos_targs = traj_and_masks["q_pos_targs"]
+    # q_pos_masks = RightEndpointDict(traj_and_masks["q_pos_masks"])
     q_pos_masks = traj_and_masks["q_pos_masks"]
     q_vel_targs = traj_and_masks["q_vel_targs"]
+    # q_vel_masks = RightEndpointDict(traj_and_masks["q_vel_masks"])
     q_vel_masks = traj_and_masks["q_vel_masks"]
     for key in q_vel_masks:
         q_vel_masks[key] = joint_penalty_factor * q_vel_masks[key]
@@ -1536,7 +1453,6 @@ def arm_target_traj(
     _, axs = plt.subplots(4, n_sites, figsize=(4 * n_sites, 4 * 3.5))
     if n_sites == 1:
         axs = axs.reshape((4, 1))
-    tmp = np.zeros((100, len(site_grad_idxs[0])))
     for k0 in range(max_its):
         if k0 >= it_lr2:
             lr = lr2
@@ -1545,9 +1461,9 @@ def arm_target_traj(
                 optms[k] = get_opt(lr)
         progbar.update(" it: " + str(k0))
 
-        traj_mask_curr = np.array(get_from_right_endpoint_interv_dict(traj_masks, k0))
-        q_pos_mask_curr = get_from_right_endpoint_interv_dict(q_pos_masks, k0)
-        q_vel_mask_curr = get_from_right_endpoint_interv_dict(q_vel_masks, k0)
+        traj_mask_curr = np.array(traj_masks[k0])
+        q_pos_mask_curr = np.array(q_pos_masks[k0])
+        q_vel_mask_curr = np.array(q_vel_masks[k0])
 
         Tk_trunc = get_last_timepoint(traj_mask_curr)
         ctrls_trunc = ctrls[:Tk_trunc]
@@ -1592,16 +1508,11 @@ def arm_target_traj(
             )
             util.reset_state(model, data, data0)
         losses = [0] * n_sites
-        ctrls_prev = ctrls_trunc.copy()
+        breakpoint()
         for k in range(n_sites):
             ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
                 ctrls_trunc[:, site_grad_idxs[k]], grads[k], "ctrls", losses[k]
             )
-        # print()
-        # print(ctrls_trunc[:10, :10])
-        # print(ctrls_trunc[-10:, -10:])
-        # print()
-        ctrls_pre_stab = ctrls_trunc.copy()
 
         try:
             ctrls_trunc, _, qpos, _ = opt_utils.get_stabilized_ctrls(
@@ -1628,10 +1539,7 @@ def arm_target_traj(
             ctrls_trunc[:, not_stabilize_act_idx] *= 0.99
         ctrls[:Tk_trunc] = ctrls_trunc.copy()
         # tmp[k0] = ctrls[50, site_grad_idxs[0]]
-        if True:
-            tk = Tk_trunc
-        else:
-            tk = Tk
+        tk = Tk_trunc
         util.reset_state(model, data, data0)
         render = k0 % render_every == 0
         if env.render_mode == "human" and render:
@@ -1643,70 +1551,63 @@ def arm_target_traj(
         q_targs_masked = []
         qs_list = []
         hxs = [ret_dict[site] for site in site_names]
-        # print(ctrls[Tk_trunc - 1, site_grad_idxs])
-        # breakpoint()
-        hx_prev = hxs[0].copy()
         losses_curr_mask = [0] * n_sites
-        # 56, 59
-        if False:
-            # breakpoint()
-            print()
-            print()
-            fig, ax = plt.subplots()
-            m = len(site_grad_idxs[0])
-            # for k in range(int(m / 2)):
-            for k in range(m):
-                # if k == int(m / 4):
-                #     fig, ax = plt.subplots()
-                # print(tmp[:20, k])
-                # ax.plot(range(20), tmp[:20, k], label=f"{site_grad_idxs[0][k]}")
-                ax.plot(
-                    range(20),
-                    tmp[:20, k],
-                    label=f"{model.actuator(site_grad_idxs[0][k]).name}",
-                )
-                ax.legend()
-            plt.show()
-            breakpoint()
-        if True:
-            for k in range(n_sites):
-                hx = hxs[k]
-                diffsq1 = (hx - traj_targs[k][: tk + 1]) ** 2
-                pos_mask = q_pos_mask_curr[: tk + 1]
-                vel_mask = q_vel_mask_curr[: tk + 1]
-                mask = np.hstack((pos_mask, vel_mask))
-                losses[k] = np.mean(diffsq1)
-                mask = traj_mask_curr[: tk + 1] > 0
-                mask_tiled = np.tile(mask, (3, 1)).T
-                temp = np.sum(diffsq1 * mask_tiled) / (np.sum(mask))
-                losses_curr_mask[k] = temp
-                q_targs = np.hstack((q_pos_targs, q_vel_targs))
+        for k in range(n_sites):
+            hx = hxs[k]
+            diffsq1 = (hx - traj_targs[k][: tk + 1]) ** 2
+            pos_mask = q_pos_mask_curr[: tk + 1]
+            vel_mask = q_vel_mask_curr[: tk + 1]
+            mask = np.hstack((pos_mask, vel_mask))
+            losses[k] = np.mean(diffsq1)
+            mask = traj_mask_curr[: tk + 1] > 0
+            mask_tiled = np.tile(mask, (3, 1)).T
+            temp = np.sum(diffsq1 * mask_tiled) / (np.sum(mask))
+            losses_curr_mask[k] = temp
+            q_targs = np.hstack((q_pos_targs, q_vel_targs))
 
-                q_targs_masked_tmp = q_targs[: tk + 1].copy()
-                q_targs_masked_tmp[mask == 0] = np.nan
-                q_targs_masked.append(q_targs_masked_tmp)
-                qs_tmp = qpos.copy()
-                qs_tmp[pos_mask == 0] = np.nan
-                qs_list.append(qs_tmp)
-            loss = sum([loss.item() for loss in losses]) / n_sites
-            lowest_losses.append(loss, (k0, ctrls.copy()))
-            loss_curr_mask_avg = (
-                sum([loss.item() for loss in losses_curr_mask]) / n_sites
+            q_targs_masked_tmp = q_targs[: tk + 1].copy()
+            q_targs_masked_tmp[mask == 0] = np.nan
+            q_targs_masked.append(q_targs_masked_tmp)
+            qs_tmp = qpos.copy()
+            qs_tmp[pos_mask == 0] = np.nan
+            qs_list.append(qs_tmp)
+        loss = sum([loss.item() for loss in losses]) / n_sites
+        lowest_losses.append(loss, (k0, ctrls.copy()))
+        loss_curr_mask_avg = sum([loss.item() for loss in losses_curr_mask]) / n_sites
+        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
+        toc = time.time()
+        # print(loss, toc-tic)
+
+        nr = range(n_sites)
+        if k0 % plot_every == 0:
+            # qs_wr = qs[:, joints['all']['wrist_left']]
+            # print()
+            # print(ctrls[:10, :5])
+            # print()
+            # print(ctrls_trunc[:10, :5])
+            # print()
+            # print(grads[0][:10, :5])
+            # print()
+            show_plot(
+                axs,
+                hxs,
+                tt[: tk + 1],
+                [x[: tk + 1] for x in traj_targs],
+                [traj_mask_curr[: tk + 1]],
+                # qs_wr,
+                # q_targs_wr,
+                site_names,
+                site_grad_idxs,
+                ctrls[:tk],
+                grads,
+                qs_list,
+                q_targs_masked,
+                show=True,
+                save=False,
             )
-            lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
-            toc = time.time()
-            # print(loss, toc-tic)
-
-            nr = range(n_sites)
-            if k0 % plot_every == 0:
-                # qs_wr = qs[:, joints['all']['wrist_left']]
-                # print()
-                # print(ctrls[:10, :5])
-                # print()
-                # print(ctrls_trunc[:10, :5])
-                # print()
-                # print(grads[0][:10, :5])
-                # print()
+            plt.pause(0.1)
+            if k0 == 0:
+                # Plot again to refresh the window so it resizes to a proper size
                 show_plot(
                     axs,
                     hxs,
@@ -1721,30 +1622,10 @@ def arm_target_traj(
                     grads,
                     qs_list,
                     q_targs_masked,
-                    show=True,
-                    save=False,
+                    show=False,
+                    save=True,
                 )
                 plt.pause(0.1)
-                if k0 == 0:
-                    # Plot again to refresh the window so it resizes to a proper size
-                    show_plot(
-                        axs,
-                        hxs,
-                        tt[: tk + 1],
-                        [x[: tk + 1] for x in traj_targs],
-                        [traj_mask_curr[: tk + 1]],
-                        # qs_wr,
-                        # q_targs_wr,
-                        site_names,
-                        site_grad_idxs,
-                        ctrls[:tk],
-                        grads,
-                        qs_list,
-                        q_targs_masked,
-                        show=False,
-                        save=True,
-                    )
-                    plt.pause(0.1)
         # util.reset_state(model, data, data0)
         # ctrls = forward_with_dynamic_adhesion(env, ctrls, noisev, True)
         # plt.show()
