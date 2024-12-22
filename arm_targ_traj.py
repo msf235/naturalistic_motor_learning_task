@@ -1387,14 +1387,11 @@ def arm_target_traj(
     #     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
     # ]
     traj_targs = traj_and_masks["traj_targs"]
-    # traj_masks = RightEndpointDict(traj_and_masks["traj_masks"])
-    traj_masks = traj_and_masks["traj_masks"]
+    traj_masks = RightEndpointDict(traj_and_masks["traj_masks"])
     q_pos_targs = traj_and_masks["q_pos_targs"]
-    # q_pos_masks = RightEndpointDict(traj_and_masks["q_pos_masks"])
-    q_pos_masks = traj_and_masks["q_pos_masks"]
+    q_pos_masks = RightEndpointDict(traj_and_masks["q_pos_masks"])
     q_vel_targs = traj_and_masks["q_vel_targs"]
-    # q_vel_masks = RightEndpointDict(traj_and_masks["q_vel_masks"])
-    q_vel_masks = traj_and_masks["q_vel_masks"]
+    q_vel_masks = RightEndpointDict(traj_and_masks["q_vel_masks"])
     for key in q_vel_masks:
         q_vel_masks[key] = joint_penalty_factor * q_vel_masks[key]
 
@@ -1461,9 +1458,9 @@ def arm_target_traj(
                 optms[k] = get_opt(lr)
         progbar.update(" it: " + str(k0))
 
-        traj_mask_curr = np.array(traj_masks[k0])
-        q_pos_mask_curr = np.array(q_pos_masks[k0])
-        q_vel_mask_curr = np.array(q_vel_masks[k0])
+        traj_mask_curr = np.array(traj_masks[k0 + 1])
+        q_pos_mask_curr = np.array(q_pos_masks[k0 + 1])
+        q_vel_mask_curr = np.array(q_vel_masks[k0 + 1])
 
         Tk_trunc = get_last_timepoint(traj_mask_curr)
         ctrls_trunc = ctrls[:Tk_trunc]
@@ -1508,7 +1505,6 @@ def arm_target_traj(
             )
             util.reset_state(model, data, data0)
         losses = [0] * n_sites
-        breakpoint()
         for k in range(n_sites):
             ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
                 ctrls_trunc[:, site_grad_idxs[k]], grads[k], "ctrls", losses[k]
