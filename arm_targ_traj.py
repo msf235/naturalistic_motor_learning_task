@@ -1331,18 +1331,59 @@ class RightEndpointDict(abc.Mapping):
         self.dict = inp_dict
         self.right_endpoints = sorted(list(inp_dict.keys()))
         self.intervals = []
-        self.intervals.append([0, inp_dict[self.right_endpoints[0]]])
+        self.intervals.append([-np.inf, self.right_endpoints[0]])
         for k in range(len(self.right_endpoints) - 1):
             self.intervals.append(
                 [self.right_endpoints[k], self.right_endpoints[k + 1]]
             )
+        self.intervals.append([self.right_endpoints[-1], np.inf])
 
-    def __get_item__(self, key):
+    def __repr__(self):
+        str1 = (
+            f"(-np.inf, {self.intervals[0][1]}"
+            + "): "
+            + str(self.dict[self.intervals[0][1]])
+            + "\n"
+        )
+        for interval in self.intervals[1:-1]:
+            str1 += (
+                "["
+                + str(interval[0])
+                + ","
+                + str(interval[1])
+                + "): "
+                + str(self.dict[interval[1]])
+                + "\n"
+            )
+        str1 += (
+            "["
+            + str(self.intervals[-1][0])
+            + ","
+            + str(self.intervals[-1][1])
+            + "): "
+            + str(self.dict[self.intervals[-1][0]])
+            + "\n"
+        )
+        return str1
+
+    def __getitem__(self, key):
         endpoint = -1
         for endpoint in self.right_endpoints:
             if key < endpoint:
                 break
         return self.dict[endpoint]
+
+    def get_interval(self, key):
+        for interval in self.intervals:
+            if key >= interval[0] and key < interval[1]:
+                return interval
+        return None
+
+    def __iter__(self):
+        return iter(self.right_endpoints)
+
+    def __len__(self):
+        return len(self.right_endpoints)
 
 
 def arm_target_traj(
