@@ -11,8 +11,8 @@ params:
   # lr: .05
   # lr2: .05
   optimizer: 'sgd'
-  lr: 5e2
-  lr2: 1e1
+  lr: 5e-1
+  lr2: 1e-1
   it_lr2: 800
   grad_update_every: 10
   reset_noise_scale: 0
@@ -34,7 +34,7 @@ params:
   #joint_cost: 0
   foot_cost: 0
   ctrl_cost: 1
-  ctrl_reg_weight: 1e-6
+  ctrl_reg_weight: 1e-7
   # ctrl_reg_weight: 0
-  mask_decay_factor: .99
+  mask_decay_factor: .9
 
