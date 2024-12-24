@@ -1,0 +1,15 @@
+<mujoco model="test">
+  <compiler angle="radian"/>
+    <default class="main">
+        <joint type="hinge" limited="true" range="0 8"/>
+      <default class="arm_upper">
+          <geom type="capsule" size=".04"/>
+      </default>
+    </default>
+    <worldbody>
+      <body>
+        <geom name="upper_arm_right" fromto="0 0 0 0 -.16 -.16" class="arm_upper"/>
+        <joint type="hinge"/>
+      </body>
+    </worldbody>
+</mujoco>

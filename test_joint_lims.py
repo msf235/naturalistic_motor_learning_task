@@ -9,13 +9,15 @@ for k, d0 in enumerate(np.linspace(0, 0.9, 8)):
     xml = """
     <mujoco model="test">
         <default class="main">
-            <geom margin="0" solimp="{0:.2f} 0.95 0.001 0.5 2"/>
+            <joint type="hinge" margin="0" solimplimit="{0:.2f} 0.95 0.001 0.5 2" limited="true" range="0 0.1"/>
+        <default class="arm_upper">
+            <geom size=".04"/>
+        </default>
         </default>
         <worldbody>
-            <geom name="floor" size="3 3 3" type="plane" condim="3"/>
-            <body name="ball" pos="0 0 0">
-                <freejoint/>
-                <geom name="ball" pos = "0 0 1" size="1" type="sphere" condim="3"/>
+            <body>
+            <geom name="upper_arm_right" fromto="0 0 0 0 -.16 -.16" class="arm_upper"/>
+            <joint/>
             </body>
         </worldbody>
     </mujoco>
