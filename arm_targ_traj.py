@@ -1600,7 +1600,7 @@ def arm_target_traj(
                 qs_list,
                 q_targs_masked,
                 show=True,
-                save=False,
+                save=True,
             )
             plt.pause(0.1)
             if k0 == 0:

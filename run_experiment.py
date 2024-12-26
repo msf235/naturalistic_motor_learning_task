@@ -231,55 +231,72 @@ else:
 ctrls = lowest_losses.peekitem(0)[1][1]
 ctrls_end = np.zeros((Tke, model.nu))
 reset()
-hxs, qs = arm_t.forward_with_sites(env, ctrls, sites, render=False)
-fig, axs = plt.subplots(2, len(sites), figsize=(8, 4))
-if len(sites) == 1:
-    axs = axs.reshape((2, 1))
-q_targs_masked = []
-qs_list = []
-for k in range(len(sites)):
-    q_targs_masked_tmp = traj_and_masks["q_targs"][k].copy()
-    q_targs_masked_tmp[traj_and_masks["q_targ_masks"][k] == 0] = np.nan
-    q_targs_masked.append(q_targs_masked_tmp)
-    qs_tmp = qs.copy()
-    qs_tmp[traj_and_masks["q_targ_masks"][k] == 0] = np.nan
-    qs_list.append(qs_tmp)
-arm_t.show_plot(
-    axs,
-    hxs,
-    tt,
-    traj_and_masks["targ_trajs"],
-    traj_and_masks["targ_traj_masks"],
-    sites,
-    out_idx["site_grad_idxs"],
-    qvals=qs_list,
-    qtargs=q_targs_masked,
-)
-plt.show()
-show_sim_cnt = 0
-# while True:
-# print("shown simulation {} times".format(show_sim_cnt))
+
+
+def ret_fn(data):
+    site_dict = {}
+    for site in sites:
+        site_dict[site] = data.site(site).xpos.copy()
+    site_dict.update(
+        {
+            "qpos": data.qpos.copy(),
+            "qvel": data.qvel.copy(),
+        }
+    )
+    return site_dict
+
+
+out_dict = arm_t.forward_and_collect_data(env, ctrls, ret_fn, env.render)
+# hxs = out_dict[sites[0]]
+# qs = out_dict["qpos"]
+# fig, axs = plt.subplots(2, len(sites), figsize=(8, 4))
+# if len(sites) == 1:
+#     axs = axs.reshape((2, 1))
+# q_targs_masked = []
+# qs_list = []
+# for k in range(len(sites)):
+#     q_targs_masked_tmp = traj_and_masks["q_targs"][k].copy()
+#     q_targs_masked_tmp[traj_and_masks["q_targ_masks"][k] == 0] = np.nan
+#     q_targs_masked.append(q_targs_masked_tmp)
+#     qs_tmp = qs.copy()
+#     qs_tmp[traj_and_masks["q_targ_masks"][k] == 0] = np.nan
+#     qs_list.append(qs_tmp)
+# arm_t.show_plot(
+#     axs,
+#     hxs,
+#     tt,
+#     traj_and_masks["targ_trajs"],
+#     traj_and_masks["targ_traj_masks"],
+#     sites,
+#     out_idx["site_grad_idxs"],
+#     qvals=qs_list,
+#     qtargs=q_targs_masked,
+# )
+# plt.show()
+# show_sim_cnt = 0
+# # while True:
+# # print("shown simulation {} times".format(show_sim_cnt))
+# # reset()
+# # arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
+# # time.sleep(2)
+# # show_sim_cnt += 1
+#
+#
+# phase = args.task_phase
+# datadir = Path("data") / name
+# datadir.mkdir(parents=True, exist_ok=True)
+#
+# shutil.copy("humanoid.xml", datadir)
+# shutil.copy("humanoid_and_basic.xml", datadir)
+# shutil.copy("basic_scene.xml", datadir)
+#
+# ctrls_full = np.vstack((ctrls, ctrls_end))
 # reset()
-# arm_t.forward_with_sites(env, ctrls_full, sites, render=True)
-# time.sleep(2)
-# show_sim_cnt += 1
-
-
-phase = args.task_phase
-datadir = Path("data") / name
-datadir.mkdir(parents=True, exist_ok=True)
-
-shutil.copy("humanoid.xml", datadir)
-shutil.copy("humanoid_and_basic.xml", datadir)
-shutil.copy("basic_scene.xml", datadir)
-
-ctrls_full = np.vstack((ctrls, ctrls_end))
-reset()
-qs, vs, ss = util.forward_sim(model, data, ctrls_full)
-states = np.hstack((qs, vs))
-
-np.save(datadir / "states_{}.npy".format(args.seed), states)
-
-if phase in (1, 5):
-    np.save(datadir / "ctrls_{}.npy".format(args.seed), ctrls_full)
-    np.save(datadir / "sensors_{}.npy".format(args.seed), ss)
+# qs, vs, ss = util.forward_sim(model, data, ctrls_full)
+# states = np.hstack((qs, vs))
+#
+# np.save(datadir / "states_{}.npy".format(args.seed), states)
+#
+# if phase in (1, 5):
+#     np.save(datadir / "ctrls_{}.npy".format(args.seed), ctrls_full)
+#     np.save(datadir / "sensors_{}.npy".format(args.seed), ss)

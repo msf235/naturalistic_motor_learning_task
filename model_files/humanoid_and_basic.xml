@@ -18,10 +18,10 @@
 <mujoco model="Humanoid and basic">
   <option timestep="0.0005" integrator="implicitfast"/>
       <!-- geoms -->
-  <default>
-    <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/>
-  </default>
-  <include file="smpl_humanoid.xml"/>
+  <!-- <default> -->
+  <!--   <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/> -->
+  <!-- </default> -->
+  <include file="smpl_humanoid_soft_joint_limits.xml"/>
   <include file="basic_scene.xml"/>
   <visual>
     <map force="0.1" zfar="30"/>
