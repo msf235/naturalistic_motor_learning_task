@@ -1,4 +1,5 @@
 <mujoco model="test">
+  <compiler angle="radian"/>
   <visual>
     <map force="0.1" zfar="30"/>
     <rgba haze="0.15 0.25 0.35 1"/>
@@ -9,7 +10,6 @@
       />
     <headlight ambient=".8 .8 .8" specular=".8 .8 .8"/>
   </visual>
-  <compiler angle="radian"/>
   <option gravity="0 0 0"/>
   <default class="main">
       <joint type="hinge" limited="true" range="0 8"/>

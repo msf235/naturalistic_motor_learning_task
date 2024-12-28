@@ -15,6 +15,9 @@ import basic_movements
 import masks
 
 plt.style.use("tableau-colorblind10")
+plt.rcParams.update({"font.size": 8})
+plt.rcParams.update({"font.size": 8})
+plt.rcParams.update({"axes.titlesize": "small"})
 
 # sns.color_palette("colorblind")
 
@@ -1129,7 +1132,7 @@ def show_plot(
             for id in site_grad_idxs[k]:
                 ax.plot(tt[:-1], ctrls[:, id], label=f"{id}")
             ax.set_ylabel("ctrls")
-            ax.legend()
+            # ax.legend()
         ax_cntr += 1
     if grads is not None:
         for k in nr:
