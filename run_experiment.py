@@ -32,10 +32,6 @@ out_f = (Path("output") / name).with_suffix(".pkl")
 out_f.parent.mkdir(parents=True, exist_ok=True)
 
 Tf = params["Tf"]
-# Tf = 10*Tf
-
-CTRL_STD = 0
-CTRL_RATE = 1
 
 if args.render:
     render_mode = "human"
@@ -45,7 +41,6 @@ else:
 
 keyframe = "tpose1"
 
-# env = humanoid2d.Humanoid2dEnv(
 env = basic_env.BasicEnv(
     render_mode=render_mode,
     frame_skip=1,
@@ -58,13 +53,7 @@ model = env.model
 data = env.data
 
 dt = model.opt.timestep
-# burn_step = int(.09 / dt)
-# burn_step = int(.001 / dt)
 burn_step = int(0.01 / dt)
-
-# env.render()
-# env.mujoco_renderer.viewer.add_marker(size=np.array([2, 2, 2]))
-# env.render()
 
 
 def reset():
