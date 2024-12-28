@@ -499,9 +499,10 @@ def get_idx_sets(env, config_name):
     elif config_name == "basic_movements_left":
         sites = [LHAND_S]
         throw_idxs = one_arm_idxs(model, "left")
-        site_grad_idxs = [throw_idxs["arm_a_without_adh"]]
-        stabilize_jnt_idx = throw_idxs["not_arm_j"]
-        stabilize_act_idx = throw_idxs["not_arm_a"]
+        site_grad_idxs = [throw_idxs["arm_act_without_adh"]]
+        stabilize_jnt_idx = throw_idxs["not_arm_dofadrs"]
+        stabilize_act_idx = throw_idxs["not_arm_act"]
+        other_act_idx = throw_idxs["arm_act_without_adh"]
     elif config_name == "basic_movements_both":
         sites = [RHAND_S, LHAND_S]
         tennis_idxs = two_arm_idxs(model)
@@ -809,7 +810,7 @@ def make_traj_sets(
             _,
         ) = get_q_pos_and_vel_data(joint_targs_file)
 
-        rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
+        rs, thetas, _ = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site(RHAND_S).xpos, smoothing_time, arc_std, seed
         )
         traj1_xs = np.zeros((Tk, 3))
