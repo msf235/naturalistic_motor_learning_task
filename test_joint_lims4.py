@@ -18,43 +18,40 @@ def plot_forces(xml, ax, label=None, x_offset=0.0, x_min=0, x_max=0.0002):
     model = mujoco.MjModel.from_xml_string(xml)
     # jnt_dofs = [60, 61, 62]
     jnt_qposadr = 61
-    # jnt_velid = 59
+    jnt_velid = 60
     jnt_id = 55
     jnt_lims = model.joint(jnt_id).range
     data = mujoco.MjData(model)
-    breakpoint()
     # renderer = mujoco.Renderer(model)
     viewer = WindowViewer(model, data)
 
     mujoco.mj_resetDataKeyframe(model, data, 0)
     # mujoco.mj_resetData(model, data)
-    mujoco.mj_forward(model, data)
-    data.qacc = 0  # Assert that there is no the acceleration.
+    # mujoco.mj_forward(model, data)
+    # data.qacc = 0  # Assert that there is no the acceleration.
     # data.qpos[jnt_dof] += jnt_lims[1] - 0.1
     # viewer.launch(model, data)
     # data.qpos[jnt_dof] += jnt_lims[1] - 0.1
-    plt.close("all")
-    while True:
-        # data.qpos[jnt_dof] += 1e-2
-        data.qpos[jnt_qposadr] += 1e-2
-        data.qacc = 0  # Assert that there is no the acceleration.
-        mujoco.mj_forward(model, data)
-        viewer.render()
-        plt.pause(0.01)
+    # plt.close("all")
+    # while True:
+    #     # data.qpos[jnt_dof] += 1e-2
+    #     data.qpos[jnt_qposadr] += 1e-2
+    #     data.qacc = 0  # Assert that there is no the acceleration.
+    #     mujoco.mj_forward(model, data)
+    #     viewer.render()
+    #     plt.pause(0.01)
     # vopt = mujoco.MjvOption()
     # renderer.update_scene(data)
     # renderer.render()
     # viewer.launch(model, data)
-    breakpoint()
 
-    mujoco.mj_inverse(model, data)
-    tmp = data.qfrc_inverse
-    print(tmp)
-    viewer.launch(model, data)
-    breakpoint()
+    # mujoco.mj_inverse(model, data)
+    # tmp = data.qfrc_inverse
+    # print(tmp)
+    # viewer.launch(model, data)
 
-    # angle_offsets = np.linspace(x_min, x_max, 2001)
-    angle_offsets = np.linspace(jnt_lims[0] - 0.1, jnt_lims[1] + 0.1, 20001)
+    angle_offsets = np.linspace(x_min, x_max, 2001)
+    # angle_offsets = np.linspace(jnt_lims[0] - 0.05, jnt_lims[1] + 0.05, 20001)
     print(jnt_lims)
     # angle_offsets = np.linspace(3, jnt_lims[1] + 0.05, 20001)
     vertical_forces = []
@@ -62,7 +59,7 @@ def plot_forces(xml, ax, label=None, x_offset=0.0, x_min=0, x_max=0.0002):
         mujoco.mj_resetDataKeyframe(model, data, 1)
         mujoco.mj_forward(model, data)
         data.qacc = 0
-        data.qpos[jnt_dof] += offset
+        data.qpos[jnt_qposadr] += offset
         mujoco.mj_inverse(model, data)
         vertical_forces.append(data.qfrc_inverse[jnt_velid])
 
@@ -92,15 +89,16 @@ def plot_forces(xml, ax, label=None, x_offset=0.0, x_min=0, x_max=0.0002):
 # solimp=".9 .99 .003" solref=".015 1"
 fig, axs = plt.subplots(2, 4, figsize=(20, 10))
 # for k0, width in enumerate([0.001, 0.1]):
-x_min = 0.01
-x_max = 0.025
+x_min = -3.1
+x_max = 3.1
 # x_min = 0
 # for k0, width in enumerate([0.005, 20]):
-for k0, width in enumerate([0.5]):
-    # for k, d0 in enumerate(np.linspace(0, 0.1, 4)):
-    for k, d0 in zip([0], [0]):
+for k0, width in enumerate([1, 2]):
+    for k, d0 in enumerate(np.linspace(0, 0.1, 2)):
+        # for k, d0 in zip([0], [0.5]):
         ax = axs[k0, k]
-        xml = get_xml(0, d0, width)
+        xml = get_xml(width, d0, width)
+        print(xml[:1000])
         plot_forces(xml, ax, label="no margin", x_min=x_min, x_max=x_max)
         # xml = get_xml(0.001, d0, width)
         # plot_forces(xml, ax, label="margin", x_min=x_min, x_max=x_max)

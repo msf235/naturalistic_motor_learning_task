@@ -100,6 +100,7 @@ def convert_dofadr(model, joint_ids=None, concat=False):
             dofadrs.extend(dofadr)
         else:
             dofadrs.append(dofadr)
+    breakpoint()
     return dofadrs
 
 
