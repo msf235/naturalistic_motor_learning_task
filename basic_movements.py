@@ -195,7 +195,7 @@ def random_arcs_right_arm(
     # plt.show()
 
     # Random walk for wrist
-    positions, wrist_qs = reflective_random_walk(
+    _, wrist_qs = reflective_random_walk(
         n_steps=n_steps,
         initial_position=0,
         step_std=0.02,
@@ -210,9 +210,9 @@ def random_arcs_right_arm(
 def random_arcs_left_arm(
     model, data, n_steps, initial_xpos, smoothing_time=None, step_std=0.02, seed=2
 ):
-    shouldx = data.site("shoulder1_left").xpos
-    elbowx = data.site("elbow_left").xpos
-    handx = data.site("hand_left").xpos
+    shouldx = data.site(LSHOULD_S).xpos
+    elbowx = data.site(LELBOW_S).xpos
+    handx = data.site(LHAND_S).xpos
     theta_min = -np.pi / 4
     theta_max = np.pi / 2.5 + np.pi / 2
     if smoothing_time is None:

@@ -2,8 +2,6 @@
 import basic_env
 import opt_utils
 import numpy as np
-import sim_util as util
-import shutil
 from pathlib import Path
 import pickle as pkl
 import arm_targ_traj as arm_t
@@ -17,6 +15,9 @@ params = config.get_config(args.configfile)["params"]
 # Since numbers in scientific notation are converted to a string from yaml,
 # need to convert these to a number.
 params = {k: config.inp_to_num(v) for k, v in params.items()}
+
+CTRL_STD = 0
+CTRL_RATE = 1
 
 DEFAULT_CAMERA_CONFIG = {
     "trackbodyid": 2,

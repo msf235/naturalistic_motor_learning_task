@@ -1,5 +1,5 @@
 params:
-  name: basic_movements_right
+  name: basic_movements_left
   xml_file: './model_files/humanoid_and_basic.xml'
   max_its: 1000
   Tf: 1.0

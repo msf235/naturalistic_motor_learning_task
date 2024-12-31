@@ -514,13 +514,14 @@ def get_idx_sets(env, config_name):
         stabilize_act_idx = tennis_idxs["not_arm_a"]
     elif config_name == "throw_ball":
         sites = [RHAND_S]
-        throw_idxs = one_arm_idxs(model)
-        site_grad_idxs = [throw_idxs["arm_a_without_adh"]]
-        stabilize_jnt_idx = throw_idxs["not_arm_j"]
-        stabilize_act_idx = throw_idxs["not_arm_a"]
+        throw_idxs = one_arm_idxs(model, "right")
+        site_grad_idxs = [throw_idxs["arm_act_without_adh"]]
+        stabilize_jnt_idx = throw_idxs["not_arm_dofadrs"]
+        stabilize_act_idx = throw_idxs["not_arm_act"]
         contact_check_list = [["ball", "hand_right1"], ["ball", "hand_right2"]]
         adh_ids = [acts["adh_right_hand"][0], acts["adh_right_hand"][0]]
         let_go_ids = [acts["adh_right_hand"][0]]
+        other_act_idx = throw_idxs["arm_act_without_adh"]
     elif config_name == "grab_ball":
         sites = [RHAND_S]
         throw_idxs = one_arm_idxs(model)
@@ -608,6 +609,8 @@ def get_times(env, exp_name, Tf):
     grab_tk = 0
     let_go_times = []
     if exp_name == "basic_movements_right":
+        pass
+    elif exp_name == "basic_movements_left":
         pass
     elif exp_name == "throw_ball":
         time_dict = throw_traj(model, data, Tk)[-1]
@@ -719,6 +722,8 @@ def make_traj_sets(
     dt = model.opt.timestep
     # amnt_to_incr = int(t_incr / dt)
     incr_time_right_endpoints = list(range(amnt_to_incr, Tk + 1, amnt_to_incr))
+    if incr_time_right_endpoints[-1] != Tk:
+        incr_time_right_endpoints.append(Tk)
     max_incr_its = len(incr_time_right_endpoints)
     # incr_it_left_endpoints = list(range(0, max_incr_its * incr_every, incr_every))
     incr_it_right_endpoints = list(
@@ -780,7 +785,7 @@ def make_traj_sets(
         )
 
     def make_return_dict(
-        trag_targs,
+        traj_targs,
         traj_masks,
         q_pos_targs,
         q_vel_targs,
@@ -789,7 +794,7 @@ def make_traj_sets(
         ctrl_reg_weights,
     ):
         return dict(  # TODO: make naming consistent
-            traj_targs=trag_targs,
+            traj_targs=traj_targs,
             traj_masks=traj_masks,
             # targ_traj_mask_types=mask_types,
             q_pos_targs=q_pos_targs,
@@ -829,30 +834,34 @@ def make_traj_sets(
             ctrl_reg_weights,
         )
     elif exp_name == "basic_movements_left":
-        rs, thetas, wrist_qs = basic_movements.random_arcs_left_arm(
+        joint_targs_file = "exp_configs/basic_movements_left_joint_targs.csv"
+        (
+            q_pos_targs,
+            q_vel_targs,
+            q_pos_masks,
+            q_vel_masks,
+            _,
+            _,
+        ) = get_q_pos_and_vel_data(joint_targs_file)
+
+        rs, thetas, _ = basic_movements.random_arcs_left_arm(
             model, data, Tk, data.site(LHAND_S).xpos, smoothing_time, arc_std, seed
         )
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:, 1] = rs * np.cos(thetas)
         traj1_xs[:, 2] = rs * np.sin(thetas)
         traj1_xs += data.site(LSHOULD_S).xpos
-        full_traj = traj1_xs
-        targ_traj_mask_dict = np.ones((Tk,))
-        targ_traj_mask_type = "double_sided_progressive"
-        # plt.plot(full_traj[:,1])
-        # plt.plot(full_traj[:,2])
-        # plt.show()
-
-        targ_trajs = [full_traj]
-        targ_traj_masks = [targ_traj_mask_dict]
-        mask_types = [targ_traj_mask_type]
-
-        q_targs = [np.zeros((Tk, syssize))]
-        q_targ_mask = np.zeros((Tk, syssize2))
-        q_targ_mask[:, left_arm_vel_id] = 1
-        q_targ_masks = [q_targ_mask]
-        q_targ_mask_types = ["const"]
+        targ_trajs = [traj1_xs]
         ctrl_reg_weights = [None]
+        return make_return_dict(
+            targ_trajs,
+            targ_traj_masks,
+            q_pos_targs,
+            q_vel_targs,
+            q_pos_masks,
+            q_vel_masks,
+            ctrl_reg_weights,
+        )
     elif exp_name == "basic_movements_both":
         rs, thetas, wrist_qs = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site(RHAND_S).xpos, smoothing_time, arc_std
@@ -891,31 +900,43 @@ def make_traj_sets(
         q_targ_mask_types = ["const", "const"]
         ctrl_reg_weights = [None]
     elif exp_name == "throw_ball":
-        targ_traj_mask_dict = np.ones((Tk,))
-        targ_traj_mask_type = "double_sided_progressive"
+        joint_targs_file = "exp_configs/throw_ball_joint_targs.csv"
+        (
+            q_pos_targs,
+            q_vel_targs,
+            q_pos_masks,
+            q_vel_masks,
+            _,
+            _,
+        ) = get_q_pos_and_vel_data(joint_targs_file)
         out = throw_traj(model, data, Tk)
         full_traj, time_dict = out
 
-        bodyj = joints["body"]["body_dofs"]
-
         targ_trajs = [full_traj]
-        targ_traj_masks = [targ_traj_mask_dict]
-        mask_types = [targ_traj_mask_type]
 
-        q_targs = [np.zeros((Tk, syssize))]
-        q_targ_mask = np.zeros((Tk, syssize2))
-        q_targ_mask2 = np.zeros((Tk, syssize2))
-        # TODO: resolve quaternion
-        q_targ_mask2[time_dict["t_1"] :, joints["all"]["wrist_left"]] = 1
-        q_targ_nz = np.linspace(0, -2.44, time_dict["t_2"] - time_dict["t_1"])
-        q_targ[time_dict["t_1"] : time_dict["t_2"], joints["all"]["wrist_left"]] = (
-            q_targ_nz
-        )
-        q_targ[time_dict["t_2"] :, joints["all"]["wrist_left"]] = -2.44
-        q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
-        q_targ_mask_types = ["const"]
-        q_targs = [q_targ]
+        # q_targs = [np.zeros((Tk, syssize))]
+        # q_targ_mask = np.zeros((Tk, syssize2))
+        # q_targ_mask2 = np.zeros((Tk, syssize2))
+        # # TODO: resolve quaternion
+        # q_targ_mask2[time_dict["t_1"] :, joints["all"]["wrist_left"]] = 1
+        # q_targ_nz = np.linspace(0, -2.44, time_dict["t_2"] - time_dict["t_1"])
+        # q_targ[time_dict["t_1"] : time_dict["t_2"], joints["all"]["wrist_left"]] = (
+        #     q_targ_nz
+        # )
+        # q_targ[time_dict["t_2"] :, joints["all"]["wrist_left"]] = -2.44
+        # q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
+        # q_targ_mask_types = ["const"]
+        # q_targs = [q_targ]
         ctrl_reg_weights = [None]
+        return make_return_dict(
+            targ_trajs,
+            targ_traj_masks,
+            q_pos_targs,
+            q_vel_targs,
+            q_pos_masks,
+            q_vel_masks,
+            ctrl_reg_weights,
+        )
     elif exp_name == "grab_ball":
         targ_traj_mask_dict = np.ones((Tk,))
         # targ_traj_mask_type = 'progressive'
@@ -1027,12 +1048,12 @@ def forward_and_collect_data(env, ctrls, ret_fn=None, render=False):
     ret_vals = []
     Tk = ctrls.shape[0]
     if ret_fn is not None:
-        ret_vals.append(ret_fn(data))
+        ret_vals.append(ret_fn(model, data))
     render_fn()
     for tk in range(Tk):
         util.step(model, data, ctrls[tk])
         if ret_fn is not None:
-            ret_vals.append(ret_fn(data))
+            ret_vals.append(ret_fn(model, data))
         render_fn()
     if ret_fn is not None:  # Now switch the key and time axes of ret_vals
         dict_keys = ret_vals[0].keys()
@@ -1377,7 +1398,6 @@ def arm_target_traj(
 
     model = env.model
     data = env.data
-    nq = model.nq
     traj_and_masks = make_traj_sets(
         env,
         config_name,
@@ -1414,7 +1434,10 @@ def arm_target_traj(
 
     util.reset_state(model, data, data0)
 
-    def ret_fn(data):
+    def ret_fn(model, data):
+        shift = model.nv - model.njnt
+        jnt_ids = [55, 56, 57]
+        vel_ids = [x + shift for x in jnt_ids]
         site_dict = {}
         for site in site_names:
             site_dict[site] = data.site(site).xpos.copy()
@@ -1424,6 +1447,9 @@ def arm_target_traj(
                 "qvel": data.qvel.copy(),
             }
         )
+        mj.mj_inverse(model, data)
+        site_dict.update({"thorax_forces": data.qfrc_inverse[vel_ids].copy()})
+        breakpoint()
         return site_dict
 
     ### Gradient descent
@@ -1579,7 +1605,6 @@ def arm_target_traj(
         toc = time.time()
         # print(loss, toc-tic)
 
-        nr = range(n_sites)
         if k0 % plot_every == 0:
             # qs_wr = qs[:, joints['all']['wrist_left']]
             # print()
@@ -1601,10 +1626,10 @@ def arm_target_traj(
                 site_grad_idxs,
                 ctrls[:tk],
                 grads,
-                qs_list,
-                q_targs_masked,
+                # qs_list,
+                # q_targs_masked,
                 show=True,
-                save=True,
+                # save=True,
             )
             plt.pause(0.1)
             if k0 == 0:
@@ -1621,8 +1646,8 @@ def arm_target_traj(
                     site_grad_idxs,
                     ctrls[:tk],
                     grads,
-                    qs_list,
-                    q_targs_masked,
+                    # qs_list,
+                    # q_targs_masked,
                     show=False,
                     save=True,
                 )
