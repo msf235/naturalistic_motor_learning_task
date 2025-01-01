@@ -34,32 +34,6 @@ leg_keys = ["Hip", "Knee", "Ankle", "Toe"]
 arm_keys = ["Thorax", "Shoulder", "Elbow", "Wrist", "Hand"]
 
 
-### LQR
-def get_ctrl0(model, data, stable_jnt_ids, ctrl_act_ids):
-    mj.mj_forward(model, data)
-    data.qacc[:] = 0
-    data.qvel[:] = 0
-    mj.mj_inverse(model, data)
-    qfrc0 = data.qfrc_inverse.copy()
-    # breakpoint()
-    qfrc0 = qfrc0[stable_jnt_ids]
-    # M = data.actuator_moment[:, stable_jnt_ids]
-    M = np.zeros((model.nu, model.nv))
-    mj.mju_sparse2dense(
-        M,
-        data.actuator_moment.reshape(-1),
-        data.moment_rownnz,
-        data.moment_rowadr,
-        data.moment_colind.reshape(-1),
-    )
-    M = M[ctrl_act_ids][:, stable_jnt_ids]
-    # Probably much better way to do this
-    # ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(M)
-    ctrl0 = np.linalg.lstsq(M.T, qfrc0, rcond=None)[0]
-    # ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
-    return ctrl0
-
-
 def key_match(key, key_list):
     for k in key_list:
         if k in key:
@@ -77,7 +51,7 @@ def batch_differentiatePos(model, dt, qpos1_list, qpos2_list):
     return np.array(res)
 
 
-def convert_qposdof(model, joint_ids=None, concat=False):
+def convert_qdof_adr(model, joint_ids=None, concat=False):
     """Convert joint ids to qpos_dofs. A list of qpos_dofs is associated with each
     joint id; hence, this function returns a list of lists of qposard."""
     # WARNING: I'm not totally sure that len(bodyid) is always the number of
@@ -86,21 +60,20 @@ def convert_qposdof(model, joint_ids=None, concat=False):
         joint_ids = range(model.njnt)
     if not hasattr(joint_ids, "__len__"):
         joint = model.joint(joint_ids)
-        qpos_st = joint.qpos_dofs.item()
+        qpos_st = joint.dofadr.item()
         n_qposs = len(joint.bodyid)
         qpos_dofs = list(range(qpos_st, qpos_st + n_qposs))
         return qpos_dofs
     qpos_dofs = []
     for id in joint_ids:
         joint = model.joint(id)
-        qpos_st = joint.qpos_dof.item()
+        qpos_st = joint.dofadr.item()
         n_qposs = len(joint.bodyid)
         qpos_dof = list(range(qpos_st, qpos_st + n_qposs))
         if concat:
             qpos_dofs.extend(qpos_dof)
         else:
             qpos_dofs.append(qpos_dof)
-    breakpoint()
     return qpos_dofs
 
 
@@ -111,13 +84,10 @@ def convert_qpos_adr(model, joint_ids=None, concat=False):
     # qposs for a joint, which I assume here.
     if joint_ids is None:
         joint_ids = range(model.njnt)
+    singleton = False
     if not hasattr(joint_ids, "__len__"):
-        joint = model.joint(joint_ids)
-        qpos_start = joint.qpos_adr.item()
-        n_qposs = len(joint.bodyid)
-        qposadr = list(range(qpos_start, qpos_start + n_qposs))
-        breakpoint()
-        return qposadr
+        singleton = True
+        joint_ids = [joint_ids]
     qposadrs = []
     for id in joint_ids:
         joint = model.joint(id)
@@ -127,7 +97,7 @@ def convert_qpos_adr(model, joint_ids=None, concat=False):
             qposadr = list(range(joint.qposadr.item(), joint.qposadr.item() + 7))
         else:
             raise ValueError("Joint with unsupported DOF number.")
-        if concat:
+        if concat or singleton:
             qposadrs.extend(qposadr)
         else:
             qposadrs.append(qposadr)
@@ -138,66 +108,68 @@ def get_body_joints(model):
     """Get joint names for body."""
     jntname = lambda k: model.joint(k).name
     qposadr_conv = lambda li: convert_qpos_adr(model, li, True)
+    qdofadr_conv = lambda li: convert_qdof_adr(model, li, True)
     # qpos_conv = lambda li: convert_qposadr(model, li, False)
 
-    bod_jnts = {}
-    bod_jnts["ids"] = [k for k in range(model.njnt) if key_match(jntname(k), body_keys)]
-    bod_jnts["ids_without_root"] = [
-        k for k in range(model.njnt) if key_match(jntname(k), body_without_root_keys)
-    ]
-    body_ids = bod_jnts["ids_without_root"]  # Exclude root here
-    bod_jnts["qpos_adrs"] = qposadr_conv(bod_jnts["ids"])
-    breakpoint()
-    bod_jnts["qpos_adrs_without_root"] = qposadr_conv(bod_jnts["ids_without_root"])
-    body_qposs = bod_jnts["qpos_adrs_without_root"]  # Exclude root here
-    bod_jnts["root_ids"] = [
-        k for k in bod_jnts["ids"] if key_match(jntname(k), body_root_keys)
-    ]
-    bod_jnts["root_qpos_adrs"] = qposadr_conv(bod_jnts["root_ids"])
+    body_jnts = {}
 
-    bod_jnts["abdomen_ids"] = []
-    bod_jnts["abdomen_qpos_adrs"] = []
-    for id, qpos in zip(body_ids, body_qposs):
+    # Joint ids
+    body_jnts["ids"] = {}
+    ids = body_jnts["ids"]
+    ids["all"] = [k for k in range(model.njnt) if key_match(jntname(k), body_keys)]
+    # noroot_ids = body_jnts["ids_without_root"]  # Exclude root here
+    # ids["root"] = [
+    #     k for k in body_jnts["ids_all"] if key_match(jntname(k), body_root_keys)
+    # ]
+    for key in (
+        "root",
+        "not_root",
+        "abdomen",
+        "leg",
+        "right_arm",
+        "left_arm",
+        "balance",
+        "not_balance_not_root",
+        "not_right_arm_not_root",
+    ):
+        ids[key] = []
+    for id in range(model.njnt):
+        right_arm = key_match(jntname(id), arm_keys) and "R_" in jntname(id)
+        left_arm = key_match(jntname(id), arm_keys) and "L_" in jntname(id)
+        not_root = key_match(jntname(id), body_without_root_keys)
+        if key_match(jntname(id), body_keys):
+            ids["all"].append(id)
+        if not_root:
+            ids["not_root"].append(id)
+            if not right_arm:
+                ids["not_right_arm_not_root"].append(id)
+        if key_match(jntname(id), body_root_keys):
+            ids["root"].append(id)
         if key_match(jntname(id), abd_keys):
-            bod_jnts["abdomen_ids"].append(id)
-            bod_jnts["abdomen_qpos_adrs"].append(qpos)
-    bod_jnts["leg_ids"] = []
-    bod_jnts["leg_qpos_adrs"] = []
-    for id, qpos in zip(body_ids, body_qposs):
+            ids["abdomen"].append(id)
         if key_match(jntname(id), leg_keys):
-            bod_jnts["leg_ids"].append(id)
-            bod_jnts["leg_qpos_adrs"].append(qpos)
-    breakpoint()
-    bod_jnts["balance_ids"] = bod_jnts["abdomen_ids"] + bod_jnts["leg_ids"]
-    bod_jnts["balance_ids"].sort()
-    bod_jnts["balance_qpos_adrs"] = (
-        bod_jnts["abdomen_qpos_adrs"] + bod_jnts["leg_qpos_adrs"]
-    )
-    bod_jnts["balance_qpos_adrs"].sort()
-    bod_jnts["other_ids"] = [k for k in body_ids if k not in bod_jnts["balance_ids"]]
-    bod_jnts["other_qpos_adrs"] = qposadr_conv(bod_jnts["other_ids"])
-    bod_jnts["right_arm_ids"] = []
-    bod_jnts["right_arm_qpos_adrs"] = []
-    bod_jnts["left_arm_ids"] = []
-    bod_jnts["left_arm_qpos_adrs"] = []
-    for id, qpos in zip(body_ids, body_qposs):
-        if key_match(jntname(id), arm_keys):
-            if "R_" in jntname(id):
-                bod_jnts["right_arm_ids"].append(id)
-                bod_jnts["right_arm_qpos_adrs"].append(qpos)
-            if "L_" in jntname(id):
-                bod_jnts["left_arm_ids"].append(id)
-                bod_jnts["left_arm_qpos_adrs"].append(qpos)
-    bod_jnts["not_right_arm_ids"] = [
-        i for i in body_ids if i not in bod_jnts["right_arm_ids"]
-    ]
-    bod_jnts["not_right_arm_qpos_adrs"] = qposadr_conv(bod_jnts["not_right_arm_ids"])
-    bod_jnts["not_left_arm_ids"] = [
-        i for i in body_ids if i not in bod_jnts["left_arm_ids"]
-    ]
-    bod_jnts["not_left_arm_qpos_adrs"] = qposadr_conv(bod_jnts["not_left_arm_ids"])
+            ids["leg"].append(id)
+        if right_arm:
+            ids["right_arm"].append(id)
+        if left_arm:
+            ids["left_arm"].append(id)
+        if key_match(jntname(id), abd_keys + leg_keys):
+            ids["balance"].append(id)
+        elif not_root:
+            ids["not_balance_not_root"].append(id)
 
-    return bod_jnts
+    body_jnts["qpos_adrs"] = {}
+    qpos_adrs = body_jnts["qpos_adrs"]
+    for key in ids:
+        qpos_adrs[key] = qposadr_conv(ids[key])
+    body_jnts["qdof_adrs"] = {}
+    qdof_adrs = body_jnts["qdof_adrs"]
+    for key in ids:
+        qdof_adrs[key] = qdofadr_conv(ids[key])
+
+    breakpoint()
+
+    return body_jnts
 
 
 def get_joint_ids(model, data=None):
@@ -249,6 +221,33 @@ def get_act_names_left_or_right(model, left_or_right="right"):
         if k not in acts[f"adh_{left_or_right}_hand"]
     ]
     return acts
+
+
+### LQR
+def get_ctrl0(model, data, stable_jnt_ids, ctrl_act_ids):
+    stable_qpos_adrs = convert_qpos_adr(model, stable_jnt_ids, True)
+    stable_qdof_adrs = convert_qdof_adr(model, stable_jnt_ids, True)
+    mj.mj_forward(model, data)
+    data.qacc[:] = 0
+    data.qvel[:] = 0
+    mj.mj_inverse(model, data)
+    qfrc0 = data.qfrc_inverse.copy()
+    qfrc0 = qfrc0[stable_qdof_adrs]
+    # M = data.actuator_moment[:, stable_jnt_ids]
+    M = np.zeros((model.nu, model.nv))
+    mj.mju_sparse2dense(
+        M,
+        data.actuator_moment.reshape(-1),
+        data.moment_rownnz,
+        data.moment_rowadr,
+        data.moment_colind.reshape(-1),
+    )
+    M = M[ctrl_act_ids][:, stable_qdof_adrs]
+    # Probably much better way to do this
+    # ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(M)
+    ctrl0 = np.linalg.lstsq(M.T, qfrc0, rcond=None)[0]
+    # ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
+    return ctrl0
 
 
 class AdhCtrl:
@@ -333,12 +332,14 @@ def get_Q_joint(
     # Construct the Qjoint matrix.
     Qjoint = np.eye(model.nv)
     # Qjoint[joints['root_qposs'], joints['root_qposs']] *= 0  # Don't penalize free joint directly.
-    Qjoint[joints["root_qpos_adrs"], joints["root_qpos_adrs"]] *= root_cost
+    breakpoint()
+    Qjoint[joints["root_qdof_adrs"], joints["root_qdof_adrs"]] *= root_cost
     # Qjoint[z_joint, z_joint] = 100
-    Qjoint[joints["balance_qpos_adrs"], joints["balance_qpos_adrs"]] *= (
+    Qjoint[joints["balance_qdof_adrs"], joints["balance_qdof_adrs"]] *= (
         balance_joint_cost
     )
-    Qjoint[joints["other_qpos_adrs"], joints["other_qpos_adrs"]] *= other_joint_cost
+    breakpoint()
+    Qjoint[joints["other_qdof_adrs"], joints["other_qdof_adrs"]] *= other_joint_cost
     Qjoint[excluded_acts, excluded_acts] *= 0
     return Qjoint
 
@@ -382,6 +383,7 @@ def get_feedback_ctrl_matrix_from_QR(
     flg_centered = True
     mj.mjd_transitionFD(model, data, epsilon_grad, flg_centered, A, B, None, None)  # type: ignore
     stable_ids = stable_jnt_ids + [i + nv for i in stable_jnt_ids]
+    breakpoint()
     A = A[stable_ids][:, stable_ids]
     B = B[stable_ids][:, active_ctrl_ids]
     Q = Q[stable_ids][:, stable_ids]
@@ -439,7 +441,8 @@ def get_stabilized_ctrls(
     noisev,
     qpos0,
     ctrl_act_ids,
-    stable_jnt_qpos_adrs,
+    # stable_jnt_qpos_adrs,
+    stable_jnt_ids,
     free_ctrls=None,
     K_update_interv=None,
     free_ctrl_fn=None,
@@ -472,12 +475,18 @@ def get_stabilized_ctrls(
         K_update_interv: Update interval for K.
     """
 
+    stable_jnt_qpos_adrs = convert_qpos_adr(model, stable_jnt_ids, concat=True)
+    stable_jnt_qdof_adrs = convert_qdof_adr(model, stable_jnt_ids, concat=True)
+
+    free_jnt_ids = [k for k in range(model.njnt) if k not in stable_jnt_ids]
+    free_jnt_qpos_adrs = convert_qpos_adr(model, free_jnt_ids, concat=True)
+
     adh_ctrl = AdhCtrl(
         let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids
     )
 
     free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
-    free_jnt_qpos_adrs = [k for k in range(model.njnt) if k not in stable_jnt_qpos_adrs]
+    # free_jnt_qpos_adrs = [k for k in range(model.njnt) if k not in stable_jnt_qpos_adrs]
     # bodyj_id = joints['body']['body_qposs']
     # body_qpos = convert_qpos_adr(model, None, bodyj_id, concat=True)
     if free_ctrls is None:
@@ -494,13 +503,13 @@ def get_stabilized_ctrls(
         if k % K_update_interv == 0:
             datak0 = copy.deepcopy(data)
             qpos0n[free_jnt_qpos_adrs] = data.qpos[free_jnt_qpos_adrs]
-            ctrl0 = get_ctrl0(model, data, stable_jnt_qpos_adrs, ctrl_act_ids)
+            ctrl0 = get_ctrl0(model, data, stable_jnt_ids, ctrl_act_ids)
             util.reset_state(model, data, datak0)
             K = get_feedback_ctrl_matrix(
                 model,
                 data,
                 ctrl0,
-                stable_jnt_qpos_adrs,
+                stable_jnt_ids,
                 ctrl_act_ids,
                 balance_cost,
                 joint_cost,
@@ -865,7 +874,8 @@ def reset_with_lqr(
     noisev = np.zeros((nsteps2, model.nu))
     joints = get_joint_ids(model)
     acts = get_act_ids(model)
-    body_qpos = joints["body"]["qpos_adrs_without_root"]
+    # body_qpos = joints["body"]["qpos_adrs_without_root"]
+    body_ids = joints["body"]["ids_without_root"]
     ctrls = get_stabilized_ctrls(
         model,
         data,
@@ -873,7 +883,7 @@ def reset_with_lqr(
         noisev,
         data.qpos.copy(),
         acts["not_adh"],
-        body_qpos,
+        stable_jnt_ids=body_ids,
         free_ctrls=np.ones((nsteps2, len(acts["adh"]))),
         balance_cost=balance_cost,
         joint_cost=joint_cost,

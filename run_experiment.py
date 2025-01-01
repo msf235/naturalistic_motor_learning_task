@@ -94,7 +94,9 @@ joints = opt_utils.get_joint_ids(model)
 acts = opt_utils.get_act_ids(model)
 
 # body_qpos = joints['body']['qpos_adrs_without_root']
-body_qpos = joints["body"]["qpos_adrs"]
+# body_qpos = joints["body"]["qpos_adrs"]
+body_ids = joints["body"]["ids"]
+breakpoint()
 
 out_idx = arm_t.get_idx_sets(env, params["name"])
 sites = out_idx["sites"]
@@ -136,7 +138,7 @@ if args.rerun or not out_f.exists():
         noisev,
         data.qpos.copy(),
         acts["not_adh"],
-        body_qpos,
+        stable_jnt_ids=body_qpos,
         free_ctrls=np.zeros((Tk, len(acts["adh"]))),
         balance_cost=params["balance_cost"],
         joint_cost=params["joint_cost"],
