@@ -24,22 +24,22 @@ nu = model.nu
 joint_names = [model.joint(i).name for i in range(model.njnt)]
 
 # Get indices into relevant sets of joints.
-root_dofs = range(3)
-body_dofs = range(3, nq)
-abdomen_dofs = [
-    model.joint(name).dofadr[0]
+root_qposs = range(3)
+body_qposs = range(3, nq)
+abdomen_qposs = [
+    model.joint(name).qpos_adr[0]
     for name in joint_names
     if 'abdomen' in name
     and not 'z' in name
 ]
-leg_dofs = [
-    model.joint(name).dofadr[0]
+leg_qposs = [
+    model.joint(name).qpos_adr[0]
     for name in joint_names
     if ('hip' in name or 'knee' in name or 'ankle' in name)
     and not 'z' in name
 ]
-balance_dofs = abdomen_dofs + leg_dofs
-other_dofs = np.setdiff1d(body_dofs, balance_dofs)
+balance_qposs = abdomen_qposs + leg_qposs
+other_qposs = np.setdiff1d(body_qposs, balance_qposs)
 
 # K = get_feedback_ctrl_matrix(model, data, Q, R)
 

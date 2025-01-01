@@ -434,15 +434,15 @@ def two_arm_idxs(model):
     body_j = opt_utils.get_joint_ids(model)["body"]
     acts = opt_utils.get_act_ids(model)
 
-    # body_j = joints['body']['dofadrs']
+    # body_j = joints['body']['qpos_adrs']
     # body_j = joints['body']
-    # two_arm_idx['body_j'] = opt_utils.convert_dofadr(model, None,
-    # joints['body_dofs'])
-    raj = body_j["right_arm_dofadrs"]
-    # raj = opt_utils.convert_dofadr(model, None, joints['right_arm'])
-    # laj = opt_utils.convert_dofadr(model, None, joints['left_arm'])
-    arm_dofadrs = [k for k in body_j if k in raj or k in body_j["left_arm"]]
-    two_arm_idx["not_arm_j"] = [i for i in body_j if i not in arm_dofadrs]
+    # two_arm_idx['body_j'] = opt_utils.convert_qpos_adr(model, None,
+    # joints['body_qposs'])
+    raj = body_j["right_arm_qpos_adrs"]
+    # raj = opt_utils.convert_qpos_adr(model, None, joints['right_arm'])
+    # laj = opt_utils.convert_qpos_adr(model, None, joints['left_arm'])
+    arm_qpos_adrs = [k for k in body_j if k in raj or k in body_j["left_arm"]]
+    two_arm_idx["not_arm_j"] = [i for i in body_j if i not in arm_qpos_adrs]
     arm_a = [k for k in acts["all"] if k in acts["right_arm"] or k in acts["left_arm"]]
     two_arm_idx["not_arm_a"] = [
         k for k in acts["all"] if k not in arm_a and k not in acts["adh"]
@@ -467,12 +467,12 @@ def one_arm_idxs(model, right_or_left="right"):
 
     one_arm_idx = {}
 
-    arm_dofadrs = joints["body"][f"{right_or_left}_arm_dofadrs"]
-    # not_arm_dofadrs = [i for i in joints['body']['dofadrs'] if i not in arm_dofadrs]
-    # one_arm_idx['not_arm_dofadrs'] = [i for i in joints['body']['dofadrs_without_root']
-    # if i not in arm_dofadrs]
-    one_arm_idx["not_arm_dofadrs"] = [
-        i for i in joints["body"]["dofadrs"] if i not in arm_dofadrs
+    arm_qpos_adrs = joints["body"][f"{right_or_left}_arm_qpos_adrs"]
+    # not_arm_qpos_adrs = [i for i in joints['body']['qpos_adrs'] if i not in arm_qpos_adrs]
+    # one_arm_idx['not_arm_qpos_adrs'] = [i for i in joints['body']['qpos_adrs_without_root']
+    # if i not in arm_qpos_adrs]
+    one_arm_idx["not_arm_qpos_adrs"] = [
+        i for i in joints["body"]["qpos_adrs"] if i not in arm_qpos_adrs
     ]
     arm_act = acts[f"{right_or_left}_arm"]
     arm_act_without_adh = [k for k in arm_act if k not in acts["adh"]]
@@ -493,14 +493,14 @@ def get_idx_sets(env, config_name):
         sites = [RHAND_S]
         throw_idxs = one_arm_idxs(model, "right")
         site_grad_idxs = [throw_idxs["arm_act_without_adh"]]
-        stabilize_jnt_idx = throw_idxs["not_arm_dofadrs"]
+        stabilize_jnt_idx = throw_idxs["not_arm_qpos_adrs"]
         stabilize_act_idx = throw_idxs["not_arm_act"]
         other_act_idx = throw_idxs["arm_act_without_adh"]
     elif config_name == "basic_movements_left":
         sites = [LHAND_S]
         throw_idxs = one_arm_idxs(model, "left")
         site_grad_idxs = [throw_idxs["arm_act_without_adh"]]
-        stabilize_jnt_idx = throw_idxs["not_arm_dofadrs"]
+        stabilize_jnt_idx = throw_idxs["not_arm_qpos_adrs"]
         stabilize_act_idx = throw_idxs["not_arm_act"]
         other_act_idx = throw_idxs["arm_act_without_adh"]
     elif config_name == "basic_movements_both":
@@ -516,7 +516,7 @@ def get_idx_sets(env, config_name):
         sites = [RHAND_S]
         throw_idxs = one_arm_idxs(model, "right")
         site_grad_idxs = [throw_idxs["arm_act_without_adh"]]
-        stabilize_jnt_idx = throw_idxs["not_arm_dofadrs"]
+        stabilize_jnt_idx = throw_idxs["not_arm_qpos_adrs"]
         stabilize_act_idx = throw_idxs["not_arm_act"]
         contact_check_list = [["ball", "hand_right1"], ["ball", "hand_right2"]]
         adh_ids = [acts["adh_right_hand"][0], acts["adh_right_hand"][0]]
@@ -704,15 +704,15 @@ def make_traj_sets(
     # smoothing_time = 0.1
     smoothing_time = 0.2
     joints = opt_utils.get_joint_ids(model)
-    # left_arm_dofadr = joints["body"]["left_arm_dofadrs"]
-    # right_arm_dofadr = opt_utils.convert_dofadr(
+    # left_arm_qpos_adr = joints["body"]["left_arm_qpos_adrs"]
+    # right_arm_qpos_adr = opt_utils.convert_qpos_adr(
     # model, None, joints['body']['right_arm'], True)
-    # right_arm_dofadr = joints["body"]["right_arm_dofadrs"]
-    # dof_offset = model.nq - model.nv
+    # right_arm_qpos_adr = joints["body"]["right_arm_qpos_adrs"]
+    # qpos_offset = model.nq - model.nv
     # TODO: check
-    # left_arm_vel_id = [x+model.nq-dof_offset for x in left_arm_dofadr]
-    # left_arm_vel_id = [x + model.nv for x in left_arm_dofadr]
-    # right_arm_vel_id = [x + model.nv for x in right_arm_dofadr]
+    # left_arm_vel_id = [x+model.nq-qpos_offset for x in left_arm_qpos_adr]
+    # left_arm_vel_id = [x + model.nv for x in left_arm_qpos_adr]
+    # right_arm_vel_id = [x + model.nv for x in right_arm_qpos_adr]
     acts = opt_utils.get_act_ids(model)
     # q_targ = np.zeros((Tk, 2*model.nq))
     out_idx = get_idx_sets(env, exp_name)
@@ -743,13 +743,13 @@ def make_traj_sets(
         q_pos_time_tks = q_pos_data["tk"]
         joint_names = q_pos_data["joint_names"]
         # q_data_time_tks = list(q_pos_targs.keys())
-        q_pos_dofadrs = [model.joint(n).dofadr.item() for n in joint_names]
+        q_pos_qpos_adrs = [model.joint(n).qpos_adr.item() for n in joint_names]
         q_pos_targs_expanded = np.zeros((Tk, model.nq))
         for tk, targ in zip(q_pos_time_tks, q_pos_targs):
-            q_pos_targs_expanded[tk][q_pos_dofadrs] = targ
+            q_pos_targs_expanded[tk][q_pos_qpos_adrs] = targ
         q_pos_mask_list = masks.make_basic_qpos_masks(
             q_pos_time_tks,
-            q_pos_dofadrs,
+            q_pos_qpos_adrs,
             incr_time_right_endpoints,
             model.nq,
         )
@@ -780,7 +780,7 @@ def make_traj_sets(
             q_vel_targs_expanded,
             q_pos_mask_dict,
             q_vel_mask_dict,
-            q_pos_dofadrs,
+            q_pos_qpos_adrs,
             joint_names,
         )
 

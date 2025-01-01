@@ -16,7 +16,7 @@ def get_xml(margin=0.0, d0=0.95, width=0.001):
 
 def plot_forces(xml, ax, label=None, x_offset=0.0, x_min=0, x_max=0.0002):
     model = mujoco.MjModel.from_xml_string(xml)
-    # jnt_dofs = [60, 61, 62]
+    # jnt_qposs = [60, 61, 62]
     jnt_qposadr = 61
     jnt_velid = 60
     jnt_id = 55
@@ -29,12 +29,12 @@ def plot_forces(xml, ax, label=None, x_offset=0.0, x_min=0, x_max=0.0002):
     # mujoco.mj_resetData(model, data)
     # mujoco.mj_forward(model, data)
     # data.qacc = 0  # Assert that there is no the acceleration.
-    # data.qpos[jnt_dof] += jnt_lims[1] - 0.1
+    # data.qpos[jnt_qpos] += jnt_lims[1] - 0.1
     # viewer.launch(model, data)
-    # data.qpos[jnt_dof] += jnt_lims[1] - 0.1
+    # data.qpos[jnt_qpos] += jnt_lims[1] - 0.1
     # plt.close("all")
     # while True:
-    #     # data.qpos[jnt_dof] += 1e-2
+    #     # data.qpos[jnt_qpos] += 1e-2
     #     data.qpos[jnt_qposadr] += 1e-2
     #     data.qacc = 0  # Assert that there is no the acceleration.
     #     mujoco.mj_forward(model, data)
