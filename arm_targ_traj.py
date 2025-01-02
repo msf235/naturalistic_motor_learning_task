@@ -429,122 +429,64 @@ def tennis_traj(model, data, Tk):
     return right_arm_traj, left_arm_traj, ball_traj, time_dict
 
 
-def two_arm_idxs(model):
-    two_arm_idx = {}
-    body_j = opt_utils.get_joint_ids(model)["body"]
-    acts = opt_utils.get_act_ids(model)
-
-    # body_j = joints['body']['qpos_adrs']
-    # body_j = joints['body']
-    # two_arm_idx['body_j'] = opt_utils.convert_qpos_adr(model, None,
-    # joints['body_qposs'])
-    raj = body_j["right_arm_qpos_adrs"]
-    # raj = opt_utils.convert_qpos_adr(model, None, joints['right_arm'])
-    # laj = opt_utils.convert_qpos_adr(model, None, joints['left_arm'])
-    arm_qpos_adrs = [k for k in body_j if k in raj or k in body_j["left_arm"]]
-    two_arm_idx["not_arm_j"] = [i for i in body_j if i not in arm_qpos_adrs]
-    arm_a = [k for k in acts["all"] if k in acts["right_arm"] or k in acts["left_arm"]]
-    two_arm_idx["not_arm_a"] = [
-        k for k in acts["all"] if k not in arm_a and k not in acts["adh"]
-    ]
-    two_arm_idx["right_arm_without_adh"] = [
-        k for k in acts["right_arm"] if k not in acts["adh"]
-    ]
-    two_arm_idx["left_arm_without_adh"] = [
-        k for k in acts["left_arm"] if k not in acts["adh"]
-    ]
-    two_arm_idx["adh_left_hand"] = acts["adh_left_hand"]
-    two_arm_idx["adh_right_hand"] = acts["adh_right_hand"]
-    return two_arm_idx
-
-
-def one_arm_idxs(model, right_or_left="right"):
-    joints = opt_utils.get_joint_ids(model)
-    acts = opt_utils.get_act_ids(model)
-
-    def ints(l1, l2):
-        return list(set(l1).intersection(set(l2)))
-
-    one_arm_idx = {}
-
-    arm_qpos_adrs = joints["body"][f"{right_or_left}_arm_qpos_adrs"]
-    # not_arm_qpos_adrs = [i for i in joints['body']['qpos_adrs'] if i not in arm_qpos_adrs]
-    # one_arm_idx['not_arm_qpos_adrs'] = [i for i in joints['body']['qpos_adrs_without_root']
-    # if i not in arm_qpos_adrs]
-    one_arm_idx["not_arm_qpos_adrs"] = [
-        i for i in joints["body"]["qpos_adrs"] if i not in arm_qpos_adrs
-    ]
-    arm_act = acts[f"{right_or_left}_arm"]
-    arm_act_without_adh = [k for k in arm_act if k not in acts["adh"]]
-    # Include all adhesion (including other hand)
-    not_arm_act = [k for k in acts["all"] if k not in arm_act and k not in acts["adh"]]
-    one_arm_idx["arm_act_without_adh"] = arm_act_without_adh
-    one_arm_idx["not_arm_act"] = not_arm_act
-    return one_arm_idx
-
-
 def get_idx_sets(env, config_name):
     model = env.model
+    ids = opt_utils.get_joints(model)["body"]["ids"]
     acts = opt_utils.get_act_ids(model)
-    contact_check_list = []
-    adh_ids = []
-    let_go_ids = []
-    if config_name == "basic_movements_right":
-        sites = [RHAND_S]
-        throw_idxs = one_arm_idxs(model, "right")
-        site_grad_idxs = [throw_idxs["arm_act_without_adh"]]
-        stabilize_jnt_idx = throw_idxs["not_arm_qpos_adrs"]
-        stabilize_act_idx = throw_idxs["not_arm_act"]
-        other_act_idx = throw_idxs["arm_act_without_adh"]
-    elif config_name == "basic_movements_left":
-        sites = [LHAND_S]
-        throw_idxs = one_arm_idxs(model, "left")
-        site_grad_idxs = [throw_idxs["arm_act_without_adh"]]
-        stabilize_jnt_idx = throw_idxs["not_arm_qpos_adrs"]
-        stabilize_act_idx = throw_idxs["not_arm_act"]
-        other_act_idx = throw_idxs["arm_act_without_adh"]
-    elif config_name == "basic_movements_both":
+
+    ## Joint and actuator ids
+    if config_name in [
+        "basic_movements_right",
+        "basic_movements_left",
+        "throw_ball",
+        "grab_ball",
+    ]:  # One-handed actions
+        if config_name == "basic_movements_left":
+            sites = [LHAND_S]
+            arm_str = "left_arm"
+        else:
+            sites = [RHAND_S]
+            arm_str = "right_arm"
+        not_arm_not_root = [id for id in ids["not_root"] if id not in ids[arm_str]]
+        stabilize_jnt_idx = not_arm_not_root
+        arm_act = acts[arm_str]
+        arm_act_without_adh = [k for k in arm_act if k not in acts["adh"]]
+        # Include all adhesion (including other hand)
+        not_arm_act = [
+            k for k in acts["all"] if k not in arm_act and k not in acts["adh"]
+        ]
+        site_grad_idxs = [arm_act_without_adh]
+        stabilize_act_idx = not_arm_act
+        other_act_idx = arm_act_without_adh
+    elif config_name in [
+        "basic_movements_both",
+        "tennis_serve",
+        "tennis_grab",
+    ]:  # Two-handed actions
         sites = [RHAND_S, LHAND_S]
-        tennis_idxs = two_arm_idxs(model)
-        site_grad_idxs = [
-            tennis_idxs["right_arm_without_adh"],
-            tennis_idxs["left_arm_without_adh"],
+        arm_ids = ids["right_arm"] + ids["left_arm"]
+        stabilize_jnt_idx = [
+            id for id in ids["not_root"] if id not in arm_ids
+        ]  # Not arm ids
+        arm_a = acts["right_arm"] + acts["left_arm"]  # Sorting not necessary
+        stabilize_act_idx = [  # Not arm or adhesion actuators
+            k for k in acts["all"] if k not in arm_a and k not in acts["adh"]
         ]
-        stabilize_jnt_idx = tennis_idxs["not_arm_j"]
-        stabilize_act_idx = tennis_idxs["not_arm_a"]
-    elif config_name == "throw_ball":
-        sites = [RHAND_S]
-        throw_idxs = one_arm_idxs(model, "right")
-        site_grad_idxs = [throw_idxs["arm_act_without_adh"]]
-        stabilize_jnt_idx = throw_idxs["not_arm_qpos_adrs"]
-        stabilize_act_idx = throw_idxs["not_arm_act"]
-        contact_check_list = [["ball", "hand_right1"], ["ball", "hand_right2"]]
+        right_arm_without_adh = [k for k in acts["right_arm"] if k not in acts["adh"]]
+        left_arm_without_adh = [k for k in acts["left_arm"] if k not in acts["adh"]]
+        site_grad_idxs = [
+            right_arm_without_adh,
+            left_arm_without_adh,
+        ]
+
+    else:
+        raise ValueError("Invalid config_name")
+
+    ## Contact check list and adhesion ids
+    if config_name in ["grab_ball", "throw_ball"]:
         adh_ids = [acts["adh_right_hand"][0], acts["adh_right_hand"][0]]
-        let_go_ids = [acts["adh_right_hand"][0]]
-        other_act_idx = throw_idxs["arm_act_without_adh"]
-    elif config_name == "grab_ball":
-        sites = [RHAND_S]
-        throw_idxs = one_arm_idxs(model)
-        site_grad_idxs = [throw_idxs["arm_a_without_adh"]]
-        stabilize_jnt_idx = throw_idxs["not_arm_j"]
-        stabilize_act_idx = throw_idxs["not_arm_a"]
         contact_check_list = [["ball", "hand_right1"], ["ball", "hand_right2"]]
-        adh_ids = [acts["adh_right_hand"][0], acts["adh_right_hand"][0]]
-        let_go_ids = []
-        let_go_times = []
-    elif config_name == "tennis_serve":
-        sites = [RHAND_S, LHAND_S]  # Move
-        tennis_idxs = two_arm_idxs(model)
-        site_grad_idxs = [
-            tennis_idxs["right_arm_without_adh"],
-            tennis_idxs["left_arm_without_adh"],
-        ]
-        site_grad_idxs = [
-            tennis_idxs["right_arm_without_adh"],
-            tennis_idxs["left_arm_without_adh"],
-        ]
-        stabilize_jnt_idx = tennis_idxs["not_arm_j"]
-        stabilize_act_idx = tennis_idxs["not_arm_a"]
+    elif config_name in ["tennis_serve", "tennis_grab"]:
         contact_check_list = [
             ["racket_handle", "hand_right1"],
             ["racket_handle", "hand_right2"],
@@ -558,40 +500,25 @@ def get_idx_sets(env, config_name):
             acts["adh_left_hand"][0],
             acts["adh_left_hand"][0],
         ]
-        act_ids = ["adh_right_hand", "adh_right_hand", "adh_left_hand", "adh_left_hand"]
-        let_go_ids = [acts["adh_left_hand"][0]]
-    elif config_name == "tennis_grab":
-        sites = [RHAND_S, LHAND_S]
-        tennis_idxs = two_arm_idxs(model)
-        site_grad_idxs = [
-            tennis_idxs["right_arm_without_adh"],
-            tennis_idxs["left_arm_without_adh"],
-        ]
-        stabilize_jnt_idx = tennis_idxs["not_arm_j"]
-        stabilize_act_idx = tennis_idxs["not_arm_a"]
+    else:
+        adh_ids = []
+        contact_check_list = []
+        # act_ids = ["adh_right_hand", "adh_right_hand", "adh_left_hand", "adh_left_hand"]
 
-        contact_check_list = [
-            ["racket_handle", "hand_right1"],
-            ["racket_handle", "hand_right2"],
-            ["ball", "hand_left1"],
-            ["ball", "hand_left2"],
-        ]
-        adh_ids = [
-            acts["adh_right_hand"][0],
-            acts["adh_right_hand"][0],
-            acts["adh_left_hand"][0],
-            acts["adh_left_hand"][0],
-        ]
-        act_ids = ["adh_right_hand", "adh_right_hand", "adh_left_hand", "adh_left_hand"]
+    ## Letting go ids
+    if config_name == "throw_ball":
+        let_go_ids = [acts["adh_right_hand"][0]]
+    elif config_name == "tennis_serve":
+        let_go_ids = [acts["adh_left_hand"][0]]
+    else:
         let_go_ids = []
-        let_go_times = []
 
     out_dict = dict(
         sites=sites,
         site_grad_idxs=site_grad_idxs,
         stabilize_jnt_idx=stabilize_jnt_idx,
         stabilize_act_idx=stabilize_act_idx,
-        free_act_idx=other_act_idx,
+        # free_act_idx=other_act_idx,
         # free_act_idx=
         contact_check_list=contact_check_list,
         adh_ids=adh_ids,
@@ -703,7 +630,7 @@ def make_traj_sets(
 
     # smoothing_time = 0.1
     smoothing_time = 0.2
-    joints = opt_utils.get_joint_ids(model)
+    joints = opt_utils.get_joints(model)
     # left_arm_qpos_adr = joints["body"]["left_arm_qpos_adrs"]
     # right_arm_qpos_adr = opt_utils.convert_qpos_adr(
     # model, None, joints['body']['right_arm'], True)
@@ -1048,6 +975,7 @@ def forward_and_collect_data(env, ctrls, ret_fn=None, render=False):
     ret_vals = []
     Tk = ctrls.shape[0]
     if ret_fn is not None:
+        breakpoint()
         ret_vals.append(ret_fn(model, data))
     render_fn()
     for tk in range(Tk):

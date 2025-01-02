@@ -55,7 +55,7 @@ def convert_qdof_adr(model, joint_ids=None, concat=False):
     """Convert joint ids to qpos_dofs. A list of qpos_dofs is associated with each
     joint id; hence, this function returns a list of lists of qposard."""
     # WARNING: I'm not totally sure that len(bodyid) is always the number of
-    # qposs for a joint, which I assume here.
+    # qdofs for a joint, which I assume here.
     if joint_ids is None:
         joint_ids = range(model.njnt)
     if not hasattr(joint_ids, "__len__"):
@@ -80,8 +80,6 @@ def convert_qdof_adr(model, joint_ids=None, concat=False):
 def convert_qpos_adr(model, joint_ids=None, concat=False):
     """Convert joint ids to qpos_adr. A list of qpos_adr is associated with each
     joint id; hence, this function returns a list of lists of qposadr."""
-    # WARNING: I'm not totally sure that len(bodyid) is always the number of
-    # qposs for a joint, which I assume here.
     if joint_ids is None:
         joint_ids = range(model.njnt)
     singleton = False
@@ -167,12 +165,10 @@ def get_body_joints(model):
     for key in ids:
         qdof_adrs[key] = qdofadr_conv(ids[key])
 
-    breakpoint()
-
     return body_jnts
 
 
-def get_joint_ids(model, data=None):
+def get_joints(model, data=None):
     jntn = lambda k: model.joint(k).name
     joints = {}
     joints["names"] = [jntn(k) for k in range(model.njnt)]
@@ -191,9 +187,8 @@ def get_act_ids(model):
     acts["all"] = [i for i in range(model.nu)]
     acts.update(get_act_names_left_or_right(model, "right"))
     acts.update(get_act_names_left_or_right(model, "left"))
-    acts["adh"] = acts[f"adh_left_hand"] + acts[f"adh_right_hand"]
-    acts["adh"].sort()
-    acts[f"not_adh"] = [k for k in acts["all"] if k not in acts["adh"]]
+    acts["adh"] = sorted(acts["adh_left_hand"] + acts["adh_right_hand"])
+    acts["not_adh"] = [k for k in acts["all"] if k not in acts["adh"]]
     return acts
 
 
@@ -225,7 +220,6 @@ def get_act_names_left_or_right(model, left_or_right="right"):
 
 ### LQR
 def get_ctrl0(model, data, stable_jnt_ids, ctrl_act_ids):
-    stable_qpos_adrs = convert_qpos_adr(model, stable_jnt_ids, True)
     stable_qdof_adrs = convert_qdof_adr(model, stable_jnt_ids, True)
     mj.mj_forward(model, data)
     data.qacc[:] = 0
@@ -275,7 +269,6 @@ class AdhCtrl:
         ctrl = ctrl.copy()
         ccl = self.contact_check_list
         adh_ids = self.adh_ids
-        act = get_act_ids(model)
         contact_pairs = util.get_contact_pairs(model, data)
         adh_contact_ids = []
         for cp in contact_pairs:
@@ -320,26 +313,25 @@ def get_Q_balance(model, data, balance_cost, foot_cost):
 
 def get_Q_joint(
     model,
-    data=None,
     balance_joint_cost=3,
     other_joint_cost=0.3,
     root_cost=0,
     excluded_acts=[],
 ):
-    joint_ids = get_joint_ids(model)
+    joint_ids = get_joints(model)
     joints = joint_ids["body"]
     # z_joint = joint_ids['all']['human_z_root']
     # Construct the Qjoint matrix.
     Qjoint = np.eye(model.nv)
-    # Qjoint[joints['root_qposs'], joints['root_qposs']] *= 0  # Don't penalize free joint directly.
-    breakpoint()
-    Qjoint[joints["root_qdof_adrs"], joints["root_qdof_adrs"]] *= root_cost
+    Qjoint[joints["qdof_adrs"]["root"], joints["qdof_adrs"]["root"]] *= root_cost
     # Qjoint[z_joint, z_joint] = 100
-    Qjoint[joints["balance_qdof_adrs"], joints["balance_qdof_adrs"]] *= (
+    Qjoint[joints["qdof_adrs"]["balance"], joints["qdof_adrs"]["balance"]] *= (
         balance_joint_cost
     )
-    breakpoint()
-    Qjoint[joints["other_qdof_adrs"], joints["other_qdof_adrs"]] *= other_joint_cost
+    Qjoint[
+        joints["qdof_adrs"]["not_balance_not_root"],
+        joints["qdof_adrs"]["not_balance_not_root"],
+    ] *= other_joint_cost
     Qjoint[excluded_acts, excluded_acts] *= 0
     return Qjoint
 
@@ -357,9 +349,7 @@ def get_Q_matrix(
     # balance_cost        = 1000  # Balancing.
 
     Qbalance = get_Q_balance(model, data, balance_cost, foot_cost)
-    Qjoint = get_Q_joint(
-        model, data, root_cost=root_cost, excluded_acts=excluded_state_inds
-    )
+    Qjoint = get_Q_joint(model, root_cost=root_cost, excluded_acts=excluded_state_inds)
     # Construct the Q matrix for position DoFs.
     # Qpos = balance_cost * Qbalance + Qjoint
     # Qpos = balance_cost * Qbalance + 500*Qjoint
@@ -382,8 +372,10 @@ def get_feedback_ctrl_matrix_from_QR(
     B = np.zeros((2 * nv, model.nu))
     flg_centered = True
     mj.mjd_transitionFD(model, data, epsilon_grad, flg_centered, A, B, None, None)  # type: ignore
-    stable_ids = stable_jnt_ids + [i + nv for i in stable_jnt_ids]
-    breakpoint()
+    stable_qposdof_adrs = convert_qdof_adr(model, stable_jnt_ids, True)
+    stable_qveldof_adrs = [i + nv for i in stable_qposdof_adrs]
+    stable_ids = stable_qposdof_adrs + stable_qveldof_adrs
+    # breakpoint()
     A = A[stable_ids][:, stable_ids]
     B = B[stable_ids][:, active_ctrl_ids]
     Q = Q[stable_ids][:, stable_ids]
@@ -428,8 +420,9 @@ def get_feedback_ctrl_matrix(
 def get_lqr_ctrl_from_K(model, data, K, qpos0, ctrl0, stable_jnt_ids):
     dq = np.zeros(model.nv)
     mj.mj_differentiatePos(model, dq, 1, qpos0, data.qpos)  # type: ignore
-    dq = dq[stable_jnt_ids]
-    qvel = data.qvel[stable_jnt_ids]
+    stable_qdof_adrs = convert_qdof_adr(model, stable_jnt_ids, True)
+    dq = dq[stable_qdof_adrs]
+    qvel = data.qvel[stable_qdof_adrs]
     dx = np.concatenate((dq, qvel))
     return ctrl0 - K @ dx
 
@@ -475,9 +468,6 @@ def get_stabilized_ctrls(
         K_update_interv: Update interval for K.
     """
 
-    stable_jnt_qpos_adrs = convert_qpos_adr(model, stable_jnt_ids, concat=True)
-    stable_jnt_qdof_adrs = convert_qdof_adr(model, stable_jnt_ids, concat=True)
-
     free_jnt_ids = [k for k in range(model.njnt) if k not in stable_jnt_ids]
     free_jnt_qpos_adrs = convert_qpos_adr(model, free_jnt_ids, concat=True)
 
@@ -518,7 +508,7 @@ def get_stabilized_ctrls(
                 ctrl_cost,
             )
             util.reset_state(model, data, datak0)
-        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0, stable_jnt_qpos_adrs)
+        ctrl = get_lqr_ctrl_from_K(model, data, K, qpos0n, ctrl0, stable_jnt_ids)
         ctrls[k][ctrl_act_ids] = ctrl
         # if free_ctrl_fn is not None:
         # ctrls[k][free_act_ids] = free_ctrl_fn(model, data, free_ctrls[k])
@@ -872,10 +862,9 @@ def reset_with_lqr(
     model = env.model
     data = env.data
     noisev = np.zeros((nsteps2, model.nu))
-    joints = get_joint_ids(model)
+    joints = get_joints(model)
     acts = get_act_ids(model)
-    # body_qpos = joints["body"]["qpos_adrs_without_root"]
-    body_ids = joints["body"]["ids_without_root"]
+    body_ids = joints["body"]["ids"]["not_root"]
     ctrls = get_stabilized_ctrls(
         model,
         data,
