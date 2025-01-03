@@ -462,7 +462,7 @@ def get_stabilized_ctrls(
             control.
         free_act_ids: IDs for actuators that will not be used for stabilization
             control.
-        stable_jnt_qpos_adrs: qpos adrs for joints that will be stabilized (kept
+        stable_jnt_ids: IDs for joints that will be stabilized (kept
         from moving).
         free_ctrls: Free controls.
         K_update_interv: Update interval for K.

@@ -1,10 +1,10 @@
 <mujoco model="humanoid">
   <compiler coordinate="local"/>
   <default class="main">
-    <joint damping="0.0" armature="0.01" stiffness="0.0" margin=".8" limited="true" solimplimit="0 0.95 .5 0.5 1.5"/>
+    <joint damping="0.0" armature="0.01" stiffness="0.0" margin=".3" limited="true" solimplimit="0 0.95 .5 0.3 1.5"/>
     <geom conaffinity="1" condim="3" contype="7" margin="0.01" rgba="0.8 0.6 .4 1" solimp=".2 0.95 .01 .5 1.5"/>
     <default class="thorax">
-      <joint damping="0.0" armature="0.01" stiffness="0.0" margin="0.4" limited="true" solimplimit="0 0.95 0.8 0.5 1.5"/>
+      <joint armature="0.01" stiffness="2" damping="2" margin="1" range="-120.0000 120.0000" solimplimit="0 0.95 1 0.5 1.5"/>
     </default>
   </default>
   <asset>
@@ -97,9 +97,9 @@
               </body>
             </body>
             <body name="L_Thorax" pos="0.0788 0.1217 -0.0341">
-              <joint class="thorax" name="L_Thorax_x" type="hinge" pos="0 0 0" axis="1 0 0" user="200 2 1 500 50 4" armature="0.01" range="-180.0000 180.0000" damping="0" stiffness="0"/>
-              <joint class="thorax" name="L_Thorax_y" type="hinge" pos="0 0 0" axis="0 1 0" user="200 2 1 500 50 4" armature="0.01" range="-180.0000 180.0000" damping="0" stiffness="0"/>
-              <joint class="thorax" name="L_Thorax_z" type="hinge" pos="0 0 0" axis="0 0 1" user="200 2 1 500 50 4" armature="0.01" range="-180.0000 180.0000" damping="0" stiffness="0"/>
+              <joint class="thorax" name="L_Thorax_x" type="hinge" pos="0 0 0" axis="1 0 0" user="200 2 1 500 50 4" armature="0.01" range="-180.0000 180.0000"/>
+              <joint class="thorax" name="L_Thorax_y" type="hinge" pos="0 0 0" axis="0 1 0" user="200 2 1 500 50 4" armature="0.01" range="-180.0000 180.0000"/>
+              <joint class="thorax" name="L_Thorax_z" type="hinge" pos="0 0 0" axis="0 0 1" user="200 2 1 500 50 4" armature="0.01" range="-180.0000 180.0000"/>
               <geom type="capsule" contype="1" conaffinity="1" density="1000" fromto="0.0182 0.0061 -0.0018 0.0728 0.0244 -0.0071" size="0.0521" name="L_Thorax"/>
               <body name="L_Shoulder" pos="0.091 0.0305 -0.0089">
                 <site name="L_Shoulder" pos="0 0 0"/>
@@ -130,9 +130,9 @@
               </body>
             </body>
             <body name="R_Thorax" pos="-0.0818 0.1188 -0.0386">
-              <joint name="R_Thorax_x" type="hinge" pos="0 0 0" axis="1 0 0" user="200 2 1 150 10 2" armature="0.01" range="-180.0000 180.0000" damping="0" stiffness="0"/>
-              <joint name="R_Thorax_y" type="hinge" pos="0 0 0" axis="0 1 0" user="200 2 1 150 10 2" armature="0.01" range="-180.0000 180.0000" damping="0" stiffness="0"/>
-              <joint name="R_Thorax_z" type="hinge" pos="0 0 0" axis="0 0 1" user="200 2 1 150 10 2" armature="0.01" range="-180.0000 180.0000" damping="0" stiffness="0"/>
+              <joint class="thorax" name="R_Thorax_x" type="hinge" pos="0 0 0" axis="1 0 0" user="200 2 1 150 10 2" armature="0.01"/>
+              <joint class="thorax" name="R_Thorax_y" type="hinge" pos="0 0 0" axis="0 1 0" user="200 2 1 150 10 2" armature="0.01"/>
+              <joint class="thorax" name="R_Thorax_z" type="hinge" pos="0 0 0" axis="0 0 1" user="200 2 1 150 10 2" armature="0.01"/>
               <geom type="capsule" contype="1" conaffinity="1" density="1000" fromto="-0.0192 0.0065 -0.0018 -0.0768 0.0260 -0.0073" size="0.0511" name="R_Thorax"/>
               <body name="R_Shoulder" pos="-0.096 0.0326 -0.0091">
                 <site name="R_Shoulder" pos="0 0 0"/>
@@ -261,40 +261,4 @@
   </contact>
   <sensor/>
   <size njmax="700" nconmax="700"/>
-  <!--<keyframe>-->
-    <!--<key name="mocapkey1" qpos="-->
-        <!---0.14426346 -0.2548669  0.93561393  0.04709487  0.0399107-->
-         <!--0.67674685  0.7336231  0.17616479  0.08318119  0.04824333-->
-        <!---0.07312427 -0.05859271 -0.04904975 -0.15061913  0.13697378-->
-         <!--0.08793706  0.0  0.0  0.0  0.15672256-->
-        <!---0.06152193 -0.03302204 -0.0548543  0.03923444  0.06740185-->
-        <!---0.05360978 -0.02410129  0.10172428  0.0  0.0-->
-         <!--0.0  0.09632684  0.00737159 -0.00681898  0.04040197-->
-        <!---0.05157863  0.0183998  0.04037395 -0.01544289  0.01334759-->
-        <!---0.01976619  0.04973658 -0.01946192  0.01356398 -0.00550782-->
-        <!---0.01633868  0.08427852  0.01847901 -0.42414925 -0.01715259-->
-        <!---0.19665715 -1.0586443  0.27059013 -0.42222056  0.20862088-->
-        <!---0.14239776 -0.05630037 -0.08847867  0.0  0.0-->
-         <!--0.0  0.04334291  0.050582  0.43154302  0.00844709-->
-         <!--0.22953878  1.0244433 -0.00678981  0.33399022 -0.16710037-->
-        <!---0.1558385  0.02925445  0.10611813  0.0  0.0-->
-         <!--0.0"/>-->
-    <!--<key name="tpose1" qpos="-->
-        <!--0.0  0.0  0.94  0.5  0.5-->
-        <!--0.5  0.5  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0  0.0  0.0   0.0  0.0-->
-        <!--0.0"/>-->
-  <!--</keyframe>-->
 </mujoco>

@@ -14,7 +14,7 @@ def get_xml(margin=0.0, d0=0.95, width=0.001):
     return xml_str
 
 
-def plot_forces(xml, ax, label=None, x_offset=0.0, x_min=0, x_max=0.0002):
+def plot_forces(xml, ax, label=None, x_offset=0.0, x_min=0.0, x_max=0.0002):
     model = mujoco.MjModel.from_xml_string(xml)
     # jnt_qposs = [60, 61, 62]
     jnt_qposadr = 61
@@ -62,6 +62,12 @@ def plot_forces(xml, ax, label=None, x_offset=0.0, x_min=0, x_max=0.0002):
         data.qpos[jnt_qposadr] += offset
         mujoco.mj_inverse(model, data)
         vertical_forces.append(data.qfrc_inverse[jnt_velid])
+        # print("Rendering")
+        # plt.pause(2)
+        for _ in range(1000):
+            mujoco.mj_step(model, data)
+            viewer.render()
+        #     plt.pause(0.01)
 
     # Find the height-offset at which the vertical force is smallest.
     # idx = np.argmin(np.abs(vertical_forces))
@@ -89,19 +95,18 @@ def plot_forces(xml, ax, label=None, x_offset=0.0, x_min=0, x_max=0.0002):
 # solimp=".9 .99 .003" solref=".015 1"
 fig, axs = plt.subplots(2, 4, figsize=(20, 10))
 # for k0, width in enumerate([0.001, 0.1]):
-x_min = -3.1
-x_max = 3.1
+x_min = -1.5
+x_max = 1.5
 # x_min = 0
 # for k0, width in enumerate([0.005, 20]):
 for k0, width in enumerate([1, 2]):
-    for k, d0 in enumerate(np.linspace(0, 0.1, 2)):
+    for k, d0 in enumerate(np.linspace(0, 0.5, 2)):
         # for k, d0 in zip([0], [0.5]):
         ax = axs[k0, k]
-        xml = get_xml(width, d0, width)
-        print(xml[:1000])
+        xml = get_xml(0, d0, width)
         plot_forces(xml, ax, label="no margin", x_min=x_min, x_max=x_max)
-        # xml = get_xml(0.001, d0, width)
-        # plot_forces(xml, ax, label="margin", x_min=x_min, x_max=x_max)
+        xml = get_xml(width, d0, width)
+        plot_forces(xml, ax, label="margin", x_min=x_min, x_max=x_max)
         # xml = get_xml(0, d0, width)
         # plot_forces(xml, ax, label="offset", x_offset=0.00025, x_max=x_max)
         # ax.legend()
@@ -109,3 +114,4 @@ for k0, width in enumerate([1, 2]):
         # ax.set_ylim([-0.05, 0.8])
 fig.tight_layout()
 plt.show()
+breakpoint()

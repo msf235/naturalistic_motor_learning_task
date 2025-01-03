@@ -137,7 +137,7 @@ if args.rerun or not out_f.exists():
         noisev,
         data.qpos.copy(),
         acts["not_adh"],
-        stable_jnt_ids=body_ids,
+        stable_jnt_ids=body_ids["not_root"],
         free_ctrls=np.zeros((Tk, len(acts["adh"]))),
         balance_cost=params["balance_cost"],
         joint_cost=params["joint_cost"],

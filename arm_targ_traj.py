@@ -669,8 +669,7 @@ def make_traj_sets(
         q_pos_targs = q_pos_data["targ_val"]
         q_pos_time_tks = q_pos_data["tk"]
         joint_names = q_pos_data["joint_names"]
-        # q_data_time_tks = list(q_pos_targs.keys())
-        q_pos_qpos_adrs = [model.joint(n).qpos_adr.item() for n in joint_names]
+        q_pos_qpos_adrs = [model.joint(n).qposadr.item() for n in joint_names]
         q_pos_targs_expanded = np.zeros((Tk, model.nq))
         for tk, targ in zip(q_pos_time_tks, q_pos_targs):
             q_pos_targs_expanded[tk][q_pos_qpos_adrs] = targ
@@ -680,9 +679,6 @@ def make_traj_sets(
             incr_time_right_endpoints,
             model.nq,
         )
-        # q_pos_mask_dict = {
-        #     incr_it_right_endpoints[k]: mask for k, mask in enumerate(q_pos_mask_list)
-        # }
         q_pos_mask_dict = {
             it: mask for it, mask in zip(incr_it_right_endpoints, q_pos_mask_list)
         }
@@ -975,7 +971,6 @@ def forward_and_collect_data(env, ctrls, ret_fn=None, render=False):
     ret_vals = []
     Tk = ctrls.shape[0]
     if ret_fn is not None:
-        breakpoint()
         ret_vals.append(ret_fn(model, data))
     render_fn()
     for tk in range(Tk):
@@ -1363,9 +1358,8 @@ def arm_target_traj(
     util.reset_state(model, data, data0)
 
     def ret_fn(model, data):
-        shift = model.nv - model.njnt
         jnt_ids = [55, 56, 57]
-        vel_ids = [x + shift for x in jnt_ids]
+        vel_ids = opt_utils.convert_qdof_adr(model, jnt_ids, True)
         site_dict = {}
         for site in site_names:
             site_dict[site] = data.site(site).xpos.copy()
@@ -1377,7 +1371,6 @@ def arm_target_traj(
         )
         mj.mj_inverse(model, data)
         site_dict.update({"thorax_forces": data.qfrc_inverse[vel_ids].copy()})
-        breakpoint()
         return site_dict
 
     ### Gradient descent
