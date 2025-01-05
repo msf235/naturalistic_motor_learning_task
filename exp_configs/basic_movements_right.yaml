@@ -19,7 +19,7 @@ params:
   incr_every: 50
   t_incr: 0.05
   grab_phase_it: 0
-  grad_window_t: 0.2
+  grad_window_t: 0.1
   #joint_penalty_factor: 1e-6
   # joint_penalty_factor: 1e-12
   joint_penalty_factor: 0

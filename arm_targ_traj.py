@@ -1023,15 +1023,16 @@ def forward_with_dynamic_adhesion(
     return ctrls
 
 
-class LimLowestDict:
+class LimLowestDict(sc.SortedDict):
     def __init__(self, max_len):
         self.max_len = max_len
-        self.dict = sc.SortedDict()
+        super().__init__()
+        # self.dict = sc.SortedDict()
 
     def append(self, key, val):
-        self.dict.update({key: val})
-        if len(self.dict) > self.max_len:
-            self.dict.popitem()
+        self[key] = val
+        if len(self) > self.max_len:
+            self.popitem()
 
 
 def show_plot(
@@ -1401,6 +1402,7 @@ def arm_target_traj(
     _, axs = plt.subplots(4, n_sites, figsize=(4 * n_sites, 4 * 3.5))
     if n_sites == 1:
         axs = axs.reshape((4, 1))
+    Tk_trunc_prev = 0
     for k0 in range(max_its):
         if k0 >= it_lr2:
             lr = lr2
@@ -1414,6 +1416,9 @@ def arm_target_traj(
         q_vel_mask_curr = np.array(q_vel_masks[k0 + 1])
 
         Tk_trunc = get_last_timepoint(traj_mask_curr)
+        if Tk_trunc_prev > 0 and Tk_trunc != Tk_trunc_prev:
+            ctrls = lowest_losses_curr_mask.popitem(0)[1][1]
+            lowest_losses_curr_mask = LimLowestDict(keep_top)
         ctrls_trunc = ctrls[:Tk_trunc]
         noisev_trunc = noisev[:Tk_trunc]
         util.reset_state(model, data, data0)
@@ -1580,6 +1585,7 @@ def arm_target_traj(
 
         # util.reset_state(model, data, data0)
         # hx = forward_with_site(env, ctrls, site_names[0], True)
+        Tk_trunc_prev = Tk_trunc
     # except KeyboardInterrupt:
     # pass
 
