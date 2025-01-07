@@ -1,5 +1,5 @@
 params:
-  name: throw_ball
+  name: ball_throw
   xml_file: './model_files/humanoid_and_baseball.xml'
   # Tf: 0.6
   Tf: 1.6
@@ -26,7 +26,7 @@ params:
   # foot_cost: 6000
   # ctrl_cost: 100
   # root_cost: 10
-  joint_penalty_factor: 0
+  joint_penalty_factor: 1e-7
   balance_cost: 0
   root_cost: 1e2
   joint_cost: 5e5

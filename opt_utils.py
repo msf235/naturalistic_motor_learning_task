@@ -272,8 +272,13 @@ class AdhCtrl:
         contact_pairs = util.get_contact_pairs(model, data)
         adh_contact_ids = []
         for cp in contact_pairs:
-            for k in range(len(ccl)):
-                if ccl[k][0] in cp and ccl[k][1] in cp:
+            for k, cc in enumerate(ccl):
+                # cont_check = [cc in cp for cc in ccl[k]]
+                # if True in cont_check:
+                # if cp in ccl[k]:
+                # Check if cc == cp, regardless of order
+                if cc[0] in cp and cc[1] in cp:
+                    breakpoint()
                     adh_id = adh_ids[k]
                     if adh_id not in adh_contact_ids:
                         adh_contact_ids.append(adh_id)
@@ -774,6 +779,9 @@ def traj_deriv_new(
             ],  # TODO: fix this to account for case where q_pos_mask is not binary
             q_pos_targ[tk] * q_pos_mask[tk],
         )
+        # ctrl0 = get_ctrl0(model, data, list(range(model.njnt)), deriv_ids)
+        # data.qvel[:] = qvel_now
+        # data.qacc[:] = qacc_now
         dqvel = (q_vel_now - q_vel_targ[tk]) * q_vel_mask[tk]
         dqfull = np.concatenate((dq, dqvel))
         dldqs[tk] += dqfull

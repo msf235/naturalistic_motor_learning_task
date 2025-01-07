@@ -438,7 +438,7 @@ def get_idx_sets(env, config_name):
     if config_name in [
         "basic_movements_right",
         "basic_movements_left",
-        "throw_ball",
+        "ball_throw",
         "grab_ball",
     ]:  # One-handed actions
         if config_name == "basic_movements_left":
@@ -483,30 +483,50 @@ def get_idx_sets(env, config_name):
         raise ValueError("Invalid config_name")
 
     ## Contact check list and adhesion ids
-    if config_name in ["grab_ball", "throw_ball"]:
-        adh_ids = [acts["adh_right_hand"][0], acts["adh_right_hand"][0]]
-        contact_check_list = [["ball", "hand_right1"], ["ball", "hand_right2"]]
+    if config_name in ["ball_grab", "ball_throw"]:
+        adh_ids = [
+            acts["adh_right_hand"][0],
+            acts["adh_right_hand"][0],
+            acts["adh_right_hand"][0],
+            acts["adh_right_hand"][0],
+        ]
+        # contact_check_list = [["ball", "hand_right1"], ["ball", "hand_right2"]]
+        contact_check_list = [
+            ["ball", "hand_right1"],
+            ["ball", "hand_right2"],
+            ["ball", "hand_right3"],
+            ["ball", "hand_right4"],
+        ]
     elif config_name in ["tennis_serve", "tennis_grab"]:
         contact_check_list = [
-            ["racket_handle", "hand_right1"],
-            ["racket_handle", "hand_right2"],
-            ["ball", "hand_left1"],
-            ["ball", "hand_left2"],
+            ["racket_handle", "hand_left1"],
+            ["racket_handle", "hand_left2"],
+            ["racket_handle", "hand_left3"],
+            ["racket_handle", "hand_left4"],
+            ["ball", "hand_right1"],
+            ["ball", "hand_right2"],
+            ["ball", "hand_right3"],
+            ["ball", "hand_right4"],
         ]
         acts = opt_utils.get_act_ids(model)
         adh_ids = [
             acts["adh_right_hand"][0],
             acts["adh_right_hand"][0],
+            acts["adh_right_hand"][0],
+            acts["adh_right_hand"][0],
+            acts["adh_left_hand"][0],
+            acts["adh_left_hand"][0],
             acts["adh_left_hand"][0],
             acts["adh_left_hand"][0],
         ]
+        breakpoint()
     else:
         adh_ids = []
         contact_check_list = []
         # act_ids = ["adh_right_hand", "adh_right_hand", "adh_left_hand", "adh_left_hand"]
 
     ## Letting go ids
-    if config_name == "throw_ball":
+    if config_name == "ball_throw":
         let_go_ids = [acts["adh_right_hand"][0]]
     elif config_name == "tennis_serve":
         let_go_ids = [acts["adh_left_hand"][0]]
@@ -539,7 +559,7 @@ def get_times(env, exp_name, Tf):
         pass
     elif exp_name == "basic_movements_left":
         pass
-    elif exp_name == "throw_ball":
+    elif exp_name == "ball_throw":
         time_dict = throw_traj(model, data, Tk)[-1]
         grab_t = Tf / 2.2
         grab_tk = int(grab_t / dt)
@@ -822,8 +842,8 @@ def make_traj_sets(
         q_targ_masks = [np.zeros((Tk, model.nq)), np.zeros((Tk, model.nq))]
         q_targ_mask_types = ["const", "const"]
         ctrl_reg_weights = [None]
-    elif exp_name == "throw_ball":
-        joint_targs_file = "exp_configs/throw_ball_joint_targs.csv"
+    elif exp_name == "ball_throw":
+        joint_targs_file = "exp_configs/ball_throw_joint_targs.csv"
         (
             q_pos_targs,
             q_vel_targs,

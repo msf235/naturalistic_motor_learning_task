@@ -430,13 +430,12 @@ class WindowViewer(BaseRender):
         # mjv_updateScene, mjr_render, mjr_overlay
         def update():
             # fill overlay items
-            # if not self._no_render:
-            #     return
             self._create_overlay()
 
             render_start = time.time()
 
-            if self.window is None:
+            if self.window is None or self._no_render:
+                glfw.poll_events()
                 return
             elif glfw.window_should_close(self.window):
                 glfw.destroy_window(self.window)
@@ -479,9 +478,6 @@ class WindowViewer(BaseRender):
             self._time_per_render = 0.9 * self._time_per_render + 0.1 * (
                 time.time() - render_start
             )
-
-        if self._no_render:
-            return
 
         if self._paused:
             while self._paused:
