@@ -704,8 +704,10 @@ def traj_deriv_new(
     model,
     data,
     ctrls,
-    targ_traj,
-    targ_traj_mask,
+    traj_targ,
+    traj_mask,
+    vel_targ,
+    vel_mask,
     q_pos_targ,
     q_pos_mask,
     q_vel_targ,
@@ -750,11 +752,11 @@ def traj_deriv_new(
 
     tk = 0
     for tk in range(Tk):
-        if tk in grad_range and targ_traj_mask[tk] > 0:
+        if tk in grad_range and traj_mask[tk] > 0:
             mj.mj_forward(model, data)  # type: ignore
             mj.mj_jacSite(model, data, C, None, site=data.site(f"{deriv_site}").id)  # type: ignore
             site_xpos = data.site(f"{deriv_site}").xpos
-            dlds = (site_xpos - targ_traj[tk]) * targ_traj_mask[tk]
+            dlds = (site_xpos - traj_targ[tk]) * traj_mask[tk]
             dldss[tk] = dlds
             hxs[tk] = site_xpos
             dldq = C.T @ dlds
@@ -829,7 +831,7 @@ def traj_deriv_new(
         At = As[tks].T
         terms = [At @ term for term in terms]
         lams[tks] = dldqs[tks] + np.sum(terms, axis=0)
-        if grad_filter and targ_traj_mask[tk]:
+        if grad_filter and traj_mask[tk]:
             grads[tks] = loss_u[tks] + Bs[tks].T @ lams[tk]
 
     mat_block = np.zeros((update_every, update_every + 1))

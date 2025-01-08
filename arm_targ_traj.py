@@ -122,7 +122,9 @@ def throw_traj(model, data, Tk):
     s = np.linspace(0, 1, Tk2 - Tk1)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
-    full_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
+    traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
+    vel = np.diff(traj, axis=0) / model.opt.timestep
+    breakpoint()
 
     time_dict = {
         "t_1": Tk1,
@@ -133,7 +135,7 @@ def throw_traj(model, data, Tk):
         "Tk3": Tk3 - Tk2,
     }
 
-    return full_traj, time_dict
+    return traj, vel, time_dict
 
 
 def tennis_grab_traj(model, data, Tk):
@@ -619,7 +621,7 @@ def make_traj_sets(
 
     TODO: This would perhaps be easier to understand if there was a
     datatype for interval dictionaries with its own description.
-    Returns dictionary with keys:
+    Returns dictionary with keys: TODO: update
         traj_targs:  Target trajectories in cartesion coordinates.
         traj_masks:  Masks for target trajectories. Has keys corresponding
             to the start point for iteration intervals, so that the mask can
@@ -1007,7 +1009,7 @@ def forward_with_dynamic_adhesion(
     render=True,  # Can also be a callable (function) which will be called to render
     let_go_times=[],
     let_go_ids=[],
-    n_steps_adh=10,
+    n_steps_adh=40,
     contact_check_list=[],
     adh_ids=[],
 ):
@@ -1347,6 +1349,8 @@ def arm_target_traj(
     # ]
     traj_targs = traj_and_masks["traj_targs"]
     traj_masks = RightEndpointDict(traj_and_masks["traj_masks"])
+    vel_targs = traj_and_masks["vel_targs"]
+    vel_masks = RightEndpointDict(traj_and_masks["vel_masks"])
     q_pos_targs = traj_and_masks["q_pos_targs"]
     q_pos_masks = RightEndpointDict(traj_and_masks["q_pos_masks"])
     q_vel_targs = traj_and_masks["q_vel_targs"]
@@ -1437,7 +1441,7 @@ def arm_target_traj(
             env,
             ctrls_trunc,
             noisev_trunc,
-            False,
+            True,
             let_go_times,
             let_go_ids,
             n_steps_adh,
@@ -1454,6 +1458,8 @@ def arm_target_traj(
                 ctrls_trunc + noisev_trunc,
                 traj_targs[k][: Tk_trunc + 1],
                 traj_mask_curr[: Tk_trunc + 1],
+                vel_targs[k][: Tk_trunc + 1],
+                vel_mask_curr[k][: Tk_trunc + 1],
                 q_pos_targs[: Tk_trunc + 1],
                 q_pos_mask_curr[: Tk_trunc + 1],
                 q_vel_targs[: Tk_trunc + 1],
@@ -1506,6 +1512,7 @@ def arm_target_traj(
         tk = Tk_trunc
         util.reset_state(model, data, data0)
         render = k0 % render_every == 0
+        render = False
         if env.render_mode == "human" and render:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, render_fn)
             render_class.reset_counter()

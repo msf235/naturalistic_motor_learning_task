@@ -122,6 +122,7 @@ grad_trunc_tk = int(params["grad_window_t"] / (grad_update_every * dt))
 
 Tke = int(params["t_after"] / dt)
 
+breakpoint()
 
 if args.rerun or not out_f.exists():
     ### Get initial stabilizing controls
@@ -188,7 +189,7 @@ if args.rerun or not out_f.exists():
         ctrl_cost=params["ctrl_cost"],
         let_go_times=out_time["let_go_times"],
         let_go_ids=out_idx["let_go_ids"],
-        n_steps_adh=10,
+        n_steps_adh=200,
         ctrl_reg_weight=params["ctrl_reg_weight"],
         joint_penalty_factor=params["joint_penalty_factor"],
         mask_decay_factor=params["mask_decay_factor"],
