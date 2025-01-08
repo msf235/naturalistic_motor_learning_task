@@ -761,6 +761,7 @@ def traj_deriv_new(
             hxs[tk] = site_xpos
             dldq = C.T @ dlds
             dldqs[tk, :nv] = dldq
+            breakpoint()
             if tk < Tk - 1:
                 mj.mjd_transitionFD(  # type: ignore
                     model, data, epsilon_grad, True, As[tk], B, None, None

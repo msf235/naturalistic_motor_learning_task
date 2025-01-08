@@ -123,8 +123,7 @@ def throw_traj(model, data, Tk):
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
     traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
-    vel = np.diff(traj, axis=0) / model.opt.timestep
-    breakpoint()
+    vel = np.diff(traj, axis=0, prepend=traj[0:1]) / model.opt.timestep
 
     time_dict = {
         "t_1": Tk1,
@@ -676,6 +675,9 @@ def make_traj_sets(
     targ_traj_masks = {
         incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
     }
+    targ_vel_masks = {
+        incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
+    }
 
     def get_q_pos_and_vel_data(joint_targs_file):
         q_pos_data = get_data_from_qtarg_file(joint_targs_file, dt)
@@ -723,6 +725,8 @@ def make_traj_sets(
     def make_return_dict(
         traj_targs,
         traj_masks,
+        traj_vels,
+        traj_vels_masks,
         q_pos_targs,
         q_vel_targs,
         q_pos_masks,
@@ -732,6 +736,8 @@ def make_traj_sets(
         return dict(  # TODO: make naming consistent
             traj_targs=traj_targs,
             traj_masks=traj_masks,
+            vel_targs=traj_vels,
+            vel_masks=traj_vels_masks,
             # targ_traj_mask_types=mask_types,
             q_pos_targs=q_pos_targs,
             q_vel_targs=q_vel_targs,
@@ -846,9 +852,10 @@ def make_traj_sets(
             _,
         ) = get_q_pos_and_vel_data(joint_targs_file)
         out = throw_traj(model, data, Tk)
-        full_traj, time_dict = out
+        traj, vel, time_dict = out
 
-        targ_trajs = [full_traj]
+        targ_vels = [vel]
+        targ_trajs = [traj]
 
         # q_targs = [np.zeros((Tk, syssize))]
         # q_targ_mask = np.zeros((Tk, syssize2))
@@ -867,6 +874,8 @@ def make_traj_sets(
         return make_return_dict(
             targ_trajs,
             targ_traj_masks,
+            targ_vels,
+            targ_vel_masks,
             q_pos_targs,
             q_vel_targs,
             q_pos_masks,
@@ -1427,6 +1436,7 @@ def arm_target_traj(
         progbar.update(" it: " + str(k0))
 
         traj_mask_curr = np.array(traj_masks[k0 + 1])
+        vel_mask_curr = np.array(vel_masks[k0 + 1])
         q_pos_mask_curr = np.array(q_pos_masks[k0 + 1])
         q_vel_mask_curr = np.array(q_vel_masks[k0 + 1])
 
@@ -1459,7 +1469,7 @@ def arm_target_traj(
                 traj_targs[k][: Tk_trunc + 1],
                 traj_mask_curr[: Tk_trunc + 1],
                 vel_targs[k][: Tk_trunc + 1],
-                vel_mask_curr[k][: Tk_trunc + 1],
+                vel_mask_curr[: Tk_trunc + 1],
                 q_pos_targs[: Tk_trunc + 1],
                 q_pos_mask_curr[: Tk_trunc + 1],
                 q_vel_targs[: Tk_trunc + 1],
