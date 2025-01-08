@@ -273,12 +273,8 @@ class AdhCtrl:
         adh_contact_ids = []
         for cp in contact_pairs:
             for k, cc in enumerate(ccl):
-                # cont_check = [cc in cp for cc in ccl[k]]
-                # if True in cont_check:
-                # if cp in ccl[k]:
-                # Check if cc == cp, regardless of order
+                # Check if cc == cp, ignoring order
                 if cc[0] in cp and cc[1] in cp:
-                    breakpoint()
                     adh_id = adh_ids[k]
                     if adh_id not in adh_contact_ids:
                         adh_contact_ids.append(adh_id)

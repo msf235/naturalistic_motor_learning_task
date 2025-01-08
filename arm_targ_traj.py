@@ -483,6 +483,8 @@ def get_idx_sets(env, config_name):
         raise ValueError("Invalid config_name")
 
     ## Contact check list and adhesion ids
+    HAND_STR_RIGHT = "R_Hand"
+    HAND_STR_LEFT = "L_Hand"
     if config_name in ["ball_grab", "ball_throw"]:
         adh_ids = [
             acts["adh_right_hand"][0],
@@ -491,23 +493,12 @@ def get_idx_sets(env, config_name):
             acts["adh_right_hand"][0],
         ]
         # contact_check_list = [["ball", "hand_right1"], ["ball", "hand_right2"]]
-        contact_check_list = [
-            ["ball", "hand_right1"],
-            ["ball", "hand_right2"],
-            ["ball", "hand_right3"],
-            ["ball", "hand_right4"],
-        ]
+        contact_check_list = [["ball", HAND_STR_RIGHT + str(i)] for i in range(1, 5)]
     elif config_name in ["tennis_serve", "tennis_grab"]:
+        # contact_check_list = [
         contact_check_list = [
-            ["racket_handle", "hand_left1"],
-            ["racket_handle", "hand_left2"],
-            ["racket_handle", "hand_left3"],
-            ["racket_handle", "hand_left4"],
-            ["ball", "hand_right1"],
-            ["ball", "hand_right2"],
-            ["ball", "hand_right3"],
-            ["ball", "hand_right4"],
-        ]
+            ["ball", HAND_STR_RIGHT + str(i)] for i in range(1, 5)
+        ] + [["racket_handle", HAND_STR_LEFT + str(i)] for i in range(1, 5)]
         acts = opt_utils.get_act_ids(model)
         adh_ids = [
             acts["adh_right_hand"][0],
