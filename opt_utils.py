@@ -739,9 +739,10 @@ def traj_deriv_new(
     Bs = np.zeros((Tk - 1, syssize, nuderiv))
     B = np.zeros((syssize, model.nu))
     C = np.zeros((3, nv))
+    # dq has length equal to the number of DoFs, not always equal to nq,
+    # but always equal to nv.
     dq = np.zeros(nv)
     dldqs = np.zeros((Tk, syssize))
-    dldss = np.zeros((Tk, 3))
     lams = np.zeros((Tk, syssize))
     fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
     hxs = np.zeros((Tk, 3))
@@ -751,39 +752,46 @@ def traj_deriv_new(
     )
 
     tk = 0
+    site_xpos_prev = data.site(f"{deriv_site}").xpos
+    site_xpos = data.site(f"{deriv_site}").xpos
     for tk in range(Tk):
         if tk in grad_range and traj_mask[tk] > 0:
             mj.mj_forward(model, data)  # type: ignore
             mj.mj_jacSite(model, data, C, None, site=data.site(f"{deriv_site}").id)  # type: ignore
+
+            # Derivative of the loss with respect to the site position
             site_xpos = data.site(f"{deriv_site}").xpos
             dlds = (site_xpos - traj_targ[tk]) * traj_mask[tk]
-            dldss[tk] = dlds
             hxs[tk] = site_xpos
             dldq = C.T @ dlds
             dldqs[tk, :nv] = dldq
-            breakpoint()
+            # Derivative of the loss with respect to the site position's velocity
+            site_deriv = (site_xpos - site_xpos_prev) / model.opt.timestep
+            dldvs = (site_deriv - vel_targ[tk]) * vel_mask[tk]
+            dldqs[tk, nv:] = C.T @ dldvs
             if tk < Tk - 1:
                 mj.mjd_transitionFD(  # type: ignore
                     model, data, epsilon_grad, True, As[tk], B, None, None
                 )
                 Bs[tk] = np.delete(B, fixed_act_ids, axis=1)
-        q_vel_now = data.qvel.copy()
-        mj.mj_differentiatePos(
-            model,
-            dq,
-            1,
-            data.qpos
-            * q_pos_mask[
-                tk
-            ],  # TODO: fix this to account for case where q_pos_mask is not binary
-            q_pos_targ[tk] * q_pos_mask[tk],
-        )
-        # ctrl0 = get_ctrl0(model, data, list(range(model.njnt)), deriv_ids)
-        # data.qvel[:] = qvel_now
-        # data.qacc[:] = qacc_now
-        dqvel = (q_vel_now - q_vel_targ[tk]) * q_vel_mask[tk]
-        dqfull = np.concatenate((dq, dqvel))
-        dldqs[tk] += dqfull
+
+            q_vel_now = data.qvel.copy()
+            # TODO: fix this to account for case where q_pos_mask is not binary
+            q1 = data.qpos * q_pos_mask[tk]
+            q2 = q_pos_targ[tk] * q_pos_mask[tk]
+            mj.mj_differentiatePos(
+                model,
+                dq,
+                1,
+                q1,
+                q2,
+            )
+            # ctrl0 = get_ctrl0(model, data, list(range(model.njnt)), deriv_ids)
+            # data.qvel[:] = qvel_now
+            # data.qacc[:] = qacc_now
+            dqvel = (q_vel_now - q_vel_targ[tk]) * q_vel_mask[tk]
+            dqfull = np.concatenate((dq, dqvel))
+            dldqs[tk] += dqfull
 
         if tk < Tk - 1:
             if contact_check_list is not None:
@@ -793,6 +801,8 @@ def traj_deriv_new(
                     ctrls[tk],
                 )
             sim_util.step(model, data, ctrls[tk])
+
+        site_xpos_prev = site_xpos
     # qdots = qs[:, nq:]
     # qaccs = np.gradient(qdots, axis=0)
     # qsfft = np.fft.fft(qs[:, :nq], axis=0)
