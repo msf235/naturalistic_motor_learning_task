@@ -605,7 +605,15 @@ def get_data_from_qtarg_file(file_loc, dt=None):
 
 
 def make_traj_sets(
-    env, exp_name, Tk, amnt_to_incr, incr_every, seed=2, mask_decay_factor=0.9
+    env,
+    exp_name,
+    Tk,
+    amnt_to_incr,
+    incr_every,
+    seed=2,
+    mask_decay_factor=0.9,
+    grab_phase_it=0,
+    grab_phase_tk=0,
 ):
     """
     params:
@@ -870,6 +878,14 @@ def make_traj_sets(
         # q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
         # q_targ_mask_types = ["const"]
         # q_targs = [q_targ]
+        for it in targ_traj_masks:
+            if it >= grab_phase_it:
+                for tk in range(grab_phase_tk):
+                    targ_traj_masks[it][tk] = 0
+                    targ_vel_masks[it][tk] = 0
+                    q_pos_masks[it][tk] = 0
+                    q_vel_masks[it][tk] = 0
+
         ctrl_reg_weights = [None]
         return make_return_dict(
             targ_trajs,
@@ -1293,6 +1309,8 @@ def arm_target_traj(
     amnt_to_incr=5,
     grad_update_every=1,
     phase_2_it=None,
+    grab_phase_it=0,
+    grab_phase_tk=0,
     plot_every=1,
     render_every=1,
     optimizer="adam",
@@ -1352,6 +1370,8 @@ def arm_target_traj(
         incr_every,
         seed,
         mask_decay_factor,
+        grab_phase_it,
+        grab_phase_tk,
     )
     # traj_and_masks["q_pos_masks"] = [
     #     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
@@ -1440,6 +1460,7 @@ def arm_target_traj(
         q_pos_mask_curr = np.array(q_pos_masks[k0 + 1])
         q_vel_mask_curr = np.array(q_vel_masks[k0 + 1])
 
+        breakpoint()
         Tk_trunc = get_last_timepoint(traj_mask_curr)
         if Tk_trunc_prev > 0 and Tk_trunc != Tk_trunc_prev:
             ctrls = lowest_losses_curr_mask.popitem(0)[1][1]

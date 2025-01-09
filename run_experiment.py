@@ -172,6 +172,8 @@ if args.rerun or not out_f.exists():
         it_lr2=params["it_lr2"],
         keep_top=10,
         incr_every=incr_every,
+        grab_phase_it=params["grab_phase_it"],
+        grab_phase_tk=params["grab_phase_tk"],
         amnt_to_incr=amnt_to_incr,
         grad_update_every=params["grad_update_every"],
         phase_2_it=params["max_its"] + 1,

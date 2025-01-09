@@ -18,7 +18,8 @@ params:
   reset_noise_scale: 0
   t_incr: .06
   incr_every: 50
-  grab_phase_it: 20
+  grab_phase_it: 200
+  grab_phase_tk: 200
   grad_window_t: .1
   # joint_penalty_factor: 1e-6
   # balance_cost: 6000
