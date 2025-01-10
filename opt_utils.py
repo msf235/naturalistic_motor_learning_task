@@ -739,6 +739,7 @@ def traj_deriv_new(
     Bs = np.zeros((Tk - 1, syssize, nuderiv))
     B = np.zeros((syssize, model.nu))
     C = np.zeros((3, nv))
+    passive_forces = np.zeros((Tk, nv))
     # dq has length equal to the number of DoFs, not always equal to nq,
     # but always equal to nv.
     dq = np.zeros(nv)
@@ -757,6 +758,7 @@ def traj_deriv_new(
     for tk in range(Tk):
         if tk in grad_range and traj_mask[tk] > 0:
             mj.mj_forward(model, data)  # type: ignore
+            passive_forces[tk] = data.qfrc_passive.copy()
             mj.mj_jacSite(model, data, C, None, site=data.site(f"{deriv_site}").id)  # type: ignore
 
             # Derivative of the loss with respect to the site position
