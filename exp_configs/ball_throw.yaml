@@ -5,7 +5,7 @@ params:
   Tf: 1.6
   t_after: 1.0
   # max_its: 500
-  max_its: 1000
+  max_its: 3000
   # optimizer: 'adam'
   # lr: .001
   # lr2: .0005
@@ -16,10 +16,10 @@ params:
   it_lr2: 350
   grad_update_every: 10
   reset_noise_scale: 0
-  t_incr: .06
+  t_incr: .1
   incr_every: 50
-  grab_phase_it: 200
-  grab_phase_tk: 200
+  grab_phase_it: 400
+  grab_phase_tk: 800
   grad_window_t: .1
   # joint_penalty_factor: 1e-6
   # balance_cost: 6000
