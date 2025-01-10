@@ -794,6 +794,9 @@ def traj_deriv_new(
             dqvel = (q_vel_now - q_vel_targ[tk]) * q_vel_mask[tk]
             dqfull = np.concatenate((dq, dqvel))
             dldqs[tk] += dqfull
+            breakpoint()
+            data.qfrc_passive
+            data.qfrc_actuator
 
         if tk < Tk - 1:
             if contact_check_list is not None:

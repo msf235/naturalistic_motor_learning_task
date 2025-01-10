@@ -1150,7 +1150,10 @@ def show_plot(
 
 def get_last_timepoint(mask):
     """Get index of last nonzero entry in mask."""
-    return np.where(mask)[0][-1].item()
+    nonzero = np.where(mask)[0]
+    if len(nonzero) == 0:
+        breakpoint()
+    return nonzero[-1].item()
 
 
 class targetRender:
@@ -1456,11 +1459,10 @@ def arm_target_traj(
         progbar.update(" it: " + str(k0))
 
         traj_mask_curr = np.array(traj_masks[k0 + 1])
-        vel_mask_curr = np.array(vel_masks[k0 + 1])
+        vel_mask_curr = 0 * np.array(vel_masks[k0 + 1])
         q_pos_mask_curr = np.array(q_pos_masks[k0 + 1])
         q_vel_mask_curr = np.array(q_vel_masks[k0 + 1])
 
-        breakpoint()
         Tk_trunc = get_last_timepoint(traj_mask_curr)
         if Tk_trunc_prev > 0 and Tk_trunc != Tk_trunc_prev:
             ctrls = lowest_losses_curr_mask.popitem(0)[1][1]
@@ -1638,4 +1640,4 @@ def arm_target_traj(
     # except KeyboardInterrupt:
     # pass
 
-    return ctrls, lowest_losses.dict
+    return ctrls, lowest_losses

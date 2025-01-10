@@ -122,8 +122,6 @@ grad_trunc_tk = int(params["grad_window_t"] / (grad_update_every * dt))
 
 Tke = int(params["t_after"] / dt)
 
-breakpoint()
-
 if args.rerun or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
