@@ -3,6 +3,11 @@
   <visual>
     <map force="0.1" zfar="30"/>
     <rgba haze="0.15 0.25 0.35 1"/>
+    <global offwidth="2560" offheight="1440" elevation="-20" azimuth="120"/>
+  </visual>
+  <visual>
+    <map force="0.1" zfar="30"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
       <!--offwidth="2560" offheight="1440"-->
     <global
       elevation="20"
@@ -10,17 +15,18 @@
       />
     <headlight ambient=".8 .8 .8" specular=".8 .8 .8"/>
   </visual>
-  <option gravity="0 0 0"/>
+  <!-- <option gravity="0 0 -10"/> -->
   <default class="main">
-      <joint type="hinge" limited="true" range="0 8"/>
+      <joint type="hinge"/>
     <default class="arm_upper">
         <geom type="capsule" size=".04"/>
     </default>
   </default>
   <worldbody>
+    <!-- <body gravcomp="1"> -->
     <body>
       <geom name="upper_arm_right" fromto="0 0 0 0 -.2 -.2" size=".053" class="arm_upper"/>
-      <joint type="hinge"/>
+      <joint type="hinge" axis="1 0 0"/>
     </body>
   </worldbody>
 </mujoco>

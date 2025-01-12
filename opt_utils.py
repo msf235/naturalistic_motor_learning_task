@@ -223,7 +223,6 @@ def get_ctrl0(model, data, stable_jnt_ids, ctrl_act_ids):
     stable_qdof_adrs = convert_qdof_adr(model, stable_jnt_ids, True)
     mj.mj_forward(model, data)
     data.qacc[:] = 0
-    data.qvel[:] = 0
     mj.mj_inverse(model, data)
     qfrc0 = data.qfrc_inverse.copy()
     qfrc0 = qfrc0[stable_qdof_adrs]
@@ -237,10 +236,11 @@ def get_ctrl0(model, data, stable_jnt_ids, ctrl_act_ids):
         data.moment_colind.reshape(-1),
     )
     M = M[ctrl_act_ids][:, stable_qdof_adrs]
-    # Probably much better way to do this
+    # Probably better way to do this
     # ctrl0 = np.atleast_2d(qfrc0) @ np.linalg.pinv(M)
+    # This is better?
     ctrl0 = np.linalg.lstsq(M.T, qfrc0, rcond=None)[0]
-    # ctrl0 = ctrl0.flatten()  # Save the ctrl setpoint.
+    mj.mj_forward(model, data)
     return ctrl0
 
 
@@ -493,9 +493,9 @@ def get_stabilized_ctrls(
     for k in range(Tk - 1):
         if k % K_update_interv == 0:
             datak0 = copy.deepcopy(data)
+            # util.reset_state(model, data, datak0)
             qpos0n[free_jnt_qpos_adrs] = data.qpos[free_jnt_qpos_adrs]
             ctrl0 = get_ctrl0(model, data, stable_jnt_ids, ctrl_act_ids)
-            util.reset_state(model, data, datak0)
             K = get_feedback_ctrl_matrix(
                 model,
                 data,
@@ -729,6 +729,7 @@ def traj_deriv_new(
     updated (for instance, the actuators related to the right arm)."""
     assert update_phase < update_every
     nv = model.nv
+    nu = model.nu
     syssize = 2 * nv + model.na
     nuderiv = len(deriv_ids)
     if ctrl_reg_weight is None:
@@ -739,14 +740,15 @@ def traj_deriv_new(
     Bs = np.zeros((Tk - 1, syssize, nuderiv))
     B = np.zeros((syssize, model.nu))
     C = np.zeros((3, nv))
-    passive_forces = np.zeros((Tk, nv))
+    ctrl0s = np.zeros((Tk - 1, len(deriv_ids)))  # Controls to stabilize
     # dq has length equal to the number of DoFs, not always equal to nq,
     # but always equal to nv.
     dq = np.zeros(nv)
     dldqs = np.zeros((Tk, syssize))
     lams = np.zeros((Tk, syssize))
-    fixed_act_ids = [i for i in range(model.nu) if i not in deriv_ids]
+    fixed_act_ids = [i for i in range(nu) if i not in deriv_ids]
     hxs = np.zeros((Tk, 3))
+    dldus = np.zeros((Tk - 1, len(deriv_ids)))
 
     adh_ctrl = AdhCtrl(
         let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids
@@ -756,22 +758,25 @@ def traj_deriv_new(
     site_xpos_prev = data.site(f"{deriv_site}").xpos
     site_xpos = data.site(f"{deriv_site}").xpos
     for tk in range(Tk):
+        site_xpos = data.site(f"{deriv_site}").xpos
+        site_deriv = (site_xpos - site_xpos_prev) / model.opt.timestep
         if tk in grad_range and traj_mask[tk] > 0:
             mj.mj_forward(model, data)  # type: ignore
-            passive_forces[tk] = data.qfrc_passive.copy()
             mj.mj_jacSite(model, data, C, None, site=data.site(f"{deriv_site}").id)  # type: ignore
 
             # Derivative of the loss with respect to the site position
-            site_xpos = data.site(f"{deriv_site}").xpos
             dlds = (site_xpos - traj_targ[tk]) * traj_mask[tk]
             hxs[tk] = site_xpos
             dldq = C.T @ dlds
             dldqs[tk, :nv] = dldq
             # Derivative of the loss with respect to the site position's velocity
-            site_deriv = (site_xpos - site_xpos_prev) / model.opt.timestep
             dldvs = (site_deriv - vel_targ[tk]) * vel_mask[tk]
             dldqs[tk, nv:] = C.T @ dldvs
+
             if tk < Tk - 1:
+                ctrl0s[tk] = get_ctrl0(model, data, list(range(model.njnt)), deriv_ids)
+                # dldus[tk] = (ctrls[tk] - ctrl0s[tk]) * ctrl_reg_weight[tk]
+                dldus[tk] = (ctrls[tk, deriv_ids] - ctrl0s[tk]) * ctrl_reg_weight
                 mj.mjd_transitionFD(  # type: ignore
                     model, data, epsilon_grad, True, As[tk], B, None, None
                 )
@@ -794,9 +799,6 @@ def traj_deriv_new(
             dqvel = (q_vel_now - q_vel_targ[tk]) * q_vel_mask[tk]
             dqfull = np.concatenate((dq, dqvel))
             dldqs[tk] += dqfull
-            breakpoint()
-            data.qfrc_passive
-            data.qfrc_actuator
 
         if tk < Tk - 1:
             if contact_check_list is not None:
@@ -818,8 +820,8 @@ def traj_deriv_new(
     lams[tk] = dldqs[tk]
     grads = np.zeros((Tk - 1, nuderiv))
     # tau_loss_factor = 1e-7
-    ctrls_clip = np.delete(ctrls, fixed_act_ids, axis=1)
-    loss_u = ctrls_clip.copy() * ctrl_reg_weight
+    # ctrls_clip = ctrls[:, deriv_ids].copy()
+    # loss_u = ctrls_clip * ctrl_reg_weight
 
     # ufft = np.fft.fft(ctrls_clip, axis=0)
     # freqs = np.tile(np.fft.fftfreq(Tk).reshape(-1, 1), (1, nq))
@@ -848,7 +850,7 @@ def traj_deriv_new(
         terms = [At @ term for term in terms]
         lams[tks] = dldqs[tks] + np.sum(terms, axis=0)
         if grad_filter and traj_mask[tk]:
-            grads[tks] = loss_u[tks] + Bs[tks].T @ lams[tk]
+            grads[tks] = dldus[tks] + Bs[tks].T @ lams[tk]
 
     mat_block = np.zeros((update_every, update_every + 1))
     dk = 1 / update_every

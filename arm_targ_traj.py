@@ -1365,6 +1365,8 @@ def arm_target_traj(
 
     model = env.model
     data = env.data
+    nu = model.nu
+    nv = model.nv
     traj_and_masks = make_traj_sets(
         env,
         config_name,
@@ -1406,20 +1408,28 @@ def arm_target_traj(
     util.reset_state(model, data, data0)
 
     def ret_fn(model, data):
-        jnt_ids = [55, 56, 57]
-        vel_ids = opt_utils.convert_qdof_adr(model, jnt_ids, True)
-        site_dict = {}
+        # jnt_ids = [55, 56, 57]
+        # vel_ids = opt_utils.convert_qdof_adr(model, jnt_ids, True)
+        # site_dict = {}
+        ret_dict = {}
         for site in site_names:
-            site_dict[site] = data.site(site).xpos.copy()
-        site_dict.update(
+            ctrl0 = opt_utils.get_ctrl0(
+                model, data, list(range(model.njnt)), site_grad_idxs[k]
+            )
+            ret_dict[site + "_xpos"] = data.site(site).xpos.copy()
+            ret_dict[site + "_ctrl0"] = ctrl0
+
+        ret_dict.update(
             {
+                # "site_dict": site_dict,
                 "qpos": data.qpos.copy(),
                 "qvel": data.qvel.copy(),
+                "ctrl0": ctrl0,
             }
         )
         mj.mj_inverse(model, data)
-        site_dict.update({"thorax_forces": data.qfrc_inverse[vel_ids].copy()})
-        return site_dict
+        # site_dict.update({"thorax_forces": data.qfrc_inverse[vel_ids].copy()})
+        return ret_dict
 
     ### Gradient descent
     qpos0 = data.qpos.copy()
@@ -1450,6 +1460,12 @@ def arm_target_traj(
     if n_sites == 1:
         axs = axs.reshape((4, 1))
     Tk_trunc_prev = 0
+    loss_site_xposs = np.zeros((2, len(site_names), max_its, Tk))
+    loss_vels = np.zeros((2, len(site_names), max_its, Tk))
+    loss_qposs = np.zeros((2, max_its, Tk))
+    loss_qvels = np.zeros((2, max_its, Tk))
+    loss_ctrls = np.zeros((2, len(site_names), max_its, Tk - 1))
+
     for k0 in range(max_its):
         if k0 >= it_lr2:
             lr = lr2
@@ -1464,6 +1480,10 @@ def arm_target_traj(
         q_vel_mask_curr = np.array(q_vel_masks[k0 + 1])
 
         Tk_trunc = get_last_timepoint(traj_mask_curr)
+        traj_mask_curr = traj_mask_curr[: Tk_trunc + 1]
+        vel_mask_curr = vel_mask_curr[: Tk_trunc + 1]
+        q_pos_mask_curr = q_pos_mask_curr[: Tk_trunc + 1]
+        q_vel_mask_curr = q_vel_mask_curr[: Tk_trunc + 1]
         if Tk_trunc_prev > 0 and Tk_trunc != Tk_trunc_prev:
             ctrls = lowest_losses_curr_mask.popitem(0)[1][1]
             lowest_losses_curr_mask = LimLowestDict(keep_top)
@@ -1474,7 +1494,7 @@ def arm_target_traj(
             env,
             ctrls_trunc,
             noisev_trunc,
-            True,
+            False,
             let_go_times,
             let_go_ids,
             n_steps_adh,
@@ -1490,13 +1510,13 @@ def arm_target_traj(
                 data,
                 ctrls_trunc + noisev_trunc,
                 traj_targs[k][: Tk_trunc + 1],
-                traj_mask_curr[: Tk_trunc + 1],
+                traj_mask_curr,
                 vel_targs[k][: Tk_trunc + 1],
-                vel_mask_curr[: Tk_trunc + 1],
+                vel_mask_curr,
                 q_pos_targs[: Tk_trunc + 1],
-                q_pos_mask_curr[: Tk_trunc + 1],
+                q_pos_mask_curr,
                 q_vel_targs[: Tk_trunc + 1],
-                q_vel_mask_curr[: Tk_trunc + 1],
+                q_vel_mask_curr,
                 grad_trunc_tk,
                 deriv_ids=site_grad_idxs[k],
                 deriv_site=site_names[k],
@@ -1516,6 +1536,37 @@ def arm_target_traj(
             ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
                 ctrls_trunc[:, site_grad_idxs[k]], grads[k], "ctrls", losses[k]
             )
+        ret_dict = forward_and_collect_data(env, ctrls_trunc, ret_fn)
+
+        for k, site_name in enumerate(site_names):
+            site_xpos = ret_dict[site_name + "_xpos"]
+            site_ctrl0 = ret_dict[site_name + "_ctrl0"]
+            site_deriv = np.diff(site_xpos, axis=0, prepend=site_xpos[:1]) / dt
+            loss_site_xposs[0, k, k0, : Tk_trunc + 1] = (
+                0.5
+                * ((site_xpos - traj_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
+                * traj_mask_curr
+            )
+            loss_vels[0, k, k0, : Tk_trunc + 1] = (
+                0.5
+                * ((site_deriv - vel_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
+                * vel_mask_curr
+            )
+            loss_ctrls[0, k, k0, :Tk_trunc] = (
+                0.5
+                * ((ctrls_trunc[:, site_grad_idxs[k]] - site_ctrl0[:-1]) ** 2).mean(
+                    axis=1
+                )
+                * ctrl_reg_weight
+            )
+        loss_qposs[0, k0, : Tk_trunc + 1] = 0.5 * (
+            (ret_dict["qpos"] - q_pos_targs[: Tk_trunc + 1]) ** 2 * q_pos_mask_curr
+        ).mean(axis=1)
+        loss_qvels[0, k0, : Tk_trunc + 1] = 0.5 * (
+            (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
+        ).mean(axis=1)
+        breakpoint()
+        breakpoint()
 
         try:
             ctrls_trunc, _, qpos, _ = opt_utils.get_stabilized_ctrls(
@@ -1540,6 +1591,23 @@ def arm_target_traj(
         except np.linalg.LinAlgError:
             print("LinAlgError in get_stabilized_ctrls")
             ctrls_trunc[:, not_stabilize_act_idx] *= 0.99
+
+        loss_site_xposs[0, k0, k, tk] = (
+            0.5 * ((site_xpos - traj_targ[tk]) * traj_mask[tk]) ** 2
+        )
+        loss_vels[0, k0, k, tk] = (
+            0.5 * ((site_deriv - vel_targ[tk]) * vel_mask[tk]) ** 2
+        )
+        loss_qposs[0, k0, k, tk] = (
+            0.5 * ((data.qpos - q_pos_targ[tk]) * q_pos_mask[tk]) ** 2
+        )
+        loss_qvels[0, k0, k, tk] = (
+            0.5 * ((data.qvel - q_vel_targ[tk]) * q_vel_mask[tk]) ** 2
+        )
+        loss_ctrls[0, k0, k, tk] = (
+            0.5 * ((ctrls[tk] - ctrl0s[tk]) * ctrl_reg_weight) ** 2
+        )
+
         ctrls[:Tk_trunc] = ctrls_trunc.copy()
         # tmp[k0] = ctrls[50, site_grad_idxs[0]]
         tk = Tk_trunc
@@ -1551,6 +1619,7 @@ def arm_target_traj(
             render_class.reset_counter()
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
+        breakpoint()
         qpos = ret_dict["qpos"]
         q_targs_masked = []
         qs_list = []
