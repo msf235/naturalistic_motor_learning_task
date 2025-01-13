@@ -1537,7 +1537,6 @@ def arm_target_traj(
                 ctrls_trunc[:, site_grad_idxs[k]], grads[k], "ctrls", losses[k]
             )
         ret_dict = forward_and_collect_data(env, ctrls_trunc, ret_fn)
-
         for k, site_name in enumerate(site_names):
             site_xpos = ret_dict[site_name + "_xpos"]
             site_ctrl0 = ret_dict[site_name + "_ctrl0"]
@@ -1565,8 +1564,6 @@ def arm_target_traj(
         loss_qvels[0, k0, : Tk_trunc + 1] = 0.5 * (
             (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
         ).mean(axis=1)
-        breakpoint()
-        breakpoint()
 
         try:
             ctrls_trunc, _, qpos, _ = opt_utils.get_stabilized_ctrls(
@@ -1592,21 +1589,35 @@ def arm_target_traj(
             print("LinAlgError in get_stabilized_ctrls")
             ctrls_trunc[:, not_stabilize_act_idx] *= 0.99
 
-        loss_site_xposs[0, k0, k, tk] = (
-            0.5 * ((site_xpos - traj_targ[tk]) * traj_mask[tk]) ** 2
-        )
-        loss_vels[0, k0, k, tk] = (
-            0.5 * ((site_deriv - vel_targ[tk]) * vel_mask[tk]) ** 2
-        )
-        loss_qposs[0, k0, k, tk] = (
-            0.5 * ((data.qpos - q_pos_targ[tk]) * q_pos_mask[tk]) ** 2
-        )
-        loss_qvels[0, k0, k, tk] = (
-            0.5 * ((data.qvel - q_vel_targ[tk]) * q_vel_mask[tk]) ** 2
-        )
-        loss_ctrls[0, k0, k, tk] = (
-            0.5 * ((ctrls[tk] - ctrl0s[tk]) * ctrl_reg_weight) ** 2
-        )
+        ret_dict = forward_and_collect_data(env, ctrls_trunc, ret_fn)
+        for k, site_name in enumerate(site_names):
+            site_xpos = ret_dict[site_name + "_xpos"]
+            site_ctrl0 = ret_dict[site_name + "_ctrl0"]
+            site_deriv = np.diff(site_xpos, axis=0, prepend=site_xpos[:1]) / dt
+            loss_site_xposs[1, k, k0, : Tk_trunc + 1] = (
+                0.5
+                * ((site_xpos - traj_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
+                * traj_mask_curr
+            )
+            loss_vels[1, k, k0, : Tk_trunc + 1] = (
+                0.5
+                * ((site_deriv - vel_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
+                * vel_mask_curr
+            )
+            loss_ctrls[1, k, k0, :Tk_trunc] = (
+                0.5
+                * ((ctrls_trunc[:, site_grad_idxs[k]] - site_ctrl0[:-1]) ** 2).mean(
+                    axis=1
+                )
+                * ctrl_reg_weight
+            )
+        loss_qposs[1, k0, : Tk_trunc + 1] = 0.5 * (
+            (ret_dict["qpos"] - q_pos_targs[: Tk_trunc + 1]) ** 2 * q_pos_mask_curr
+        ).mean(axis=1)
+        loss_qvels[1, k0, : Tk_trunc + 1] = 0.5 * (
+            (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
+        ).mean(axis=1)
+        breakpoint()
 
         ctrls[:Tk_trunc] = ctrls_trunc.copy()
         # tmp[k0] = ctrls[50, site_grad_idxs[0]]
