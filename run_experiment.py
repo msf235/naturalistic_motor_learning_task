@@ -76,8 +76,8 @@ def reset():
 ctrls_burn_in = reset()
 env.reset(seed=args.seed, options={"n_steps": 0, "render": False})
 env.render()
-m = int(ctrls_burn_in.shape[1] // 4)
-ctrls_burn_in[:, :m] = 0
+# m = int(ctrls_burn_in.shape[1] // 4)
+# ctrls_burn_in[:, :m] = 0
 util.forward_sim_render(env, ctrls_burn_in)
 breakpoint()
 
