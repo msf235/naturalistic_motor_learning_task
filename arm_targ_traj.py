@@ -1,5 +1,5 @@
 from typing import Dict, List, Any
-from collections import abc
+from util import RightEndpointDict
 import opt_utils as opt_utils
 import optimizers as opts
 import numpy as np
@@ -1198,98 +1198,6 @@ class targetRender:
         self.counter = 0
 
 
-class RightEndpointDict(abc.MutableMapping):
-    def __init__(self, inp_dict: dict[float, Any]) -> None:
-        """
-        If inp_dict = {30: 'A', 50: 'B'} then:
-            key = -1 -> return 'A'
-            key = 30 -> return 'A'
-            key = 35 -> return 'B'
-            key = 50 -> return 'B'
-            key = 51 -> raise KeyError
-        """
-        self.dict = copy.deepcopy(inp_dict)
-        self.right_endpoints = sorted(list(inp_dict.keys()))
-        self.intervals = []
-        self.intervals.append([-np.inf, self.right_endpoints[0]])
-        for k in range(len(self.right_endpoints) - 1):
-            self.intervals.append(
-                [self.right_endpoints[k], self.right_endpoints[k + 1]]
-            )
-        # self.intervals.append([self.right_endpoints[-1], np.inf])
-        #
-
-    def keys(self):
-        return self.right_endpoints
-
-    def values(self):
-        return [
-            self.dict[key] for key in self.right_endpoints
-        ]  # List is in correct order
-
-    def __getitem__(self, key):
-        if key > self.right_endpoints[-1]:
-            raise KeyError(
-                f"key must be less than rightmost endpoint {self.right_endpoints[-1]}"
-            )
-        endpoint = -1
-        for endpoint in self.right_endpoints:
-            if key <= endpoint:
-                break
-        return self.dict[endpoint]
-
-    def __setitem__(self, key, val):
-        if key not in self.right_endpoints:
-            raise KeyError(f"key must be in {self.right_endpoints}")
-        self.dict[key] = val
-
-    def __delitem__(self, key):
-        if key not in self.right_endpoints:
-            raise KeyError(f"key must be in {self.right_endpoints}")
-        del self.dict[key]
-
-    def get_interval(self, key):
-        for interval in self.intervals:
-            if key > interval[0] and key <= interval[1]:
-                return interval
-        return None
-
-    def __repr__(self):
-        str1 = (
-            f"(-np.inf, {self.intervals[0][1]}"
-            + "]:\n"
-            + str(self.dict[self.intervals[0][1]])
-            + "\n\n"
-        )
-        for interval in self.intervals[1:-1]:
-            str1 += (
-                "("
-                + str(interval[0])
-                + ","
-                + str(interval[1])
-                + "]:\n"
-                + str(self.dict[interval[1]])
-                + "\n\n"
-            )
-        str1 += (
-            "("
-            + str(self.intervals[-1][0])
-            + ","
-            + str(self.intervals[-1][1])
-            + "]:\n"
-            + str(self.dict[self.intervals[-1][1]])
-            + "\n\n"
-        )
-        str1 += f"RightEndpointDict with keys {self.right_endpoints}"
-        return str1
-
-    def __iter__(self):
-        return iter(self.right_endpoints)
-
-    def __len__(self):
-        return len(self.right_endpoints)
-
-
 def arm_target_traj(
     config_name,
     env,
@@ -1465,6 +1373,7 @@ def arm_target_traj(
     loss_qposs = np.zeros((2, max_its, Tk))
     loss_qvels = np.zeros((2, max_its, Tk))
     loss_ctrls = np.zeros((2, len(site_names), max_its, Tk - 1))
+    # ctrl_reg_weight = 0
 
     for k0 in range(max_its):
         if k0 >= it_lr2:
@@ -1537,6 +1446,7 @@ def arm_target_traj(
                 ctrls_trunc[:, site_grad_idxs[k]], grads[k], "ctrls", losses[k]
             )
         ret_dict = forward_and_collect_data(env, ctrls_trunc, ret_fn)
+        util.reset_state(model, data, data0)
         for k, site_name in enumerate(site_names):
             site_xpos = ret_dict[site_name + "_xpos"]
             site_ctrl0 = ret_dict[site_name + "_ctrl0"]
@@ -1590,6 +1500,7 @@ def arm_target_traj(
             ctrls_trunc[:, not_stabilize_act_idx] *= 0.99
 
         ret_dict = forward_and_collect_data(env, ctrls_trunc, ret_fn)
+        util.reset_state(model, data, data0)
         for k, site_name in enumerate(site_names):
             site_xpos = ret_dict[site_name + "_xpos"]
             site_ctrl0 = ret_dict[site_name + "_ctrl0"]
@@ -1617,7 +1528,6 @@ def arm_target_traj(
         loss_qvels[1, k0, : Tk_trunc + 1] = 0.5 * (
             (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
         ).mean(axis=1)
-        breakpoint()
 
         ctrls[:Tk_trunc] = ctrls_trunc.copy()
         # tmp[k0] = ctrls[50, site_grad_idxs[0]]
@@ -1630,11 +1540,12 @@ def arm_target_traj(
             render_class.reset_counter()
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
-        breakpoint()
+        util.reset_state(model, data, data0)
+        # breakpoint()
         qpos = ret_dict["qpos"]
         q_targs_masked = []
         qs_list = []
-        hxs = [ret_dict[site] for site in site_names]
+        hxs = [ret_dict[site + "_xpos"] for site in site_names]
         losses_curr_mask = [0] * n_sites
         for k in range(n_sites):
             hx = hxs[k]
@@ -1682,7 +1593,7 @@ def arm_target_traj(
                 site_names,
                 site_grad_idxs,
                 ctrls[:tk],
-                grads,
+                # grads,
                 # qs_list,
                 # q_targs_masked,
                 show=True,
@@ -1702,7 +1613,7 @@ def arm_target_traj(
                     site_names,
                     site_grad_idxs,
                     ctrls[:tk],
-                    grads,
+                    # grads,
                     # qs_list,
                     # q_targs_masked,
                     show=False,

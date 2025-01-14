@@ -1,5 +1,6 @@
 from typing import Any
 import arm_targ_traj
+import util
 import masks
 
 
@@ -19,11 +20,11 @@ def test_arm_targ_traj__get_from_interv_dict():
 
 
 def test_arm_targ_traj__get_from_right_endpoint_interv_dict():
-    print("Testing test_arm_targ_traj.get_from_right_endpoint_interv_dict")
+    print("Testing util.get_from_right_endpoint_interv_dict")
     test_interv_dict: dict[int | float, Any] = {30: "A", 50: "B"}
     test_keys = [0, 30, 40, 60]
     results = [
-        arm_targ_traj.get_from_right_endpoint_interv_dict(test_interv_dict, key)
+        util.get_from_right_endpoint_interv_dict(test_interv_dict, key)
         for key in test_keys
     ]
     print(
@@ -35,9 +36,9 @@ def test_arm_targ_traj__get_from_right_endpoint_interv_dict():
 
 
 def test_arm_targ_traj__RightEndpointDict():
-    print("Testing test_arm_targ_traj.RightEndpointDict")
+    print("Testing util.RightEndpointDict")
     test_interv_dict: dict[int | float, Any] = {30: "A", 50: "B"}
-    red = arm_targ_traj.RightEndpointDict(test_interv_dict)
+    red = util.RightEndpointDict(test_interv_dict)
     test_keys = [-1, 30, 35, 50]
     results = [red[key] for key in test_keys]
     print(
@@ -51,6 +52,25 @@ def test_arm_targ_traj__RightEndpointDict():
         print("Using key=51 throws a KeyError as it should. Test passed.")
         return
     print("Test failed -- error not thrown for key 51.")
+
+
+def test_arm_targ_traj__LeftEndpointDict():
+    print("Testing util.RightEndpointDict")
+    test_interv_dict: dict[int | float, Any] = {0: "A", 30: "B"}
+    led = util.LeftEndpointDict(test_interv_dict)
+    test_keys = [0, 10, 30, 35]
+    results = [led[key] for key in test_keys]
+    print(
+        f'Using test dictionary "{test_interv_dict}" with keys "{test_keys}",',
+        f'get the values "{results}".',
+    )
+    assert results == ["A", "A", "B", "B"]
+    try:  # Test that the RightEndpointDict object behaves as expected
+        led[-1]
+    except KeyError:
+        print("Using key=-1 throws a KeyError as it should. Test passed.")
+        return
+    print("Test failed -- error not thrown for key -1.")
 
 
 def masks_generate_decaying_intervals():
