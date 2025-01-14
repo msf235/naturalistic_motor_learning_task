@@ -62,7 +62,7 @@ class RightEndpointDict(abc.MutableMapping):
 
     def __repr__(self):
         str1 = (
-            f"(-np.inf, {self.intervals[0][1]}"
+            f"(-∞, {self.intervals[0][1]}"
             + "]:\n"
             + str(self.dict[self.intervals[0][1]])
             + "\n\n"
@@ -167,7 +167,7 @@ class LeftEndpointDict(abc.MutableMapping):
         str1 += (
             f"[{self.intervals[-1][1]}, ∞)"
             + ":\n"
-            + str(self.dict[self.intervals[-1][1]])
+            + str(self.dict[self.intervals[-1][0]])
             + "\n\n"
         )
         str1 += f"RightEndpointDict with keys {self.left_endpoints}"

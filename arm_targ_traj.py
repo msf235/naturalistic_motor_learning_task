@@ -1,5 +1,5 @@
 from typing import Dict, List, Any
-from util import RightEndpointDict
+import util as butil
 import opt_utils as opt_utils
 import optimizers as opts
 import numpy as np
@@ -1286,17 +1286,25 @@ def arm_target_traj(
         grab_phase_it,
         grab_phase_tk,
     )
+
     # traj_and_masks["q_pos_masks"] = [
     #     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
     # ]
+    def shift_endpoints(inp_dict):
+        keys = [0] + list(inp_dict.keys())
+        ret_dict = {}
+        for k in range(len(keys) - 1):
+            ret_dict[keys[k]] = inp_dict[keys[k + 1]]
+        return ret_dict
+
     traj_targs = traj_and_masks["traj_targs"]
-    traj_masks = RightEndpointDict(traj_and_masks["traj_masks"])
+    traj_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["traj_masks"]))
     vel_targs = traj_and_masks["vel_targs"]
-    vel_masks = RightEndpointDict(traj_and_masks["vel_masks"])
+    vel_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["vel_masks"]))
     q_pos_targs = traj_and_masks["q_pos_targs"]
-    q_pos_masks = RightEndpointDict(traj_and_masks["q_pos_masks"])
+    q_pos_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["q_pos_masks"]))
     q_vel_targs = traj_and_masks["q_vel_targs"]
-    q_vel_masks = RightEndpointDict(traj_and_masks["q_vel_masks"])
+    q_vel_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["q_vel_masks"]))
     for key in q_vel_masks:
         q_vel_masks[key] = joint_penalty_factor * q_vel_masks[key]
 
@@ -1358,9 +1366,7 @@ def arm_target_traj(
         if optimizer == "sgd":
             return opts.SGD(lr=lr, momentum=0.2)
 
-    optms = []
-    for k in range(n_sites):
-        optms.append(get_opt(lr))
+    optms = [None] * n_sites
     lowest_losses = LimLowestDict(keep_top)
     lowest_losses_curr_mask = LimLowestDict(keep_top)
 
@@ -1383,10 +1389,10 @@ def arm_target_traj(
                 optms[k] = get_opt(lr)
         progbar.update(" it: " + str(k0))
 
-        traj_mask_curr = np.array(traj_masks[k0 + 1])
-        vel_mask_curr = 0 * np.array(vel_masks[k0 + 1])
-        q_pos_mask_curr = np.array(q_pos_masks[k0 + 1])
-        q_vel_mask_curr = np.array(q_vel_masks[k0 + 1])
+        traj_mask_curr = np.array(traj_masks[k0])
+        vel_mask_curr = 0 * np.array(vel_masks[k0])
+        q_pos_mask_curr = np.array(q_pos_masks[k0])
+        q_vel_mask_curr = np.array(q_vel_masks[k0])
 
         Tk_trunc = get_last_timepoint(traj_mask_curr)
         traj_mask_curr = traj_mask_curr[: Tk_trunc + 1]
@@ -1499,7 +1505,17 @@ def arm_target_traj(
             print("LinAlgError in get_stabilized_ctrls")
             ctrls_trunc[:, not_stabilize_act_idx] *= 0.99
 
-        ret_dict = forward_and_collect_data(env, ctrls_trunc, ret_fn)
+        ctrls[:Tk_trunc] = ctrls_trunc.copy()
+        # tmp[k0] = ctrls[50, site_grad_idxs[0]]
+        tk = Tk_trunc
+        util.reset_state(model, data, data0)
+        render = k0 % render_every == 0
+        if env.render_mode == "human" and render:
+            ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, render_fn)
+            render_class.reset_counter()
+        else:
+            ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
+        breakpoint()
         util.reset_state(model, data, data0)
         for k, site_name in enumerate(site_names):
             site_xpos = ret_dict[site_name + "_xpos"]
@@ -1528,19 +1544,6 @@ def arm_target_traj(
         loss_qvels[1, k0, : Tk_trunc + 1] = 0.5 * (
             (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
         ).mean(axis=1)
-
-        ctrls[:Tk_trunc] = ctrls_trunc.copy()
-        # tmp[k0] = ctrls[50, site_grad_idxs[0]]
-        tk = Tk_trunc
-        util.reset_state(model, data, data0)
-        render = k0 % render_every == 0
-        render = False
-        if env.render_mode == "human" and render:
-            ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, render_fn)
-            render_class.reset_counter()
-        else:
-            ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
-        util.reset_state(model, data, data0)
         # breakpoint()
         qpos = ret_dict["qpos"]
         q_targs_masked = []
@@ -1582,6 +1585,7 @@ def arm_target_traj(
             # print()
             # print(grads[0][:10, :5])
             # print()
+
             show_plot(
                 axs,
                 hxs,
@@ -1599,6 +1603,9 @@ def arm_target_traj(
                 show=True,
                 # save=True,
             )
+            axs[2, 0].cla()
+            # axs[2, 0].plot(tt[: tk + 1], loss_site_xposs[0, 0, k0, : tk + 1])
+            axs[2, 0].plot(range(k0), loss_site_xposs[0, 0, :k0, : tk + 1].mean(axis=1))
             plt.pause(0.1)
             if k0 == 0:
                 # Plot again to refresh the window so it resizes to a proper size

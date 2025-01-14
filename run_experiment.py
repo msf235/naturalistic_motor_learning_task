@@ -1,4 +1,5 @@
 # import humanoid2d
+import sim_util as util
 import basic_env
 import opt_utils
 import numpy as np
@@ -62,8 +63,8 @@ def reset():
         env,
         args.seed,
         burn_step,
-        8 * burn_step,
-        # 5000,
+        # 8 * burn_step,
+        5000,
         params["balance_cost"],
         params["joint_cost"],
         params["root_cost"],
@@ -73,19 +74,12 @@ def reset():
 
 
 ctrls_burn_in = reset()
-# env.reset(seed=args.seed, options={"n_steps": 0, "render": False})
-#
-#
-# def marker_fn(env, k):
-#     env.mujoco_renderer.viewer.add_marker(
-#         size=np.array([2, 2, 2]) / (k + 100) ** 0.5,
-#         pos=np.array([-1, 0, 0]),
-#         rgba=(1, 1, 0, 1),
-#         type=mj.mjtGeom.mjGEOM_SPHERE,
-#     )
-
-# env.render()
-# util.forward_sim_render(env, ctrls_burn_in, marker_fn)
+env.reset(seed=args.seed, options={"n_steps": 0, "render": False})
+env.render()
+m = int(ctrls_burn_in.shape[1] // 4)
+ctrls_burn_in[:, :m] = 0
+util.forward_sim_render(env, ctrls_burn_in)
+breakpoint()
 
 Tk = int(Tf / dt)
 tt = np.arange(0, Tf, dt)
