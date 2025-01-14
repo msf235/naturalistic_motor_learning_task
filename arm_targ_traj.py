@@ -1444,7 +1444,7 @@ def arm_target_traj(
                 adh_ids=adh_ids,
                 ctrl_reg_weight=ctrl_reg_weight,
             )
-            grads[k] = grads[k] / np.linalg.norm(grads[k])
+            # grads[k] = grads[k] / np.linalg.norm(grads[k])
             util.reset_state(model, data, data0)
         losses = [0] * n_sites
         for k in range(n_sites):
@@ -1515,7 +1515,6 @@ def arm_target_traj(
             render_class.reset_counter()
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
-        breakpoint()
         util.reset_state(model, data, data0)
         for k, site_name in enumerate(site_names):
             site_xpos = ret_dict[site_name + "_xpos"]

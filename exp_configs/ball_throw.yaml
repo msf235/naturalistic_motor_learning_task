@@ -10,9 +10,12 @@ params:
   # lr: .001
   # lr2: .0005
   # it_lr2: 350
-  optimizer: 'sgd'
-  lr: 1
-  lr2: 5e-1
+  optimizer: 'rmsprop'
+  lr: 0.1
+  lr2: 0.1
+  # optimizer: 'sgd'
+  # lr: 2e5
+  # lr2: 1
   it_lr2: 350
   grad_update_every: 10
   reset_noise_scale: 0
