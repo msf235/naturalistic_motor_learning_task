@@ -1,1 +1,2 @@
-    | R_Thorax_z | R_Shoulder_z | R_Elbow_z | R_Wrist_z
+    | R_Thorax_y | R_Shoulder_y | R_Shoulder_z | R_Elbow_y | R_Elbow_z | R_Wrist_z
+.8  | -0.15      | -0.13        | 0.25         | 0.75      | 0.25      |  0.36

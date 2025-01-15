@@ -20,9 +20,9 @@ params:
   grad_update_every: 10
   reset_noise_scale: 0
   t_incr: .1
-  incr_every: 50
+  incr_every: 100
   grab_phase_it: 400
-  grab_phase_tk: 800
+  grab_phase_t: .6
   grad_window_t: .1
   # joint_penalty_factor: 1e-6
   # balance_cost: 6000
@@ -36,6 +36,6 @@ params:
   joint_cost: 5e5
   foot_cost: 0
   ctrl_cost: 1
-  ctrl_reg_weight: 1e-7
-  ctrl_reg_weight: 1e-7
+  # ctrl_reg_weight: 1e-6
+  ctrl_reg_weight: 0
   mask_decay_factor: .9

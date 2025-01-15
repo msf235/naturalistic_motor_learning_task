@@ -1420,6 +1420,7 @@ def arm_target_traj(
         grads = [0] * n_sites
         update_phase = k0 % grad_update_every
         for k in range(n_sites):
+            tic = time.time()
             grads[k] = opt_utils.traj_deriv_new(
                 model,
                 data,
@@ -1446,6 +1447,8 @@ def arm_target_traj(
             )
             # grads[k] = grads[k] / np.linalg.norm(grads[k])
             util.reset_state(model, data, data0)
+            toc = time.time()
+            print(f"grad time: {toc - tic}")
         losses = [0] * n_sites
         for k in range(n_sites):
             ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(

@@ -775,8 +775,8 @@ def traj_deriv_new(
 
             if tk < Tk - 1:
                 ctrl0s[tk] = get_ctrl0(model, data, list(range(model.njnt)), deriv_ids)
-                # dldus[tk] = (ctrls[tk] - ctrl0s[tk]) * ctrl_reg_weight[tk]
                 dldus[tk] = (ctrls[tk, deriv_ids] - ctrl0s[tk]) * ctrl_reg_weight
+                # dldus[tk] = ctrls[tk, deriv_ids] * ctrl_reg_weight
                 mj.mjd_transitionFD(  # type: ignore
                     model, data, epsilon_grad, True, As[tk], B, None, None
                 )
