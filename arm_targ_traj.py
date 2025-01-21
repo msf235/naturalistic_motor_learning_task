@@ -7,6 +7,7 @@ import sim_util as util
 import mujoco as mj
 import copy
 import sortedcontainers as sc
+import pickle as pkl
 
 # import seaborn as sns
 from matplotlib import pyplot as plt
@@ -1082,6 +1083,7 @@ def show_plot(
     site_names=None,
     site_grad_idxs=None,
     ctrls=None,
+    losses=None,
     grads=None,
     qvals=None,
     qtargs=None,
@@ -1118,6 +1120,17 @@ def show_plot(
             ax.set_ylabel("ctrls")
             # ax.legend()
         ax_cntr += 1
+    if losses is not None:
+        # axs[s, 0].cla()
+        for k in nr:
+            loss_k = losses[k]
+            # axs[2, 0].plot(tt[: tk + 1], loss_site_xposs[0, 0, k0, : tk + 1])
+            ax = axs[ax_cntr, k]
+            ax.cla()
+            ax.plot(range(loss_k.shape[0]), loss_k)
+            ax.set_xlabel("it")
+            ax.set_ylabel("site loss")
+        ax_cntr += 1
     if grads is not None:
         for k in nr:
             ax = axs[ax_cntr, k]
@@ -1142,12 +1155,12 @@ def show_plot(
             ax.set_xlim(lims)
             ax.set_ylabel("q_pos")
     fig.tight_layout()
-    if show:
-        plt.show(block=False)
-        # plt.show(block=True)
-        plt.pause(0.05)
-    if save:
-        fig.savefig("fig.pdf")
+    # if show:
+    #     plt.show(block=False)
+    #     # plt.show(block=True)
+    #     plt.pause(0.05)
+    # if save:
+    #     fig.savefig("fig.pdf")
 
 
 def get_last_timepoint(mask):
@@ -1343,7 +1356,7 @@ def arm_target_traj(
                 # "site_dict": site_dict,
                 "qpos": data.qpos.copy(),
                 "qvel": data.qvel.copy(),
-                "ctrl0": ctrl0,
+                "ctrl": data.ctrl.copy(),
             }
         )
         mj.mj_inverse(model, data)
@@ -1373,7 +1386,7 @@ def arm_target_traj(
     lowest_losses = LimLowestDict(keep_top)
     lowest_losses_curr_mask = LimLowestDict(keep_top)
 
-    _, axs = plt.subplots(4, n_sites, figsize=(4 * n_sites, 4 * 3.5))
+    fig, axs = plt.subplots(4, n_sites, figsize=(4 * n_sites, 4 * 3.5))
     if n_sites == 1:
         axs = axs.reshape((4, 1))
     Tk_trunc_prev = 0
@@ -1522,33 +1535,35 @@ def arm_target_traj(
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
         util.reset_state(model, data, data0)
-        for k, site_name in enumerate(site_names):
-            site_xpos = ret_dict[site_name + "_xpos"]
-            site_ctrl0 = ret_dict[site_name + "_ctrl0"]
-            site_deriv = np.diff(site_xpos, axis=0, prepend=site_xpos[:1]) / dt
-            loss_site_xposs[1, k, k0, : Tk_trunc + 1] = (
-                0.5
-                * ((site_xpos - traj_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
-                * traj_mask_curr
-            )
-            loss_vels[1, k, k0, : Tk_trunc + 1] = (
-                0.5
-                * ((site_deriv - vel_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
-                * vel_mask_curr
-            )
-            loss_ctrls[1, k, k0, :Tk_trunc] = (
-                0.5
-                * ((ctrls_trunc[:, site_grad_idxs[k]] - site_ctrl0[:-1]) ** 2).mean(
-                    axis=1
-                )
-                * ctrl_reg_weight
-            )
-        loss_qposs[1, k0, : Tk_trunc + 1] = 0.5 * (
-            (ret_dict["qpos"] - q_pos_targs[: Tk_trunc + 1]) ** 2 * q_pos_mask_curr
-        ).mean(axis=1)
-        loss_qvels[1, k0, : Tk_trunc + 1] = 0.5 * (
-            (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
-        ).mean(axis=1)
+        with open(f"output/data_{k0}.pkl", "wb") as f:
+            pkl.dump(ret_dict, f)
+        # for k, site_name in enumerate(site_names):
+        #     site_xpos = ret_dict[site_name + "_xpos"]
+        #     site_ctrl0 = ret_dict[site_name + "_ctrl0"]
+        #     site_deriv = np.diff(site_xpos, axis=0, prepend=site_xpos[:1]) / dt
+        #     loss_site_xposs[1, k, k0, : Tk_trunc + 1] = (
+        #         0.5
+        #         * ((site_xpos - traj_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
+        #         * traj_mask_curr
+        #     )
+        #     loss_vels[1, k, k0, : Tk_trunc + 1] = (
+        #         0.5
+        #         * ((site_deriv - vel_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
+        #         * vel_mask_curr
+        #     )
+        #     loss_ctrls[1, k, k0, :Tk_trunc] = (
+        #         0.5
+        #         * ((ctrls_trunc[:, site_grad_idxs[k]] - site_ctrl0[:-1]) ** 2).mean(
+        #             axis=1
+        #         )
+        #         * ctrl_reg_weight
+        #     )
+        # loss_qposs[1, k0, : Tk_trunc + 1] = 0.5 * (
+        #     (ret_dict["qpos"] - q_pos_targs[: Tk_trunc + 1]) ** 2 * q_pos_mask_curr
+        # ).mean(axis=1)
+        # loss_qvels[1, k0, : Tk_trunc + 1] = 0.5 * (
+        #     (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
+        # ).mean(axis=1)
         # breakpoint()
         qpos = ret_dict["qpos"]
         q_targs_masked = []
@@ -1604,19 +1619,19 @@ def arm_target_traj(
                 ctrls[:tk],
                 qvals=qs_list,
                 qtargs=q_targs_masked,
+                losses=loss_site_xposs[0, :, :k0, : tk + 1].mean(axis=-1),
                 # grads,
                 # qs_list,
                 # q_targs_masked,
-                show=True,
-                # save=True,
+                show=False,
             )
-            s = 3
-            axs[s, 0].cla()
-            # axs[2, 0].plot(tt[: tk + 1], loss_site_xposs[0, 0, k0, : tk + 1])
-            axs[s, 0].plot(range(k0), loss_site_xposs[0, 0, :k0, : tk + 1].mean(axis=1))
-            axs[s, 0].set_xlabel("it")
-            axs[s, 0].set_ylabel("site loss")
-            plt.pause(0.1)
+            # s = 3
+            # axs[s, 0].cla()
+            # # axs[2, 0].plot(tt[: tk + 1], loss_site_xposs[0, 0, k0, : tk + 1])
+            # axs[s, 0].plot(range(k0), loss_site_xposs[0, 0, :k0, : tk + 1].mean(axis=1))
+            # axs[s, 0].set_xlabel("it")
+            # axs[s, 0].set_ylabel("site loss")
+            # plt.pause(0.1)
             if k0 == 0:
                 # Plot again to refresh the window so it resizes to a proper size
                 show_plot(
@@ -1638,7 +1653,9 @@ def arm_target_traj(
                     show=False,
                     save=True,
                 )
-                plt.pause(0.1)
+                # plt.pause(0.1)
+            fig.savefig(f"output/fig_{k0}.pdf")
+            fig.savefig("output/fig_latest.pdf")
         # util.reset_state(model, data, data0)
         # ctrls = forward_with_dynamic_adhesion(env, ctrls, noisev, True)
         # plt.show()

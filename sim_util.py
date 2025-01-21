@@ -2,6 +2,7 @@ import numpy as np
 import mujoco as mj
 import time
 import sys
+import pickle as pkl
 
 
 def format_time(time_in_seconds):
@@ -67,7 +68,7 @@ def reset_state(model, data_to, data_from):
     """Resets the state of `data_to` to that of `data_from`."""
     data_to.qpos[:] = data_from.qpos.copy()
     data_to.qvel[:] = data_from.qvel.copy()
-    data_to.qacc[:] = data_from.qacc.copy()
+    # data_to.qacc[:] = data_from.qacc.copy()
     data_to.act[:] = data_from.act.copy()
     data_to.ctrl[:] = data_from.ctrl.copy()
     data_to.time = data_from.time
@@ -75,6 +76,19 @@ def reset_state(model, data_to, data_from):
     # data_from.qfrc_applied[:] = data_to.qfrc_applied.copy()
     # state = get_state(data_from)
     # set_state(data_to, state)
+
+
+def save_state(data, save_loc):
+    state = {
+        "qpos": data.qpos.copy(),
+        "qvel": data.qvel.copy(),
+        "qacc": data.qacc.copy(),
+        "act": data.act.copy(),
+        "ctrl": data.ctrl.copy(),
+        "time": data.time,
+    }
+    with open(save_loc, "wb") as f:
+        pkl.dump(state, f, protocol=pkl.HIGHEST_PROTOCOL)
 
 
 def step(model, data, ctrl):
