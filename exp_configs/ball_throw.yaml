@@ -2,8 +2,8 @@ params:
   name: ball_throw
   xml_file: './model_files/humanoid_and_baseball.xml'
   # Tf: 0.6
-  Tf: 1.6
-  t_after: 1.0
+  Tf: 0.6
+  t_after: 0.6
   # max_its: 500
   max_its: 3000
   # optimizer: 'adam'
@@ -19,10 +19,10 @@ params:
   it_lr2: 350
   grad_update_every: 10
   reset_noise_scale: 0
-  t_incr: .1
-  incr_every: 100
-  grab_phase_it: 700
-  grab_phase_t: .6
+  t_incr: .2
+  incr_every: 500
+  grab_phase_it: 500
+  grab_phase_t: .2
   grad_window_t: .1
   # joint_penalty_factor: 1e-6
   # balance_cost: 6000

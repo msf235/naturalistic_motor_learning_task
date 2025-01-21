@@ -4,6 +4,39 @@ from typing import Any
 import numpy as np
 
 
+def propagate_singleton_points(data):
+    """
+    Modifies a (T, d) numpy array such that singleton points (values surrounded by np.nan)
+    are copied into their adjacent time points.
+
+    Parameters:
+    data (np.ndarray): A (T, d) numpy array containing time series data.
+
+    Returns:
+    np.ndarray: Modified data with singleton values propagated to adjacent NaN values.
+    """
+    T, d = data.shape
+    new_data = data.copy()
+
+    for t in range(T):
+        for dim in range(d):
+            if np.isnan(data[t, dim]):
+                continue  # Skip already NaN values
+
+            # Check if it's a singleton point
+            left_nan = t == 0 or np.isnan(data[t - 1, dim])
+            right_nan = t == T - 1 or np.isnan(data[t + 1, dim])
+
+            if left_nan and right_nan:
+                # If singleton, propagate value to neighbors
+                if t > 0 and np.isnan(new_data[t - 1, dim]):
+                    new_data[t - 1, dim] = data[t, dim]
+                if t < T - 1 and np.isnan(new_data[t + 1, dim]):
+                    new_data[t + 1, dim] = data[t, dim]
+
+    return new_data
+
+
 class RightEndpointDict(abc.MutableMapping):
     def __init__(self, inp_dict: dict[float, Any]) -> None:
         """

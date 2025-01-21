@@ -112,7 +112,7 @@ def throw_traj(model, data, Tk):
     arc_traj_vs = arc_traj(
         data.site(RSHOULD_S).xpos, r, np.pi, np.pi / 2.2, Tk - Tk2, density_fn=""
     )
-    grab_targ = data.site("ball").xpos + np.array([0, 0, 0])
+    grab_targ = data.site("ball").xpos + np.array([0, 0, 0.05])
     s = sigmoid(np.linspace(0, 1, Tk1), 5)
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s * (grab_targ - handx)
@@ -879,7 +879,7 @@ def make_traj_sets(
         # q_targ_mask_types = ["const"]
         # q_targs = [q_targ]
         for it in targ_traj_masks:
-            if it >= grab_phase_it:
+            if it > grab_phase_it:
                 for tk in range(grab_phase_tk):
                     targ_traj_masks[it][tk] = 0
                     targ_vel_masks[it][tk] = 0
@@ -1134,9 +1134,11 @@ def show_plot(
         for k in nr:
             ax = axs[ax_cntr, k]
             ax.cla()
-            ax.plot(tt, qvals[k])
+            val_new = butil.propagate_singleton_points(qvals[k])
+            ax.plot(tt, val_new, linewidth=3)
             ax.set_prop_cycle(None)
-            ax.plot(tt, qtargs[k], "--")
+            targ_new = butil.propagate_singleton_points(qtargs[k])
+            ax.plot(tt, targ_new)
             ax.set_xlim(lims)
             ax.set_ylabel("q_pos")
     fig.tight_layout()
@@ -1556,21 +1558,22 @@ def arm_target_traj(
         for k in range(n_sites):
             hx = hxs[k]
             diffsq1 = (hx - traj_targs[k][: tk + 1]) ** 2
-            pos_mask = q_pos_mask_curr[: tk + 1]
-            vel_mask = q_vel_mask_curr[: tk + 1]
-            mask = np.hstack((pos_mask, vel_mask))
+            qpos_mask = q_pos_mask_curr[: tk + 1]
+            # vel_mask = q_vel_mask_curr[: tk + 1]
+            # q_mask = np.hstack((pos_mask, vel_mask))
             losses[k] = np.mean(diffsq1)
             mask = traj_mask_curr[: tk + 1] > 0
             mask_tiled = np.tile(mask, (3, 1)).T
             temp = np.sum(diffsq1 * mask_tiled) / (np.sum(mask))
             losses_curr_mask[k] = temp
-            q_targs = np.hstack((q_pos_targs, q_vel_targs))
+            q_targs = q_pos_targs
+            # q_targs = np.hstack((q_pos_targs, q_vel_targs))
 
             q_targs_masked_tmp = q_targs[: tk + 1].copy()
-            q_targs_masked_tmp[mask == 0] = np.nan
+            q_targs_masked_tmp[qpos_mask == 0] = np.nan
             q_targs_masked.append(q_targs_masked_tmp)
             qs_tmp = qpos.copy()
-            qs_tmp[pos_mask == 0] = np.nan
+            qs_tmp[qpos_mask == 0] = np.nan
             qs_list.append(qs_tmp)
         loss = sum([loss.item() for loss in losses]) / n_sites
         lowest_losses.append(loss, (k0, ctrls.copy()))
@@ -1588,7 +1591,6 @@ def arm_target_traj(
             # print()
             # print(grads[0][:10, :5])
             # print()
-
             show_plot(
                 axs,
                 hxs,
@@ -1600,15 +1602,20 @@ def arm_target_traj(
                 site_names,
                 site_grad_idxs,
                 ctrls[:tk],
+                qvals=qs_list,
+                qtargs=q_targs_masked,
                 # grads,
                 # qs_list,
                 # q_targs_masked,
                 show=True,
                 # save=True,
             )
-            axs[2, 0].cla()
+            s = 3
+            axs[s, 0].cla()
             # axs[2, 0].plot(tt[: tk + 1], loss_site_xposs[0, 0, k0, : tk + 1])
-            axs[2, 0].plot(range(k0), loss_site_xposs[0, 0, :k0, : tk + 1].mean(axis=1))
+            axs[s, 0].plot(range(k0), loss_site_xposs[0, 0, :k0, : tk + 1].mean(axis=1))
+            axs[s, 0].set_xlabel("it")
+            axs[s, 0].set_ylabel("site loss")
             plt.pause(0.1)
             if k0 == 0:
                 # Plot again to refresh the window so it resizes to a proper size
@@ -1623,6 +1630,8 @@ def arm_target_traj(
                     site_names,
                     site_grad_idxs,
                     ctrls[:tk],
+                    qvals=qs_list,
+                    qtargs=q_targs_masked,
                     # grads,
                     # qs_list,
                     # q_targs_masked,
