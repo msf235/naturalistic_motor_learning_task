@@ -1236,6 +1236,7 @@ def arm_target_traj(
     let_go_ids=[],
     n_steps_adh=10,
     ctrl_reg_weight=None,
+    q_pos_weight=1,
     joint_penalty_factor=0,
     mask_decay_factor=0.9,
 ):
@@ -1397,7 +1398,7 @@ def arm_target_traj(
         Tk_trunc = get_last_timepoint(traj_mask_curr)
         traj_mask_curr = traj_mask_curr[: Tk_trunc + 1]
         vel_mask_curr = vel_mask_curr[: Tk_trunc + 1]
-        q_pos_mask_curr = q_pos_mask_curr[: Tk_trunc + 1]
+        q_pos_mask_curr = q_pos_mask_curr[: Tk_trunc + 1] * q_pos_weight
         q_vel_mask_curr = q_vel_mask_curr[: Tk_trunc + 1]
         if Tk_trunc_prev > 0 and Tk_trunc != Tk_trunc_prev:
             ctrls = lowest_losses_curr_mask.popitem(0)[1][1]

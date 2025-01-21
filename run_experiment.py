@@ -42,7 +42,6 @@ else:
     render_mode = "None"
 
 keyframe = "tpose1"
-breakpoint()
 
 env = basic_env.BasicEnv(
     render_mode=render_mode,
@@ -185,6 +184,7 @@ if args.rerun or not out_f.exists():
         let_go_times=out_time["let_go_times"],
         let_go_ids=out_idx["let_go_ids"],
         n_steps_adh=200,
+        q_pos_weight=params["q_pos_weight"],
         ctrl_reg_weight=params["ctrl_reg_weight"],
         joint_penalty_factor=params["joint_penalty_factor"],
         mask_decay_factor=params["mask_decay_factor"],
