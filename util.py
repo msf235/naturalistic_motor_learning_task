@@ -2,6 +2,50 @@ from collections import abc
 import copy
 from typing import Any
 import numpy as np
+import mujoco
+import basic_env
+from matplotlib import pyplot as plt
+import imageio
+
+
+def make_video_of_motion(model_file, qposs, output_file, fps=30):
+    """Make video of mujoco positions as stored in qpos."""
+    DEFAULT_CAMERA_CONFIG = {
+        "trackbodyid": 2,
+        "distance": 5,
+        "lookat": np.array((0.0, 0.0, 1.15)),
+        "elevation": -10.0,
+        "azimuth": 180,
+    }
+
+    render_mode = "rgb_array"
+
+    env = basic_env.BasicEnv(
+        render_mode=render_mode,
+        frame_skip=1,
+        default_camera_config=DEFAULT_CAMERA_CONFIG,
+        xml_file=model_file,
+    )
+
+    # Example: Create a sequence of 100 frames (random colors)
+    # frames = [
+    #     np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8) for _ in range(100)
+    # ]
+
+    # Save as video
+    fps = 30  # Frames per second
+
+    frames = []
+    for qpos in qposs:
+        env.set_state(qpos, np.zeros(env.model.nv))
+        rgb_mat = env.render()
+        frames.append(rgb_mat)
+
+    with imageio.get_writer(output_file, fps=fps, format="FFMPEG") as writer:
+        for frame in frames:
+            writer.append_data(frame)
+
+    print(f"Video saved as {output_file}")
 
 
 def propagate_singleton_points(data):
