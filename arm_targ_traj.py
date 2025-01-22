@@ -1386,9 +1386,10 @@ def arm_target_traj(
     lowest_losses = LimLowestDict(keep_top)
     lowest_losses_curr_mask = LimLowestDict(keep_top)
 
-    fig, axs = plt.subplots(4, n_sites, figsize=(4 * n_sites, 4 * 3.5))
+    nplots = 5
+    fig, axs = plt.subplots(nplots, n_sites, figsize=(nplots * n_sites, 4 * 3.5))
     if n_sites == 1:
-        axs = axs.reshape((4, 1))
+        axs = axs.reshape((nplots, 1))
     Tk_trunc_prev = 0
     loss_site_xposs = np.zeros((2, len(site_names), max_its, Tk))
     loss_vels = np.zeros((2, len(site_names), max_its, Tk))
@@ -1420,6 +1421,7 @@ def arm_target_traj(
             lowest_losses_curr_mask = LimLowestDict(keep_top)
         ctrls_trunc = ctrls[:Tk_trunc]
         noisev_trunc = noisev[:Tk_trunc]
+
         util.reset_state(model, data, data0)
         ctrls_trunc = forward_with_dynamic_adhesion(
             env,
@@ -1499,6 +1501,7 @@ def arm_target_traj(
         loss_qvels[0, k0, : Tk_trunc + 1] = 0.5 * (
             (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
         ).mean(axis=1)
+        hxs = [ret_dict[site + "_xpos"] for site in site_names]
 
         try:
             ctrls_trunc, _, qpos, _ = opt_utils.get_stabilized_ctrls(
@@ -1620,7 +1623,7 @@ def arm_target_traj(
                 qvals=qs_list,
                 qtargs=q_targs_masked,
                 losses=loss_site_xposs[0, :, :k0, : tk + 1].mean(axis=-1),
-                # grads,
+                grads=grads,
                 # qs_list,
                 # q_targs_masked,
                 show=False,
@@ -1647,11 +1650,10 @@ def arm_target_traj(
                     ctrls[:tk],
                     qvals=qs_list,
                     qtargs=q_targs_masked,
-                    # grads,
+                    grads=grads,
                     # qs_list,
                     # q_targs_masked,
                     show=False,
-                    save=True,
                 )
                 # plt.pause(0.1)
             fig.savefig(f"output/fig_{k0}.pdf")

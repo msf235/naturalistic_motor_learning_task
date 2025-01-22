@@ -111,7 +111,7 @@ incr_every: int = params["incr_every"]
 noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 
 grad_update_every = params["grad_update_every"]
-grad_trunc_tk = int(params["grad_window_t"] / (grad_update_every * dt))
+grad_trunc_tk = int(params["grad_window_t"] / dt)
 grab_phase_tk = int(params["grab_phase_t"] / dt)
 
 Tke = int(params["t_after"] / dt)

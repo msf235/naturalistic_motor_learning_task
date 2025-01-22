@@ -844,7 +844,7 @@ def traj_deriv_new(
     for tk in reversed(grad_range[1:]):
         tks = tk - update_every  # Shifted by one update
         terms.insert(0, dldqs[tk])
-        while len(terms) > grad_trunc_tk:
+        while len(terms) * update_every > grad_trunc_tk:
             terms.pop()
         At = As[tks].T
         terms = [At @ term for term in terms]
