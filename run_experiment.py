@@ -101,6 +101,7 @@ out_time = arm_t.get_times(env, params["name"], Tf)
 t_incr = params["t_incr"]
 amnt_to_incr = int(t_incr / dt)
 incr_every: int = params["incr_every"]
+mask_window_tk: int = int(params["mask_window_t"] / dt)
 # incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
 # incr_tk_left_intervals = np.arange(0, Tk, amnt_to_incr)
 # incr_tk_end_intervals = np.arange(amnt_to_incr, Tk + 1, amnt_to_incr)
@@ -164,6 +165,7 @@ if args.rerun or not out_f.exists():
         it_lr2=params["it_lr2"],
         keep_top=10,
         incr_every=incr_every,
+        mask_window_tk=mask_window_tk,
         grab_phase_it=params["grab_phase_it"],
         grab_phase_tk=grab_phase_tk,
         amnt_to_incr=amnt_to_incr,

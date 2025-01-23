@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 import imageio
 
 
-def make_video_of_motion(model_file, qposs, output_file, fps=30):
+def make_video_of_motion(model_file, qposs, output_file, speed_factor=1):
     """Make video of mujoco positions as stored in qpos."""
     DEFAULT_CAMERA_CONFIG = {
         "trackbodyid": 2,
@@ -33,7 +33,7 @@ def make_video_of_motion(model_file, qposs, output_file, fps=30):
     # ]
 
     # Save as video
-    fps = 30  # Frames per second
+    fps = int(speed_factor / env.model.opt.timestep)
 
     frames = []
     for qpos in qposs:

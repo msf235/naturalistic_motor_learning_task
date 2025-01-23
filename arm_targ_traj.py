@@ -611,6 +611,7 @@ def make_traj_sets(
     Tk,
     amnt_to_incr,
     incr_every,
+    mask_window_tk,
     seed=2,
     mask_decay_factor=0.9,
     grab_phase_it=0,
@@ -626,6 +627,8 @@ def make_traj_sets(
         time it increments.
         incr_every: The number of iterations between mask incrments.
         seed: rng seed.
+        grab_phase_it: Iteration at which the grab phase ends.
+        grab_phase_tk: Time index at which the grab ends.
 
     TODO: This would perhaps be easier to understand if there was a
     datatype for interval dictionaries with its own description.
@@ -652,32 +655,37 @@ def make_traj_sets(
     # smoothing_time = 0.1
     smoothing_time = 0.2
     joints = opt_utils.get_joints(model)
-    # left_arm_qpos_adr = joints["body"]["left_arm_qpos_adrs"]
-    # right_arm_qpos_adr = opt_utils.convert_qpos_adr(
-    # model, None, joints['body']['right_arm'], True)
-    # right_arm_qpos_adr = joints["body"]["right_arm_qpos_adrs"]
-    # qpos_offset = model.nq - model.nv
-    # TODO: check
-    # left_arm_vel_id = [x+model.nq-qpos_offset for x in left_arm_qpos_adr]
-    # left_arm_vel_id = [x + model.nv for x in left_arm_qpos_adr]
-    # right_arm_vel_id = [x + model.nv for x in right_arm_qpos_adr]
     acts = opt_utils.get_act_ids(model)
-    # q_targ = np.zeros((Tk, 2*model.nq))
     out_idx = get_idx_sets(env, exp_name)
     syssize = model.nq + model.nv
-    syssize2 = 2 * model.nv
-    # t_incr = params["t_incr"]
     dt = model.opt.timestep
-    # amnt_to_incr = int(t_incr / dt)
-    incr_time_right_endpoints = list(range(amnt_to_incr, Tk + 1, amnt_to_incr))
-    if incr_time_right_endpoints[-1] != Tk:
-        incr_time_right_endpoints.append(Tk)
-    max_incr_its = len(incr_time_right_endpoints)
-    # incr_it_left_endpoints = list(range(0, max_incr_its * incr_every, incr_every))
-    incr_it_right_endpoints = list(
-        range(incr_every, max_incr_its * incr_every + 1, incr_every)
+    # incr_time_right_endpoints = list(range(amnt_to_incr, Tk + 1, amnt_to_incr))
+    incr_time_right_endpoints_before = list(
+        range(amnt_to_incr, grab_phase_tk, amnt_to_incr)
     )
-
+    incr_time_right_endpoints_after = list(range(grab_phase_tk, Tk + 1, amnt_to_incr))
+    if incr_time_right_endpoints_after[-1] != Tk:
+        incr_time_right_endpoints_after.append(Tk)
+    max_incr_its_before = len(incr_time_right_endpoints_before)
+    max_incr_its_after = len(incr_time_right_endpoints_after)
+    incr_time_right_endpoints = (
+        incr_time_right_endpoints_before + incr_time_right_endpoints_after
+    )
+    # incr_it_left_endpoints = list(range(0, max_incr_its * incr_every, incr_every))
+    # incr_it_right_endpoints = list(
+    #     range(incr_every, max_incr_its * incr_every + 1, incr_every)
+    # )
+    incr_it_right_endpoints_before = list(
+        range(incr_every, max_incr_its_before * incr_every + 1, incr_every)
+    )
+    incr_it_right_endpoints_after = list(
+        range(
+            grab_phase_it, max_incr_its_after * incr_every + grab_phase_it, incr_every
+        )
+    )
+    incr_it_right_endpoints = (
+        incr_it_right_endpoints_before + incr_it_right_endpoints_after
+    )
     targ_traj_mask_lists = masks.make_basic_xpos_masks(
         incr_time_right_endpoints, mask_decay_factor
     )
@@ -687,6 +695,7 @@ def make_traj_sets(
     targ_vel_masks = {
         incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
     }
+    breakpoint()
 
     def get_q_pos_and_vel_data(joint_targs_file):
         q_pos_data = get_data_from_qtarg_file(joint_targs_file, dt)
@@ -879,13 +888,17 @@ def make_traj_sets(
         # q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
         # q_targ_mask_types = ["const"]
         # q_targs = [q_targ]
-        for it in targ_traj_masks:
+        # tkzero =
+        for k, it in enumerate(targ_traj_masks):
             if it > grab_phase_it:
                 for tk in range(grab_phase_tk):
                     targ_traj_masks[it][tk] = 0
                     targ_vel_masks[it][tk] = 0
                     q_pos_masks[it][tk] = 0
                     q_vel_masks[it][tk] = 0
+            Tkk = incr_time_right_endpoints[k]
+            for tk in range(0, Tkk - mask_window_tk):
+                targ_traj_masks[it][tk] = 0
 
         ctrl_reg_weights = [None]
         return make_return_dict(
@@ -1232,6 +1245,7 @@ def arm_target_traj(
     it_lr2=31,
     keep_top=1,
     incr_every=10,
+    mask_window_tk=5,
     amnt_to_incr=5,
     grad_update_every=1,
     phase_2_it=None,
@@ -1287,6 +1301,13 @@ def arm_target_traj(
     if render_every is None:
         render_every = max_its
 
+    def shift_endpoints(inp_dict):
+        keys = [0] + list(inp_dict.keys())
+        ret_dict = {}
+        for k in range(len(keys) - 1):
+            ret_dict[keys[k]] = inp_dict[keys[k + 1]]
+        return ret_dict
+
     model = env.model
     data = env.data
     nu = model.nu
@@ -1297,6 +1318,7 @@ def arm_target_traj(
         Tk,
         amnt_to_incr,
         incr_every,
+        mask_window_tk,
         seed,
         mask_decay_factor,
         grab_phase_it,
@@ -1306,12 +1328,6 @@ def arm_target_traj(
     # traj_and_masks["q_pos_masks"] = [
     #     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
     # ]
-    def shift_endpoints(inp_dict):
-        keys = [0] + list(inp_dict.keys())
-        ret_dict = {}
-        for k in range(len(keys) - 1):
-            ret_dict[keys[k]] = inp_dict[keys[k + 1]]
-        return ret_dict
 
     traj_targs = traj_and_masks["traj_targs"]
     traj_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["traj_masks"]))
@@ -1539,6 +1555,8 @@ def arm_target_traj(
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
         util.reset_state(model, data, data0)
         with open(f"output/data_{k0}.pkl", "wb") as f:
+            pkl.dump(ret_dict, f)
+        with open("output/data_latest.pkl", "wb") as f:
             pkl.dump(ret_dict, f)
         # for k, site_name in enumerate(site_names):
         #     site_xpos = ret_dict[site_name + "_xpos"]
