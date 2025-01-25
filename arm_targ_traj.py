@@ -692,10 +692,10 @@ def make_traj_sets(
     targ_traj_masks = {
         incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
     }
+    # TODO: fix case where grab_phase_it is less than ...
     targ_vel_masks = {
         incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
     }
-    breakpoint()
 
     def get_q_pos_and_vel_data(joint_targs_file):
         q_pos_data = get_data_from_qtarg_file(joint_targs_file, dt)
