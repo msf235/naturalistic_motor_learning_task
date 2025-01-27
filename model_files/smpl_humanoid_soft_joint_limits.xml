@@ -249,9 +249,9 @@
     <motor name="R_Hand_x" joint="R_Hand_x" gear="1"/>
     <motor name="R_Hand_y" joint="R_Hand_y" gear="1"/>
     <motor name="R_Hand_z" joint="R_Hand_z" gear="1"/>
-    <adhesion name="R_Hand_adh" body="R_Hand" gain="300"
+    <adhesion name="R_Hand_adh" body="R_Hand" gain="100"
       ctrlrange="0 1"/>
-    <adhesion name="L_Hand_adh" body="L_Hand" gain="300"
+    <adhesion name="L_Hand_adh" body="L_Hand" gain="100"
       ctrlrange="0 1"/>
   </actuator>
   <contact>

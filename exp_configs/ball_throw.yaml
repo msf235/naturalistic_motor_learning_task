@@ -6,10 +6,10 @@ params:
   Tf: 1.2
   t_after: 1.2
   # max_its: 500
-  max_its: 10000
+  max_its: 8000
   optimizer: 'adam'
   lr: .2
-  lr2: .1
+  lr_2: .2
   # it_lr2: 350
   # optimizer: 'rmsprop'
   # lr: 0.02
@@ -17,12 +17,17 @@ params:
   # optimizer: 'sgd'
   # lr: 2e5
   # lr2: 1
-  it_lr2: 10000
+  it_lr_2: 1600
+  # it_lr_2: 6000
   grad_update_every: 10
   reset_noise_scale: 0
   t_incr: .1
-  incr_every: 750
-  grab_phase_it: 3000
+  t_incr_2: .1
+  incr_every: 300
+  # incr_every: 750
+  incr_every_2: 750
+  grab_phase_it: 1200
+  # grab_phase_it: 3000
   grab_phase_t: .4
   grad_window_t: .05
   mask_window_t: .25
