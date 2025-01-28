@@ -23,10 +23,12 @@ params:
   reset_noise_scale: 0
   t_incr: .1
   t_incr_2: .1
-  incr_every: 300
+  incr_every: 200
+  # incr_every: 300
   # incr_every: 750
   incr_every_2: 750
-  grab_phase_it: 1200
+  grab_phase_it: 800
+  # grab_phase_it: 1200
   # grab_phase_it: 3000
   grab_phase_t: .4
   grad_window_t: .05
