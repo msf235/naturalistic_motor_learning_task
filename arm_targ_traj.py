@@ -1380,7 +1380,6 @@ def arm_target_traj(
     q_vel_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["q_vel_masks"]))
     for key in q_vel_masks:
         q_vel_masks[key] = joint_penalty_factor * q_vel_masks[key]
-    breakpoint()
 
     incr_its = sorted(list(traj_masks.keys()))
 

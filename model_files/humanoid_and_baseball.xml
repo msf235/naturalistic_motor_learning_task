@@ -28,6 +28,9 @@
   </default>
   <include file="smpl_humanoid_soft_joint_limits.xml"/>
   <include file="baseball_pitch_scene.xml"/>
+  <contact>
+    <pair geom1="R_Hand1" geom2="ball" friction="2 2 .01 .0002 .0002" solimp="0.9 0.99 0.003" solref="0.015 1" margin=".007" gap=".007"/>
+  </contact>
   <visual>
     <map force="0.1" zfar="30"/>
     <rgba haze="0.15 0.25 0.35 1"/>
