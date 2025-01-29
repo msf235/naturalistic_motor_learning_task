@@ -609,8 +609,9 @@ def make_traj_sets(
     env,
     exp_name,
     Tk,
-    amnt_to_incr,
-    incr_every,
+    tk_incrs,
+    incr_everys,
+    phase_2_it,
     mask_window_tk,
     seed=2,
     mask_decay_factor=0.9,
@@ -625,7 +626,7 @@ def make_traj_sets(
         Tk: Final time index.
         amnt_to_incr: The amount of timesteps that the mask increments every
         time it increments.
-        incr_every: The number of iterations between mask incrments.
+        incr_everys: The number of iterations between mask incrments.
         seed: rng seed.
         grab_phase_it: Iteration at which the grab phase ends.
         grab_phase_tk: Time index at which the grab ends.
@@ -652,6 +653,10 @@ def make_traj_sets(
     # arc_std = 0.0001 / model.opt.timestep
     arc_std = 0.02
 
+    incr_every = incr_everys[0]
+    tk_incr = tk_incrs[0]
+    phase_2 = phase_2_it is not None
+
     # smoothing_time = 0.1
     smoothing_time = 0.2
     joints = opt_utils.get_joints(model)
@@ -660,32 +665,69 @@ def make_traj_sets(
     syssize = model.nq + model.nv
     dt = model.opt.timestep
     # incr_time_right_endpoints = list(range(amnt_to_incr, Tk + 1, amnt_to_incr))
-    incr_time_right_endpoints_before = list(
-        range(amnt_to_incr, grab_phase_tk, amnt_to_incr)
-    )
-    incr_time_right_endpoints_after = list(range(grab_phase_tk, Tk + 1, amnt_to_incr))
-    if incr_time_right_endpoints_after[-1] != Tk:
-        incr_time_right_endpoints_after.append(Tk)
-    max_incr_its_before = len(incr_time_right_endpoints_before)
-    max_incr_its_after = len(incr_time_right_endpoints_after)
-    incr_time_right_endpoints = (
-        incr_time_right_endpoints_before + incr_time_right_endpoints_after
-    )
-    # incr_it_left_endpoints = list(range(0, max_incr_its * incr_every, incr_every))
-    # incr_it_right_endpoints = list(
-    #     range(incr_every, max_incr_its * incr_every + 1, incr_every)
-    # )
-    incr_it_right_endpoints_before = list(
-        range(incr_every, max_incr_its_before * incr_every + 1, incr_every)
-    )
-    incr_it_right_endpoints_after = list(
-        range(
-            grab_phase_it, max_incr_its_after * incr_every + grab_phase_it, incr_every
+    incr_time_right_endpoints_before = list(range(tk_incr, grab_phase_tk, tk_incr))
+    if phase_2:
+        m = int((phase_2_it - grab_phase_it) / incr_every)
+        tk_phase_2 = grab_phase_tk + m * tk_incr
+        incr_time_right_endpoints_after = list(
+            range(grab_phase_tk, tk_phase_2, tk_incr)
         )
-    )
-    incr_it_right_endpoints = (
-        incr_it_right_endpoints_before + incr_it_right_endpoints_after
-    )
+        incr_time_right_endpoints_phase_2 = list(range(tk_phase_2, Tk + 1, tk_incrs[1]))
+        if incr_time_right_endpoints_phase_2[-1] != Tk:
+            incr_time_right_endpoints_phase_2.append(Tk)
+        max_incr_its_before = len(incr_time_right_endpoints_before)
+        max_incr_its_after = len(incr_time_right_endpoints_after)
+        max_incr_its_phase_2 = len(incr_time_right_endpoints_phase_2)
+        incr_time_right_endpoints = (
+            incr_time_right_endpoints_before
+            + incr_time_right_endpoints_after
+            + incr_time_right_endpoints_phase_2
+        )
+        incr_it_right_endpoints_before = list(
+            range(incr_every, max_incr_its_before * incr_every + 1, incr_every)
+        )
+        incr_it_right_endpoints_after = list(
+            range(
+                grab_phase_it,
+                max_incr_its_after * incr_every + grab_phase_it,
+                incr_every,
+            )
+        )
+        incr_it_right_endpoints_phase_2 = list(
+            range(
+                phase_2_it,
+                max_incr_its_phase_2 * incr_everys[1] + phase_2_it,
+                incr_everys[1],
+            )
+        )
+        incr_it_right_endpoints = (
+            incr_it_right_endpoints_before
+            + incr_it_right_endpoints_after
+            + incr_it_right_endpoints_phase_2
+        )
+    else:
+        incr_time_right_endpoints_after = list(range(grab_phase_tk, Tk + 1, tk_incr))
+        if incr_time_right_endpoints_after[-1] != Tk:
+            incr_time_right_endpoints_after.append(Tk)
+
+        max_incr_its_before = len(incr_time_right_endpoints_before)
+        max_incr_its_after = len(incr_time_right_endpoints_after)
+        incr_time_right_endpoints = (
+            incr_time_right_endpoints_before + incr_time_right_endpoints_after
+        )
+        incr_it_right_endpoints_before = list(
+            range(incr_every, max_incr_its_before * incr_every + 1, incr_every)
+        )
+        incr_it_right_endpoints_after = list(
+            range(
+                grab_phase_it,
+                max_incr_its_after * incr_every + grab_phase_it,
+                incr_every,
+            )
+        )
+        incr_it_right_endpoints = (
+            incr_it_right_endpoints_before + incr_it_right_endpoints_after
+        )
     targ_traj_mask_lists = masks.make_basic_xpos_masks(
         incr_time_right_endpoints, mask_decay_factor
     )
@@ -1240,15 +1282,13 @@ def arm_target_traj(
     ctrl_std,
     Tk,
     max_its=30,
-    lr=10,
-    lr2=10,
-    it_lr2=31,
-    keep_top=1,
-    incr_every=10,
-    mask_window_tk=5,
-    amnt_to_incr=5,
-    grad_update_every=1,
+    lrs=[10],
     phase_2_it=None,
+    keep_top=1,
+    incr_everys=[10],
+    mask_window_tk=5,
+    tk_incrs=[5],
+    grad_update_every=1,
     grab_phase_it=0,
     grab_phase_tk=0,
     plot_every=1,
@@ -1281,8 +1321,8 @@ def arm_target_traj(
         stabilize_act_idx: list of actuator indices
         target_trajs: list of target trajectories
         targ_traj_masks: dict of target trajectory masks
-        incr_every: number of iterations between mask increments
-        amnt_to_incr: number of timesteps to increment the mask by each
+        incr_everys: number of iterations between mask increments
+        tk_incr: number of timesteps to increment the mask by each
             time it is incremented
         ctrls: initial arm controls
         grad_trunc_tk: gradient truncation time
@@ -1316,8 +1356,9 @@ def arm_target_traj(
         env,
         config_name,
         Tk,
-        amnt_to_incr,
-        incr_every,
+        tk_incrs,
+        incr_everys,
+        phase_2_it,
         mask_window_tk,
         seed,
         mask_decay_factor,
@@ -1413,10 +1454,11 @@ def arm_target_traj(
     loss_qvels = np.zeros((2, max_its, Tk))
     loss_ctrls = np.zeros((2, len(site_names), max_its, Tk - 1))
     # ctrl_reg_weight = 0
+    lr = lrs[0]
 
     for k0 in range(max_its):
-        if k0 >= it_lr2:
-            lr = lr2
+        if k0 >= phase_2_it:
+            lr = lrs[1]
         if k0 in incr_its:
             for k in range(n_sites):
                 optms[k] = get_opt(lr)

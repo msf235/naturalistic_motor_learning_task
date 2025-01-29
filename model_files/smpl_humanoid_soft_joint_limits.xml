@@ -11,7 +11,7 @@
       <joint stiffness="2" damping="2" margin="1" range="-120.0000 120.0000" solimplimit="0 0.95 1 0.5 1.5"/>
     </default>
     <default class="hand">
-      <geom type="box" density="400.552564" quat="1.0000 0.0000 0.0000 0.0000" margin=".025"/>
+      <geom type="box" density="400.552564" quat="1.0000 0.0000 0.0000 0.0000"/>
     </default>
   </default>
   <asset>
@@ -249,9 +249,9 @@
     <motor name="R_Hand_x" joint="R_Hand_x" gear="1"/>
     <motor name="R_Hand_y" joint="R_Hand_y" gear="1"/>
     <motor name="R_Hand_z" joint="R_Hand_z" gear="1"/>
-    <adhesion name="R_Hand_adh" body="R_Hand" gain="300"
+    <adhesion name="R_Hand_adh" body="R_Hand" gain="800"
       ctrlrange="0 1"/>
-    <adhesion name="L_Hand_adh" body="L_Hand" gain="300"
+    <adhesion name="L_Hand_adh" body="L_Hand" gain="800"
       ctrlrange="0 1"/>
   </actuator>
   <contact>

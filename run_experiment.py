@@ -35,6 +35,19 @@ out_f.parent.mkdir(parents=True, exist_ok=True)
 
 Tf = params["Tf"]
 
+# I'm assuming that if there is a second phase, lr_2 is always defined
+if "lr_2" in params.keys():
+    lrs = [params["lr"], params["lr_2"]]
+    it_lr_2 = params["it_lr_2"]
+    t_incr = [params["t_incr"], params["t_incr_2"]]
+    incr_everys = [params["incr_every"], params["incr_every_2"]]
+else:
+    lrs = [params["lr"]]
+    it_lr_2 = None
+    t_incr = [params["t_incr"]]
+    incr_everys = [params["incr_every"]]
+
+
 if args.render:
     render_mode = "human"
 else:
@@ -98,9 +111,7 @@ stabilize_act_idx = out_idx["stabilize_act_idx"]
 out_time = arm_t.get_times(env, params["name"], Tf)
 
 
-t_incr = params["t_incr"]
-amnt_to_incr = int(t_incr / dt)
-incr_every: int = params["incr_every"]
+tk_incrs = [int(t / dt) for t in t_incr]
 mask_window_tk: int = int(params["mask_window_t"] / dt)
 # incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
 # incr_tk_left_intervals = np.arange(0, Tk, amnt_to_incr)
@@ -160,17 +171,15 @@ if args.rerun or not out_f.exists():
         ctrl_std=CTRL_STD,
         Tk=Tk,
         max_its=params["max_its"],
-        lr=params["lr"],
-        lr2=params["lr2"],
-        it_lr2=params["it_lr2"],
+        lrs=lrs,
         keep_top=10,
-        incr_every=incr_every,
+        incr_everys=incr_everys,
         mask_window_tk=mask_window_tk,
         grab_phase_it=params["grab_phase_it"],
         grab_phase_tk=grab_phase_tk,
-        amnt_to_incr=amnt_to_incr,
+        tk_incrs=tk_incrs,
         grad_update_every=params["grad_update_every"],
-        phase_2_it=params["max_its"] + 1,
+        phase_2_it=it_lr_2,
         plot_every=args.plot_every,
         render_every=args.render_every,
         optimizer=params["optimizer"],
