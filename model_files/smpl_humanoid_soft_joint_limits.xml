@@ -4,6 +4,9 @@
     <joint damping="10" armature="0.01" stiffness="0.0" margin=".3" limited="true" range="-120.0000 120.0000" solimplimit="0 0.95 1 0.5 1.5"/>
     <!-- <geom conaffinity="1" condim="3" contype="7" margin="0.01" rgba="0.8 0.6 .4 1" solimp=".9 .99 .003" solref=".015 1"/> -->
     <geom conaffinity="1" condim="3" contype="7" margin="0.01" rgba="0.8 0.6 .4 1" solimp=".2 0.95 .01 .5 1.5"/>
+    <default class="wrist">
+      <joint armature="0.01" stiffness="1" damping="10" />
+      </default>
     <default class="thorax">
       <joint stiffness="2" damping="2" margin="1" range="-120.0000 120.0000" solimplimit="0 0.95 1 0.5 1.5"/>
     </default>
@@ -154,9 +157,9 @@
                   <joint name="R_Elbow_z" type="hinge" pos="0 0 0" axis="0 0 1" user="150 1 1 150 10 2" armature="0.01" range="-720.0000 720.0000" stiffness="0"/>
                   <geom type="capsule" contype="1" conaffinity="1" density="1000" fromto="-0.0511 0.0016 -0.0011 -0.2042 0.0062 -0.0044" size="0.0408" name="R_Elbow"/>
                   <body name="R_Wrist" pos="-0.2553 0.0078 -0.0056">
-                    <joint name="R_Wrist_x" type="hinge" pos="0 0 0" axis="1 0 0" user="100 1 1 150 1 1" armature="0.01" stiffness="0"/>
-                    <joint name="R_Wrist_y" type="hinge" pos="0 0 0" axis="0 1 0" user="100 1 1 150 1 1" armature="0.01" stiffness="0"/>
-                    <joint name="R_Wrist_z" type="hinge" pos="0 0 0" axis="0 0 1" user="100 1 1 150 1 1" armature="0.01" stiffness="0"/>
+                    <joint class="wrist" name="R_Wrist_x" type="hinge" pos="0 0 0" axis="1 0 0" user="100 1 1 150 1 1"/>
+                    <joint class="wrist" name="R_Wrist_y" type="hinge" pos="0 0 0" axis="0 1 0" user="100 1 1 150 1 1"/>
+                    <joint class="wrist" name="R_Wrist_z" type="hinge" pos="0 0 0" axis="0 0 1" user="100 1 1 150 1 1"/>
                     <geom type="capsule" contype="1" conaffinity="1" density="1000" fromto="-0.0169 -0.0012 -0.0021 -0.0677 -0.0049 -0.0083" size="0.0326" name="R_Wrist"/>
                     <body name="R_Hand" pos="-0.0846 -0.0061 -0.0103">
                       <site name="R_Hand" pos="0 0 0"/>
