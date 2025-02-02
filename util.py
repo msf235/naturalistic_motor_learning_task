@@ -2,13 +2,57 @@ from collections import abc
 import copy
 from typing import Any
 import numpy as np
-import mujoco
 import basic_env
-from matplotlib import pyplot as plt
 import imageio
+import mujoco as mj
 
 
-def make_video_of_motion(model_file, qposs, output_file, speed_factor=1):
+class targetRender:
+    def __init__(self, env, target_data_list, sites) -> None:
+        self.counter = 0
+        self.target_data_list = target_data_list
+        self.env = env
+        self.sites = sites
+
+    def render(self):
+        for k, target_data in enumerate(self.target_data_list):
+            marker_pos = target_data[self.counter]
+            breakpoint()
+            self.env.mujoco_renderer.viewer.add_marker(
+                size=np.array([0.05, 0.05, 0.05]),
+                pos=marker_pos,
+                matid=0,
+                rgba=(1, 1, 0, 1),
+                type=mj.mjtGeom.mjGEOM_SPHERE,
+                label="targ",
+                emission=0,
+                specular=0.5,
+                shininess=0.5,
+                reflectance=0,
+            )
+            marker_pos = self.env.data.site(self.sites[k]).xpos
+            self.env.mujoco_renderer.viewer.add_marker(
+                size=np.array([0.05, 0.05, 0.05]),
+                pos=marker_pos,
+                matid=0,
+                rgba=(1, 1, 0, 1),
+                type=mj.mjtGeom.mjGEOM_SPHERE,
+                label="hand",
+                emission=0,
+                specular=0.5,
+                shininess=0.5,
+                reflectance=0,
+            )
+        self.counter += 1
+        return self.env.render()
+
+    def reset_counter(self):
+        self.counter = 0
+
+
+def make_video_of_motion(
+    model_file, qposs, output_file, traj_targs=None, site_names=None, speed_factor=1
+):
     """Make video of mujoco positions as stored in qpos."""
     DEFAULT_CAMERA_CONFIG = {
         "trackbodyid": 2,
@@ -18,7 +62,8 @@ def make_video_of_motion(model_file, qposs, output_file, speed_factor=1):
         "azimuth": 180,
     }
 
-    render_mode = "rgb_array"
+    # render_mode = "rgb_array"
+    render_mode = "human"
 
     env = basic_env.BasicEnv(
         render_mode=render_mode,
@@ -26,6 +71,13 @@ def make_video_of_motion(model_file, qposs, output_file, speed_factor=1):
         default_camera_config=DEFAULT_CAMERA_CONFIG,
         xml_file=model_file,
     )
+    env.reset()
+    if traj_targs is not None:
+        render_class = targetRender(env, traj_targs, site_names)
+        render_fn = render_class.render
+    else:
+        render_fn = env.render
+    breakpoint()
 
     # Example: Create a sequence of 100 frames (random colors)
     # frames = [
@@ -38,7 +90,7 @@ def make_video_of_motion(model_file, qposs, output_file, speed_factor=1):
     frames = []
     for qpos in qposs:
         env.set_state(qpos, np.zeros(env.model.nv))
-        rgb_mat = env.render()
+        rgb_mat = render_fn()
         frames.append(rgb_mat)
 
     with imageio.get_writer(output_file, fps=fps, format="FFMPEG") as writer:

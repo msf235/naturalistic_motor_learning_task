@@ -459,6 +459,7 @@ def get_idx_sets(env, config_name):
         ]
         site_grad_idxs = [arm_act_without_adh]
         stabilize_act_idx = not_arm_act
+        breakpoint()
         other_act_idx = arm_act_without_adh
     elif config_name in [
         "basic_movements_both",
@@ -1226,48 +1227,6 @@ def get_last_timepoint(mask):
     return nonzero[-1].item()
 
 
-class targetRender:
-    def __init__(self, env, target_data_list, sites) -> None:
-        self.counter = 0
-        self.target_data_list = target_data_list
-        self.env = env
-        self.sites = sites
-
-    def render(self):
-        for k, target_data in enumerate(self.target_data_list):
-            marker_pos = target_data[self.counter]
-            self.env.mujoco_renderer.viewer.add_marker(
-                size=np.array([0.05, 0.05, 0.05]),
-                pos=marker_pos,
-                matid=0,
-                rgba=(1, 1, 0, 1),
-                type=mj.mjtGeom.mjGEOM_SPHERE,
-                label="targ",
-                emission=0,
-                specular=0.5,
-                shininess=0.5,
-                reflectance=0,
-            )
-            marker_pos = self.env.data.site(self.sites[k]).xpos
-            self.env.mujoco_renderer.viewer.add_marker(
-                size=np.array([0.05, 0.05, 0.05]),
-                pos=marker_pos,
-                matid=0,
-                rgba=(1, 1, 0, 1),
-                type=mj.mjtGeom.mjGEOM_SPHERE,
-                label="hand",
-                emission=0,
-                specular=0.5,
-                shininess=0.5,
-                reflectance=0,
-            )
-        self.env.render()
-        self.counter += 1
-
-    def reset_counter(self):
-        self.counter = 0
-
-
 def arm_target_traj(
     config_name,
     env,
@@ -1383,7 +1342,7 @@ def arm_target_traj(
 
     incr_its = sorted(list(traj_masks.keys()))
 
-    render_class = targetRender(env, traj_targs, site_names)
+    render_class = butil.targetRender(env, traj_targs, site_names)
     render_fn = render_class.render
 
     not_stabilize_act_idx = [k for k in range(model.nu) if k not in stabilize_act_idx]
@@ -1595,6 +1554,9 @@ def arm_target_traj(
             render_class.reset_counter()
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
+        ret_dict["trajectory_target"] = traj_targs
+        ret_dict["trajectory_mask"] = traj_mask_curr
+        ret_dict["site_names"] = site_names
         util.reset_state(model, data, data0)
         with open(f"output/data_{k0}.pkl", "wb") as f:
             pkl.dump(ret_dict, f)
