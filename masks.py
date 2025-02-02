@@ -86,16 +86,33 @@ def make_basic_xpos_masks(
 
 
 def make_basic_qpos_masks(
-    target_data_exists_tks,
     q_opt_ids,
     interval_end_tks,
     nq,
 ):
     Tk = interval_end_tks[-1]
     masks = np.zeros((len(interval_end_tks), Tk, nq))
+    mask_list = generate_decaying_intervals(interval_end_tks, 1)
     for k, tek in enumerate(interval_end_tks):
-        for tk in target_data_exists_tks:
-            if tk <= tek:
-                for id in q_opt_ids:
-                    masks[k][tk][id] = 1
+        masks[k, :, q_opt_ids] = mask_list[k]
+        # for tk in target_data_exists_tks:
+        #     if tk <= tek:
+        #         for id in q_opt_ids:
+        #             masks[k][tk][id] = 1
     return masks
+
+
+# def make_basic_qpos_masks(
+#     target_data_exists_tks,
+#     q_opt_ids,
+#     interval_end_tks,
+#     nq,
+# ):
+#     Tk = interval_end_tks[-1]
+#     masks = np.zeros((len(interval_end_tks), Tk, nq))
+#     for k, tek in enumerate(interval_end_tks):
+#         for tk in target_data_exists_tks:
+#             if tk <= tek:
+#                 for id in q_opt_ids:
+#                     masks[k][tk][id] = 1
+#     return masks

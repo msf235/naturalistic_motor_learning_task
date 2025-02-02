@@ -15,9 +15,9 @@ class targetRender:
         self.sites = sites
 
     def render(self):
+        self.env.mujoco_renderer.viewer._markers = []
         for k, target_data in enumerate(self.target_data_list):
             marker_pos = target_data[self.counter]
-            breakpoint()
             self.env.mujoco_renderer.viewer.add_marker(
                 size=np.array([0.05, 0.05, 0.05]),
                 pos=marker_pos,
@@ -62,8 +62,8 @@ def make_video_of_motion(
         "azimuth": 180,
     }
 
-    # render_mode = "rgb_array"
-    render_mode = "human"
+    render_mode = "rgb_array"
+    # render_mode = "human"
 
     env = basic_env.BasicEnv(
         render_mode=render_mode,
@@ -72,12 +72,12 @@ def make_video_of_motion(
         xml_file=model_file,
     )
     env.reset()
+    env.render()
     if traj_targs is not None:
         render_class = targetRender(env, traj_targs, site_names)
         render_fn = render_class.render
     else:
         render_fn = env.render
-    breakpoint()
 
     # Example: Create a sequence of 100 frames (random colors)
     # frames = [

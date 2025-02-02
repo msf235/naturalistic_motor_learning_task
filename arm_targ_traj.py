@@ -459,7 +459,6 @@ def get_idx_sets(env, config_name):
         ]
         site_grad_idxs = [arm_act_without_adh]
         stabilize_act_idx = not_arm_act
-        breakpoint()
         other_act_idx = arm_act_without_adh
     elif config_name in [
         "basic_movements_both",
@@ -745,21 +744,28 @@ def make_traj_sets(
         q_pos_targs = q_pos_data["targ_val"]
         q_pos_time_tks = q_pos_data["tk"]
         joint_names = q_pos_data["joint_names"]
-        q_pos_qpos_adrs = [model.joint(n).qposadr.item() for n in joint_names]
+        # qpos_adrs = [model.joint(n).qposadr.item() for n in joint_names]
+        qpos_adrs = [70, 71, 72]
         q_pos_targs_expanded = np.zeros((Tk, model.nq))
-        for tk, targ in zip(q_pos_time_tks, q_pos_targs):
-            q_pos_targs_expanded[tk][q_pos_qpos_adrs] = targ
+        # q_pos_targs_expanded = np.zeros((Tk, model.nq))
+        # for tk, targ in zip(q_pos_time_tks, q_pos_targs):
+        #     q_pos_targs_expanded[tk][qpos_adrs] = targ
         q_pos_mask_list = masks.make_basic_qpos_masks(
-            q_pos_time_tks,
-            q_pos_qpos_adrs,
+            qpos_adrs,
             incr_time_right_endpoints,
             model.nq,
         )
+        # q_pos_mask_list = masks.make_basic_qpos_masks(
+        #     q_pos_time_tks,
+        #     q_pos_qpos_adrs,
+        #     incr_time_right_endpoints,
+        #     model.nq,
+        # )
         q_pos_mask_dict = {
             it: mask for it, mask in zip(incr_it_right_endpoints, q_pos_mask_list)
         }
         q_vel_mask_list = masks.make_basic_qpos_masks(
-            list(range(0, Tk)),
+            # list(range(0, Tk)),
             list(range(0, model.nv)),
             incr_time_right_endpoints,
             model.nv,
@@ -779,7 +785,7 @@ def make_traj_sets(
             q_vel_targs_expanded,
             q_pos_mask_dict,
             q_vel_mask_dict,
-            q_pos_qpos_adrs,
+            qpos_adrs,
             joint_names,
         )
 
