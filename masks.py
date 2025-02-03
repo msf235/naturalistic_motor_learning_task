@@ -3,7 +3,9 @@ import numpy as np
 
 
 def generate_decaying_intervals(
-    interval_end_times: List[int] | np.ndarray, decay_factor: float = 0.5
+    interval_end_times: List[int] | np.ndarray,
+    decay_factor: float = 0.5,
+    round_digits: int = 6,
 ) -> List[List[float]]:
     """
     Generate a matrix where each row introduces a new interval set to 1.0 from
@@ -56,7 +58,7 @@ def generate_decaying_intervals(
             prev_end = interval_end_times[j]
             interval_value = decay_factor ** (i - j)
             for idx in range(prev_start, prev_end):
-                result[i][idx] = interval_value
+                result[i][idx] = round(interval_value, round_digits)
 
         # The current interval for row i is always set to 1.0
         for idx in range(current_start, current_end):
@@ -85,34 +87,34 @@ def make_basic_xpos_masks(
     return mask_list
 
 
-def make_basic_qpos_masks(
-    q_opt_ids,
-    interval_end_tks,
-    nq,
-):
-    Tk = interval_end_tks[-1]
-    masks = np.zeros((len(interval_end_tks), Tk, nq))
-    mask_list = generate_decaying_intervals(interval_end_tks, 1)
-    for k, tek in enumerate(interval_end_tks):
-        masks[k, :, q_opt_ids] = mask_list[k]
-        # for tk in target_data_exists_tks:
-        #     if tk <= tek:
-        #         for id in q_opt_ids:
-        #             masks[k][tk][id] = 1
-    return masks
-
-
 # def make_basic_qpos_masks(
-#     target_data_exists_tks,
 #     q_opt_ids,
 #     interval_end_tks,
 #     nq,
 # ):
 #     Tk = interval_end_tks[-1]
 #     masks = np.zeros((len(interval_end_tks), Tk, nq))
+#     mask_list = generate_decaying_intervals(interval_end_tks, 1)
 #     for k, tek in enumerate(interval_end_tks):
-#         for tk in target_data_exists_tks:
-#             if tk <= tek:
-#                 for id in q_opt_ids:
-#                     masks[k][tk][id] = 1
+#         masks[k, :, q_opt_ids] = mask_list[k]
+#         # for tk in target_data_exists_tks:
+#         #     if tk <= tek:
+#         #         for id in q_opt_ids:
+#         #             masks[k][tk][id] = 1
 #     return masks
+
+
+def make_basic_qpos_masks(
+    target_data_exists_tks,
+    q_opt_ids,
+    interval_end_tks,
+    nq,
+):
+    Tk = interval_end_tks[-1]
+    masks = np.zeros((len(interval_end_tks), Tk, nq))
+    for k, tek in enumerate(interval_end_tks):
+        for tk in target_data_exists_tks:
+            if tk <= tek:
+                for id in q_opt_ids:
+                    masks[k][tk][id] = 1
+    return masks

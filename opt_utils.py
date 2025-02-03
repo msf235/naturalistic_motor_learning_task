@@ -765,7 +765,10 @@ def traj_deriv_new(
             mj.mj_jacSite(model, data, C, None, site=data.site(f"{deriv_site}").id)  # type: ignore
 
             # Derivative of the loss with respect to the site position
-            dlds = (site_xpos - traj_targ[tk]) * traj_mask[tk]
+            if callable(traj_targ):
+                dlds = traj_targ(model, data, tk) * traj_mask[tk]
+            else:
+                dlds = (site_xpos - traj_targ[tk]) * traj_mask[tk]
             hxs[tk] = site_xpos
             dldq = C.T @ dlds
             dldqs[tk, :nv] = dldq

@@ -49,5 +49,5 @@ params:
   ctrl_cost: 1
   # ctrl_reg_weight: 1e-6
   ctrl_reg_weight: 0
-  q_pos_weight: 10
+  q_pos_weight: 1e-6
   mask_decay_factor: .9

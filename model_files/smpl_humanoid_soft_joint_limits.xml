@@ -162,7 +162,8 @@
                     <joint class="wrist" name="R_Wrist_z" type="hinge" pos="0 0 0" axis="0 0 1" user="100 1 1 150 1 1"/>
                     <geom type="capsule" contype="1" conaffinity="1" density="1000" fromto="-0.0169 -0.0012 -0.0021 -0.0677 -0.0049 -0.0083" size="0.0326" name="R_Wrist"/>
                     <body name="R_Hand" pos="-0.0846 -0.0061 -0.0103">
-                      <site name="R_Hand" pos="0 0 0"/>
+                      <site name="R_Hand" pos="-.05 0 0"/>
+                      <site name="R_Hand_below" pos="-.05 -1 0" size=".05" rgba="1 1 0 0"/>
                       <joint name="R_Hand_x" type="hinge" pos="0 0 0" axis="1 0 0" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <joint name="R_Hand_y" type="hinge" pos="0 0 0" axis="0 1 0" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <joint name="R_Hand_z" type="hinge" pos="0 0 0" axis="0 0 1" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>

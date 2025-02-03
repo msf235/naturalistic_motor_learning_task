@@ -74,7 +74,7 @@ def make_video_of_motion(
     env.reset()
     env.render()
     if traj_targs is not None:
-        render_class = targetRender(env, traj_targs, site_names)
+        render_class = targetRender(env, [traj_targs], site_names)
         render_fn = render_class.render
     else:
         render_fn = env.render

@@ -9,5 +9,5 @@ with open(args[0], "rb") as f:
 
 qposs = data["qpos"]
 targ = data["trajectory_target"]
-site_names = data["site_names"]
+site_names = data["site_names"][:1]
 util.make_video_of_motion(args[1], qposs, args[2], targ, site_names, float(args[3]))

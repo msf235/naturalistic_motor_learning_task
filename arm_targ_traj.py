@@ -440,15 +440,19 @@ def get_idx_sets(env, config_name):
     if config_name in [
         "basic_movements_right",
         "basic_movements_left",
+        "ball_grab",
         "ball_throw",
-        "grab_ball",
     ]:  # One-handed actions
         if config_name == "basic_movements_left":
             sites = [LHAND_S]
             arm_str = "left_arm"
-        else:
+        elif config_name == "basic_movements_right":
             sites = [RHAND_S]
             arm_str = "right_arm"
+        else:
+            sites = [RHAND_S, "R_Hand_below"]
+            arm_str = "right_arm"
+
         not_arm_not_root = [id for id in ids["not_root"] if id not in ids[arm_str]]
         stabilize_jnt_idx = not_arm_not_root
         arm_act = acts[arm_str]
@@ -457,9 +461,8 @@ def get_idx_sets(env, config_name):
         not_arm_act = [
             k for k in acts["all"] if k not in arm_act and k not in acts["adh"]
         ]
-        site_grad_idxs = [arm_act_without_adh]
+        site_grad_idxs = [arm_act_without_adh] * len(sites)
         stabilize_act_idx = not_arm_act
-        other_act_idx = arm_act_without_adh
     elif config_name in [
         "basic_movements_both",
         "tennis_serve",
@@ -739,33 +742,36 @@ def make_traj_sets(
         incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
     }
 
+    ## Define helper functions
+
     def get_q_pos_and_vel_data(joint_targs_file):
         q_pos_data = get_data_from_qtarg_file(joint_targs_file, dt)
         q_pos_targs = q_pos_data["targ_val"]
         q_pos_time_tks = q_pos_data["tk"]
         joint_names = q_pos_data["joint_names"]
-        # qpos_adrs = [model.joint(n).qposadr.item() for n in joint_names]
-        qpos_adrs = [70, 71, 72]
+        qpos_adrs = [model.joint(n).qposadr.item() for n in joint_names]
+        # qpos_adrs = [70, 71, 72]
         q_pos_targs_expanded = np.zeros((Tk, model.nq))
         # q_pos_targs_expanded = np.zeros((Tk, model.nq))
         # for tk, targ in zip(q_pos_time_tks, q_pos_targs):
         #     q_pos_targs_expanded[tk][qpos_adrs] = targ
+        # q_pos_mask_list = masks.make_basic_qpos_masks(
+        #     qpos_adrs,
+        #     incr_time_right_endpoints,
+        #     model.nq,
+        # )
         q_pos_mask_list = masks.make_basic_qpos_masks(
+            q_pos_time_tks,
             qpos_adrs,
             incr_time_right_endpoints,
             model.nq,
         )
-        # q_pos_mask_list = masks.make_basic_qpos_masks(
-        #     q_pos_time_tks,
-        #     q_pos_qpos_adrs,
-        #     incr_time_right_endpoints,
-        #     model.nq,
-        # )
         q_pos_mask_dict = {
             it: mask for it, mask in zip(incr_it_right_endpoints, q_pos_mask_list)
         }
         q_vel_mask_list = masks.make_basic_qpos_masks(
             # list(range(0, Tk)),
+            q_pos_time_tks,
             list(range(0, model.nv)),
             incr_time_right_endpoints,
             model.nv,
@@ -813,6 +819,7 @@ def make_traj_sets(
             ctrl_reg_weights=ctrl_reg_weights,
         )
 
+    ## Different cases
     if exp_name == "basic_movements_right":
         joint_targs_file = "exp_configs/basic_movements_right_joint_targs.csv"
         (
@@ -827,12 +834,13 @@ def make_traj_sets(
         rs, thetas, _ = basic_movements.random_arcs_right_arm(
             model, data, Tk, data.site(RHAND_S).xpos, smoothing_time, arc_std, seed
         )
+
         traj1_xs = np.zeros((Tk, 3))
         traj1_xs[:, 1] = rs * np.cos(thetas)
         traj1_xs[:, 2] = rs * np.sin(thetas)
         traj1_xs += data.site(RSHOULD_S).xpos
         targ_trajs = [traj1_xs]
-        ctrl_reg_weights = [None]
+        ctrl_reg_weights = [None, None]
         return make_return_dict(
             targ_trajs,
             targ_traj_masks,
@@ -921,8 +929,13 @@ def make_traj_sets(
         out = throw_traj(model, data, Tk)
         traj, vel, time_dict = out
 
-        targ_vels = [vel]
-        targ_trajs = [traj]
+        def traj_diff_der_fn(model, data, tk):  # TODO: integrate this more cleanly
+            val = data.site("R_Hand_below").xpos
+            targ = data.site("R_Hand").xpos - np.array([0, 0, 1])
+            return 1 * (val - targ)
+
+        targ_vels = [vel, vel]
+        targ_trajs = [traj, traj_diff_der_fn]
 
         # q_targs = [np.zeros((Tk, syssize))]
         # q_targ_mask = np.zeros((Tk, syssize2))
@@ -1353,7 +1366,7 @@ def arm_target_traj(
 
     not_stabilize_act_idx = [k for k in range(model.nu) if k not in stabilize_act_idx]
 
-    n_sites = len(site_names)
+    n_sites = len(site_names) - 1  # TODO: fix this
 
     data0 = copy.deepcopy(data)
 
@@ -1404,7 +1417,7 @@ def arm_target_traj(
         if optimizer == "sgd":
             return opts.SGD(lr=lr, momentum=0.2)
 
-    optms = [None] * n_sites
+    optms = [None] * (n_sites + 1)
     lowest_losses = LimLowestDict(keep_top)
     lowest_losses_curr_mask = LimLowestDict(keep_top)
 
@@ -1425,7 +1438,7 @@ def arm_target_traj(
         if k0 >= phase_2_it:
             lr = lrs[1]
         if k0 in incr_its:
-            for k in range(n_sites):
+            for k in range(n_sites + 1):  # TODO fix all these n_sites + 1
                 optms[k] = get_opt(lr)
         progbar.update(" it: " + str(k0))
 
@@ -1458,15 +1471,19 @@ def arm_target_traj(
             adh_ids,
         )
         util.reset_state(model, data, data0)
-        grads = [0] * n_sites
+        grads = [0] * (n_sites + 1)
         update_phase = k0 % grad_update_every
-        for k in range(n_sites):
-            tic = time.time()
+        for k in range(n_sites + 1):
+            if callable(traj_targs[k]):
+                traj_targs_arg = traj_targs[k]
+            else:
+                traj_targs_arg = traj_targs[k][: Tk_trunc + 1]
+            # tic = time.time()
             grads[k] = opt_utils.traj_deriv_new(
                 model,
                 data,
                 ctrls_trunc + noisev_trunc,
-                traj_targs[k][: Tk_trunc + 1],
+                traj_targs_arg,
                 traj_mask_curr,
                 vel_targs[k][: Tk_trunc + 1],
                 vel_mask_curr,
@@ -1488,16 +1505,21 @@ def arm_target_traj(
             )
             # grads[k] = grads[k] / np.linalg.norm(grads[k])
             util.reset_state(model, data, data0)
-            toc = time.time()
-            print(f"grad time: {toc - tic}")
+            # toc = time.time()
+            # print(f"grad time: {toc - tic}")
         losses = [0] * n_sites
-        for k in range(n_sites):
+        for k in range(n_sites + 1):
             ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
-                ctrls_trunc[:, site_grad_idxs[k]], grads[k], "ctrls", losses[k]
+                ctrls_trunc[:, site_grad_idxs[k]],
+                grads[k],
+                "ctrls",
+                losses[0],  # TODO: fix losses here
             )
         ret_dict = forward_and_collect_data(env, ctrls_trunc, ret_fn)
         util.reset_state(model, data, data0)
         for k, site_name in enumerate(site_names):
+            if callable(traj_targs[k]):
+                break
             site_xpos = ret_dict[site_name + "_xpos"]
             site_ctrl0 = ret_dict[site_name + "_ctrl0"]
             site_deriv = np.diff(site_xpos, axis=0, prepend=site_xpos[:1]) / dt
@@ -1524,7 +1546,7 @@ def arm_target_traj(
         loss_qvels[0, k0, : Tk_trunc + 1] = 0.5 * (
             (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
         ).mean(axis=1)
-        hxs = [ret_dict[site + "_xpos"] for site in site_names]
+        hxs = [ret_dict[site + "_xpos"] for site in site_names[:1]]  # TODO: fix this
 
         try:
             ctrls_trunc, _, qpos, _ = opt_utils.get_stabilized_ctrls(
@@ -1560,7 +1582,7 @@ def arm_target_traj(
             render_class.reset_counter()
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
-        ret_dict["trajectory_target"] = traj_targs
+        ret_dict["trajectory_target"] = traj_targs[0]  # TODO: fix this
         ret_dict["trajectory_mask"] = traj_mask_curr
         ret_dict["site_names"] = site_names
         util.reset_state(model, data, data0)
@@ -1599,9 +1621,11 @@ def arm_target_traj(
         qpos = ret_dict["qpos"]
         q_targs_masked = []
         qs_list = []
-        hxs = [ret_dict[site + "_xpos"] for site in site_names]
+        hxs = [ret_dict[site + "_xpos"] for site in site_names[:1]]
         losses_curr_mask = [0] * n_sites
         for k in range(n_sites):
+            if callable(traj_targs[k]):
+                break
             hx = hxs[k]
             diffsq1 = (hx - traj_targs[k][: tk + 1]) ** 2
             qpos_mask = q_pos_mask_curr[: tk + 1]
@@ -1628,6 +1652,7 @@ def arm_target_traj(
         toc = time.time()
         # print(loss, toc-tic)
 
+        traj_targs_plot = traj_targs[:1]  # TODO: fix this
         if k0 % plot_every == 0:
             # qs_wr = qs[:, joints['all']['wrist_left']]
             # print()
@@ -1641,7 +1666,7 @@ def arm_target_traj(
                 axs,
                 hxs,
                 tt[: tk + 1],
-                [x[: tk + 1] for x in traj_targs],
+                [x[: tk + 1] for x in traj_targs_plot],
                 [traj_mask_curr[: tk + 1]],
                 # qs_wr,
                 # q_targs_wr,
@@ -1669,7 +1694,7 @@ def arm_target_traj(
                     axs,
                     hxs,
                     tt[: tk + 1],
-                    [x[: tk + 1] for x in traj_targs],
+                    [x[: tk + 1] for x in traj_targs_plot],
                     [traj_mask_curr[: tk + 1]],
                     # qs_wr,
                     # q_targs_wr,
