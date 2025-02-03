@@ -26,6 +26,9 @@
   </visual>
 
   <statistic center="0 0 0.7"/>
+  <default>
+    <geom solimp="0.1 0.99 0.001" solref="0.01 1"/>
+  </default>
 
   <asset>
     <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0"
@@ -72,7 +75,7 @@
     <!--</body>-->
 
     <geom name="ballstand" size=".1 .1 .5" pos="0 -1.0 .5" type="box"
-      material="obj" condim="3"/>
+      material="obj" condim="3" rgba = "1 0 1 .5"/>
     <body name="ball" pos="0 -1.0 1.05">
       <freejoint name="ball_joint" align="true"/>
       <geom name="ball" size=".03 .03 .03" pos="0 0 0" type="box"
