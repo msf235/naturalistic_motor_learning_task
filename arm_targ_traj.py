@@ -932,7 +932,7 @@ def make_traj_sets(
         def traj_diff_der_fn(model, data, tk):  # TODO: integrate this more cleanly
             val = data.site("R_Hand_below").xpos
             targ = data.site("R_Hand").xpos - np.array([0, 0, 1])
-            return 1 * (val - targ)
+            return 0.1 * (val - targ)
 
         targ_vels = [vel, vel]
         targ_trajs = [traj, traj_diff_der_fn]
