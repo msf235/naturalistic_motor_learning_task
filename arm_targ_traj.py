@@ -446,8 +446,11 @@ def get_idx_sets(env, config_name):
         if config_name == "basic_movements_left":
             sites = [LHAND_S]
             arm_str = "left_arm"
-        else:
+        elif config_name == "basic_movements_right":
             sites = [RHAND_S]
+            arm_str = "right_arm"
+        else:
+            sites = [RHAND_S, "R_Hand_below"]
             arm_str = "right_arm"
         not_arm_not_root = [id for id in ids["not_root"] if id not in ids[arm_str]]
         stabilize_jnt_idx = not_arm_not_root
@@ -457,7 +460,7 @@ def get_idx_sets(env, config_name):
         not_arm_act = [
             k for k in acts["all"] if k not in arm_act and k not in acts["adh"]
         ]
-        site_grad_idxs = [arm_act_without_adh]
+        site_grad_idxs = [arm_act_without_adh] * len(sites)
         stabilize_act_idx = not_arm_act
         other_act_idx = arm_act_without_adh
     elif config_name in [
@@ -922,8 +925,10 @@ def make_traj_sets(
         out = throw_traj(model, data, Tk)
         traj, vel, time_dict = out
 
-        targ_vels = [vel]
-        targ_trajs = [traj]
+        traj_below = traj - np.array([0, 0, 1])
+
+        targ_vels = [vel, vel]
+        targ_trajs = [traj, traj_below]
 
         # q_targs = [np.zeros((Tk, syssize))]
         # q_targ_mask = np.zeros((Tk, syssize2))

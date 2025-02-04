@@ -30,7 +30,6 @@ class targetRender:
                 shininess=0.5,
                 reflectance=0,
             )
-            breakpoint()
             marker_pos = self.env.data.site(self.sites[k]).xpos
             self.env.mujoco_renderer.viewer.add_marker(
                 size=np.array([0.05, 0.05, 0.05]),
