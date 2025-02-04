@@ -30,6 +30,7 @@ class targetRender:
                 shininess=0.5,
                 reflectance=0,
             )
+            breakpoint()
             marker_pos = self.env.data.site(self.sites[k]).xpos
             self.env.mujoco_renderer.viewer.add_marker(
                 size=np.array([0.05, 0.05, 0.05]),
@@ -62,8 +63,8 @@ def make_video_of_motion(
         "azimuth": 180,
     }
 
-    # render_mode = "rgb_array"
-    render_mode = "human"
+    render_mode = "rgb_array"
+    # render_mode = "human"
 
     env = basic_env.BasicEnv(
         render_mode=render_mode,
@@ -74,7 +75,7 @@ def make_video_of_motion(
     env.reset()
     env.render()
     if traj_targs is not None:
-        render_class = targetRender(env, [traj_targs], site_names)
+        render_class = targetRender(env, traj_targs, site_names)
         render_fn = render_class.render
     else:
         render_fn = env.render
