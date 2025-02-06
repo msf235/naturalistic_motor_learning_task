@@ -24,12 +24,12 @@
   <!--   <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/> -->
   <!-- </default> -->
   <default>
-    <geom solimp="0.1 0.99 0.001" solref="0.01 1"/>
+    <geom solimp="0.1 0.99 0.001" solref="0.005 1"/>
   </default>
   <include file="smpl_humanoid_soft_joint_limits.xml"/>
   <include file="baseball_pitch_scene.xml"/>
   <contact>
-    <pair geom1="R_Hand1" geom2="ball" friction="2 2 .01 .0002 .0002" solimp="0.1 0.99 0.001" solref="0.01 1" margin=".01" gap=".01"/>
+    <pair geom1="R_Hand1" geom2="ball" friction="2 2 .01 .0002 .0002" solimp="0.1 0.99 0.001" solref="0.002 1" margin=".01" gap=".01"/>
   </contact>
   <visual>
     <map force="0.1" zfar="30"/>

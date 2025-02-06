@@ -62,8 +62,8 @@ def make_video_of_motion(
         "azimuth": 180,
     }
 
-    render_mode = "rgb_array"
-    # render_mode = "human"
+    # render_mode = "rgb_array"
+    render_mode = "human"
 
     env = basic_env.BasicEnv(
         render_mode=render_mode,
