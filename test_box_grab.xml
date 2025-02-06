@@ -24,15 +24,15 @@
       <joint type="slide" axis="1 1 1" pos=".1 0 0" stiffness="2000" damping="100" name="arm"/>
     </body>duction of DeepSeek-R1
     <body>
-      <geom name="stand" type="box" fromto="0 0 -.15 0 0 -.4" size=".04" density="800"/>
+      <geom name="stand" type="box" fromto="0 0 -.15 0 0 -.4" size=".07" density="800"/>
     </body>
     <body>
       <freejoint/>
-      <geom name="ball" type="box" pos="0 0 -.1" size=".05 .05 .05" density="600" rgba=".8 .3 0 1"/>
+      <geom name="ball" type="box" pos="0 0 -.1" size=".03 .03 .03" density="600" rgba=".8 .3 0 1"/>
     </body>
   </worldbody>
   <contact>
-    <pair geom1="arm" geom2="ball" friction="2 2 .01 .0002 .0002" solimp="0.1 0.99 0.001" solref="0.010 1" margin=".010" gap=".010"/>
+    <pair geom1="arm" geom2="ball" friction="2 2 .01 .0002 .0002" solimp="0.1 0.99 0.001" solref="0.005 1" margin=".010" gap=".010"/>
   </contact>
   <actuator>
     <position joint="arm" kv="100" kp="500"/>

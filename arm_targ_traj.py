@@ -8,6 +8,7 @@ import mujoco as mj
 import copy
 import sortedcontainers as sc
 import pickle as pkl
+from pathlib import Path
 
 # import seaborn as sns
 from matplotlib import pyplot as plt
@@ -77,7 +78,7 @@ def throw_grab_traj(model, data, Tk):
         data.site(RSHOULD_S).xpos, r, np.pi, np.pi / 2.2, Tk - Tk2, density_fn=""
     )
     grab_targ = data.site("ball").xpos + np.array([0, 0, 0])
-    s = sigmoid(np.linspace(0, 1, Tk1), 5)
+    s = sigmoid(np.linspace(0, 1, Tk1), 2)
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s * (grab_targ - handx)
     # grab_traj[-1] = grab_targ
@@ -113,8 +114,8 @@ def throw_traj(model, data, Tk):
     arc_traj_vs = arc_traj(
         data.site(RSHOULD_S).xpos, r, np.pi, np.pi / 2.2, Tk - Tk2, density_fn=""
     )
-    grab_targ = data.site("ball").xpos + np.array([0, 0, 0.05])
-    s = sigmoid(np.linspace(0, 1, Tk1), 5)
+    grab_targ = data.site("ball").xpos + np.array([0, 0, 0.02])
+    s = sigmoid(np.linspace(0, 1, Tk1), 2)
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s * (grab_targ - handx)
     # grab_traj[-1] = grab_targ
@@ -167,7 +168,7 @@ def tennis_grab_traj(model, data, Tk):
     grab_targ = data.site("racket_handle_top").xpos + np.array([0, 0, 0.03])
     # grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0])
     sx = np.linspace(0, 1, Tk_right_1)
-    s = sigmoid(sx, 5)
+    s = sigmoid(sx, 2)
     s = np.tile(s, (3, 1)).T
     s = np.concatenate((s, np.ones((Tk_right_2, 3))), axis=0)
     grab_traj = handxr + s * (grab_targ - handxr)
@@ -177,7 +178,7 @@ def tennis_grab_traj(model, data, Tk):
     )
 
     s = np.linspace(0, 1, Tk_right_3)
-    s = sigmoid(s, 5)
+    s = sigmoid(s, 2)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
 
@@ -196,7 +197,7 @@ def tennis_grab_traj(model, data, Tk):
     # Left arm
     # grab_targ = data.site('ball').xpos + np.array([0, 0, 0.04])
     grab_targ = data.site("ball_top").xpos + np.array([0, 0, 0.03])
-    s = sigmoid(np.linspace(0, 1, Tk_left_1), 5)
+    s = sigmoid(np.linspace(0, 1, Tk_left_1), 2)
     s = np.tile(s, (3, 1)).T
     s = np.concatenate((s, np.ones((Tk_left_2, 3))), axis=0)
     grab_traj = handxl + s * (grab_targ - handxl)
@@ -222,7 +223,7 @@ def tennis_grab_traj(model, data, Tk):
 
     setup_traj = np.zeros((Tk_left_3, 3))
     s = np.linspace(0, 1, Tk_left_3)
-    s = sigmoid(s, 5)
+    s = sigmoid(s, 2)
     # s = 2*sigmoid(.5*s, 5)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
@@ -310,7 +311,7 @@ def tennis_traj(model, data, Tk):
     grab_targ = data.site("racket_handle_top").xpos + np.array([0, 0, 0.01])
     # grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0])
     sx = np.linspace(0, 1, Tk_right_1)
-    s = sigmoid(sx, 5)
+    s = sigmoid(sx, 2)
     s = np.tile(s, (3, 1)).T
     s = np.concatenate((s, np.ones((Tk_right_2, 3))), axis=0)
     grab_traj = handxr + s * (grab_targ - handxr)
@@ -320,7 +321,7 @@ def tennis_traj(model, data, Tk):
     )
 
     s = np.linspace(0, 1, Tk_right_3)
-    s = sigmoid(s, 5)
+    s = sigmoid(s, 2)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
 
@@ -339,7 +340,7 @@ def tennis_traj(model, data, Tk):
     # Left arm
     # grab_targ = data.site('ball').xpos + np.array([0, 0, 0.04])
     grab_targ = data.site("ball_top").xpos + np.array([0, 0, 0.01])
-    s = sigmoid(np.linspace(0, 1, Tk_left_1), 5)
+    s = sigmoid(np.linspace(0, 1, Tk_left_1), 2)
     s = np.tile(s, (3, 1)).T
     s = np.concatenate((s, np.ones((Tk_left_2, 3))), axis=0)
     grab_traj = handxl + s * (grab_targ - handxl)
@@ -370,7 +371,7 @@ def tennis_traj(model, data, Tk):
 
     setup_traj = np.zeros((Tk_left_3, 3))
     s = np.linspace(0, 1, Tk_left_3)
-    s = sigmoid(s, 5)
+    s = sigmoid(s, 2)
     # s = 2*sigmoid(.5*s, 5)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
@@ -735,11 +736,13 @@ def make_traj_sets(
         incr_time_right_endpoints, mask_decay_factor
     )
     targ_traj_masks = {
-        incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
+        incr_it_right_endpoints[k]: np.array(mask)
+        for k, mask in enumerate(targ_traj_mask_lists)
     }
     # TODO: fix case where grab_phase_it is less than ...
     targ_vel_masks = {
-        incr_it_right_endpoints[k]: mask for k, mask in enumerate(targ_traj_mask_lists)
+        incr_it_right_endpoints[k]: np.array(mask)
+        for k, mask in enumerate(targ_traj_mask_lists)
     }
 
     def get_q_pos_and_vel_data(joint_targs_file):
@@ -747,28 +750,28 @@ def make_traj_sets(
         q_pos_targs = q_pos_data["targ_val"]
         q_pos_time_tks = q_pos_data["tk"]
         joint_names = q_pos_data["joint_names"]
-        # qpos_adrs = [model.joint(n).qposadr.item() for n in joint_names]
-        qpos_adrs = [70, 71, 72]
+        q_pos_adrs = [model.joint(n).qposadr.item() for n in joint_names]
+        # qpos_adrs = [70, 71, 72]
         q_pos_targs_expanded = np.zeros((Tk, model.nq))
         # q_pos_targs_expanded = np.zeros((Tk, model.nq))
-        # for tk, targ in zip(q_pos_time_tks, q_pos_targs):
-        #     q_pos_targs_expanded[tk][qpos_adrs] = targ
-        q_pos_mask_list = masks.make_basic_qpos_masks(
-            qpos_adrs,
-            incr_time_right_endpoints,
-            model.nq,
-        )
+        for tk, targ in zip(q_pos_time_tks, q_pos_targs):
+            q_pos_targs_expanded[tk][qpos_adrs] = targ
         # q_pos_mask_list = masks.make_basic_qpos_masks(
-        #     q_pos_time_tks,
-        #     q_pos_qpos_adrs,
+        #     qpos_adrs,
         #     incr_time_right_endpoints,
         #     model.nq,
         # )
+        q_pos_mask_list = masks.make_basic_qpos_masks(
+            q_pos_time_tks,
+            q_pos_adrs,
+            incr_time_right_endpoints,
+            model.nq,
+        )
         q_pos_mask_dict = {
             it: mask for it, mask in zip(incr_it_right_endpoints, q_pos_mask_list)
         }
         q_vel_mask_list = masks.make_basic_qpos_masks(
-            # list(range(0, Tk)),
+            list(range(0, Tk)),
             list(range(0, model.nv)),
             incr_time_right_endpoints,
             model.nv,
@@ -788,7 +791,7 @@ def make_traj_sets(
             q_vel_targs_expanded,
             q_pos_mask_dict,
             q_vel_mask_dict,
-            qpos_adrs,
+            q_pos_adrs,
             joint_names,
         )
 
@@ -922,6 +925,7 @@ def make_traj_sets(
             _,
             _,
         ) = get_q_pos_and_vel_data(joint_targs_file)
+
         out = throw_traj(model, data, Tk)
         traj, vel, time_dict = out
 
@@ -946,19 +950,22 @@ def make_traj_sets(
         # tkzero =
         for k, it in enumerate(targ_traj_masks):
             if it > grab_phase_it:
-                for tk in range(grab_phase_tk):
-                    targ_traj_masks[it][tk] = 0
-                    targ_vel_masks[it][tk] = 0
+                targ_traj_masks[it][grab_phase_tk] = 0
+                targ_vel_masks[it][grab_phase_tk] = 0
+                for tk in range(grab_phase_tk):  # TODO: convert below to numpy array
                     q_pos_masks[it][tk] = 0
                     q_vel_masks[it][tk] = 0
             Tkk = incr_time_right_endpoints[k]
             for tk in range(0, Tkk - mask_window_tk):
                 targ_traj_masks[it][tk] = 0
+        targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
+        for it in targ_traj_masks:
+            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
 
         ctrl_reg_weights = [None]
         return make_return_dict(
             targ_trajs,
-            targ_traj_masks,
+            [targ_traj_masks, targ_traj_masks2],
             targ_vels,
             targ_vel_masks,
             q_pos_targs,
@@ -1020,7 +1027,7 @@ def make_traj_sets(
         tp = time_dict["t_left_1"]
         q_targ_mask2[tp : time_dict["t_left_3"], joints["all"]["wrist_left"]] = 1
         tmp = np.linspace(0, 1, time_dict["t_left_3"] - time_dict["t_left_1"])
-        tmp = sigmoid(tmp, 5)
+        tmp = sigmoid(tmp, 2)
         # bot = .75
         q_targ_nz = (2.3 - bot) * tmp + bot
         # tmp = np.linspace(.75, 2.3, time_dict['t_left_2']-time_dict['t_left_1'])
@@ -1279,6 +1286,7 @@ def arm_target_traj(
     q_pos_weight=1,
     joint_penalty_factor=0,
     mask_decay_factor=0.9,
+    run_name="",
 ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
@@ -1342,7 +1350,10 @@ def arm_target_traj(
     # ]
 
     traj_targs = traj_and_masks["traj_targs"]
-    traj_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["traj_masks"]))
+    traj_masks = [
+        butil.LeftEndpointDict(shift_endpoints(mask))
+        for mask in traj_and_masks["traj_masks"]
+    ]
     vel_targs = traj_and_masks["vel_targs"]
     vel_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["vel_masks"]))
     q_pos_targs = traj_and_masks["q_pos_targs"]
@@ -1352,7 +1363,7 @@ def arm_target_traj(
     for key in q_vel_masks:
         q_vel_masks[key] = joint_penalty_factor * q_vel_masks[key]
 
-    incr_its = sorted(list(traj_masks.keys()))
+    incr_its = sorted(list(traj_masks[0].keys()))
 
     render_class = butil.targetRender(env, traj_targs, site_names)
     render_fn = render_class.render
@@ -1427,6 +1438,9 @@ def arm_target_traj(
     # ctrl_reg_weight = 0
     lr = lrs[0]
 
+    out_path = Path(f"output/{run_name}")
+    out_path.mkdir(parents=True, exist_ok=True)
+
     for k0 in range(max_its):
         if k0 >= phase_2_it:
             lr = lrs[1]
@@ -1435,13 +1449,13 @@ def arm_target_traj(
                 optms[k] = get_opt(lr)
         progbar.update(" it: " + str(k0))
 
-        traj_mask_curr = np.array(traj_masks[k0])
+        traj_mask_curr = [traj_mask[k0] for traj_mask in traj_masks]
         vel_mask_curr = 0 * np.array(vel_masks[k0])
         q_pos_mask_curr = np.array(q_pos_masks[k0])
         q_vel_mask_curr = np.array(q_vel_masks[k0])
 
-        Tk_trunc = get_last_timepoint(traj_mask_curr)
-        traj_mask_curr = traj_mask_curr[: Tk_trunc + 1]
+        Tk_trunc = get_last_timepoint(traj_mask_curr[0])  # TODO: generalize
+        traj_mask_curr = [mask[: Tk_trunc + 1] for mask in traj_mask_curr]
         vel_mask_curr = vel_mask_curr[: Tk_trunc + 1]
         q_pos_mask_curr = q_pos_mask_curr[: Tk_trunc + 1] * q_pos_weight
         q_vel_mask_curr = q_vel_mask_curr[: Tk_trunc + 1]
@@ -1473,7 +1487,7 @@ def arm_target_traj(
                 data,
                 ctrls_trunc + noisev_trunc,
                 traj_targs[k][: Tk_trunc + 1],
-                traj_mask_curr,
+                traj_mask_curr[k],
                 vel_targs[k][: Tk_trunc + 1],
                 vel_mask_curr,
                 q_pos_targs[: Tk_trunc + 1],
@@ -1510,12 +1524,12 @@ def arm_target_traj(
             loss_site_xposs[0, k, k0, : Tk_trunc + 1] = (
                 0.5
                 * ((site_xpos - traj_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
-                * traj_mask_curr
+                * traj_mask_curr[k]
             )
             loss_vels[0, k, k0, : Tk_trunc + 1] = (
                 0.5
                 * ((site_deriv - vel_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
-                * vel_mask_curr
+                * vel_mask_curr[k]
             )
             loss_ctrls[0, k, k0, :Tk_trunc] = (
                 0.5
@@ -1570,9 +1584,10 @@ def arm_target_traj(
         ret_dict["trajectory_mask"] = traj_mask_curr
         ret_dict["site_names"] = site_names
         util.reset_state(model, data, data0)
-        with open(f"output/data_{k0}.pkl", "wb") as f:
+
+        with open(out_path / f"data_{k0}.pkl", "wb") as f:
             pkl.dump(ret_dict, f)
-        with open("output/data_latest.pkl", "wb") as f:
+        with open(out_path / "data_latest.pkl", "wb") as f:
             pkl.dump(ret_dict, f)
         # for k, site_name in enumerate(site_names):
         #     site_xpos = ret_dict[site_name + "_xpos"]
@@ -1614,7 +1629,7 @@ def arm_target_traj(
             # vel_mask = q_vel_mask_curr[: tk + 1]
             # q_mask = np.hstack((pos_mask, vel_mask))
             losses[k] = np.mean(diffsq1)
-            mask = traj_mask_curr[: tk + 1] > 0
+            mask = traj_mask_curr[k][: tk + 1] > 0
             mask_tiled = np.tile(mask, (3, 1)).T
             temp = np.sum(diffsq1 * mask_tiled) / (np.sum(mask))
             losses_curr_mask[k] = temp
@@ -1633,7 +1648,6 @@ def arm_target_traj(
         lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
         toc = time.time()
         # print(loss, toc-tic)
-
         if k0 % plot_every == 0:
             # qs_wr = qs[:, joints['all']['wrist_left']]
             # print()
@@ -1648,7 +1662,7 @@ def arm_target_traj(
                 hxs,
                 tt[: tk + 1],
                 [x[: tk + 1] for x in traj_targs],
-                [traj_mask_curr[: tk + 1]],
+                [mask[: tk + 1] for mask in traj_mask_curr],
                 # qs_wr,
                 # q_targs_wr,
                 site_names,
@@ -1676,7 +1690,7 @@ def arm_target_traj(
                     hxs,
                     tt[: tk + 1],
                     [x[: tk + 1] for x in traj_targs],
-                    [traj_mask_curr[: tk + 1]],
+                    [mask[: tk + 1] for mask in traj_mask_curr],
                     # qs_wr,
                     # q_targs_wr,
                     site_names,
@@ -1690,8 +1704,8 @@ def arm_target_traj(
                     show=False,
                 )
                 # plt.pause(0.1)
-            fig.savefig(f"output/fig_{k0}.pdf")
-            fig.savefig("output/fig_latest.pdf")
+            fig.savefig(out_path / f"fig_{k0}.pdf")
+            fig.savefig(out_path / "fig_latest.pdf")
         # util.reset_state(model, data, data0)
         # ctrls = forward_with_dynamic_adhesion(env, ctrls, noisev, True)
         # plt.show()
