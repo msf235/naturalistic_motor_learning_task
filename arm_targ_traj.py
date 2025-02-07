@@ -124,6 +124,8 @@ def throw_traj(model, data, Tk):
     )
 
     grab_targ = data.site("ball").xpos + np.array([0, 0, 0.01])
+    grab_targ = data.site("ball").xpos + np.array([0, 0, 0.05])
+    s = sigmoid(np.linspace(0, 1, Tk1), 5)
     s = sigmoid(np.linspace(0, 1, Tk1), 2)
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s * (grab_targ - handx)
