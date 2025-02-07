@@ -43,8 +43,8 @@ params:
   # root_cost: 10
   joint_penalty_factor: 1e-6
   balance_cost: 0
-  root_cost: 1e2
-  joint_cost: 5e5
+  root_cost: 1e3
+  joint_cost: 5e6
   foot_cost: 0
   ctrl_cost: 1
   # ctrl_reg_weight: 1e-6

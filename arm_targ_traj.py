@@ -114,17 +114,34 @@ def throw_traj(model, data, Tk):
     arc_traj_vs = arc_traj(
         data.site(RSHOULD_S).xpos, r, np.pi, np.pi / 2.2, Tk - Tk2, density_fn=""
     )
-    grab_targ = data.site("ball").xpos + np.array([0, 0, 0.02])
+    arc_traj_below = arc_traj(
+        data.site(RSHOULD_S).xpos,
+        r + 1,
+        5 * np.pi / 4,
+        np.pi / 2.2 - np.pi / 4,
+        Tk - Tk2,
+        density_fn="",
+    )
+
+    grab_targ = data.site("ball").xpos + np.array([0, 0, 0.01])
     s = sigmoid(np.linspace(0, 1, Tk1), 2)
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s * (grab_targ - handx)
+    grab_traj_below = grab_traj - np.array([0, 0, 1])
     # grab_traj[-1] = grab_targ
 
     setup_traj = np.zeros((Tk2, 3))
     s = np.linspace(0, 1, Tk2 - Tk1)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
+    setup_traj_below1 = setup_traj - np.array([0, 0, 1])
+    setup_traj_below2 = setup_traj - np.array([1 / np.sqrt(2), 0, 1 / np.sqrt(2)])
+    setup_traj_below = (1 - s) * setup_traj_below1 + s * setup_traj_below2
+
     traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
+    traj_below = np.concatenate(
+        (grab_traj_below, setup_traj_below, arc_traj_below), axis=0
+    )
     vel = np.diff(traj, axis=0, prepend=traj[0:1]) / model.opt.timestep
 
     time_dict = {
@@ -136,7 +153,7 @@ def throw_traj(model, data, Tk):
         "Tk3": Tk3 - Tk2,
     }
 
-    return traj, vel, time_dict
+    return traj, traj_below, vel, time_dict
 
 
 def tennis_grab_traj(model, data, Tk):
@@ -927,9 +944,7 @@ def make_traj_sets(
         ) = get_q_pos_and_vel_data(joint_targs_file)
 
         out = throw_traj(model, data, Tk)
-        traj, vel, time_dict = out
-
-        traj_below = traj - np.array([0, 0, 1])
+        traj, traj_below, vel, time_dict = out
 
         targ_vels = [vel, vel]
         targ_trajs = [traj, traj_below]
