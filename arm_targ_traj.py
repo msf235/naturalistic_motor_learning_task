@@ -123,8 +123,22 @@ def throw_traj(model, data, Tk):
         density_fn="",
     )
 
-    grab_targ = data.site("ball").xpos + np.array([0, 0, 0.01])
-    s = sigmoid(np.linspace(0, 1, Tk1), 5)
+    x0 = data.site(RSHOULD_S).xpos[0]
+    theta = np.linspace(0, -np.pi, Tk - Tk2)
+    arc_traj_below[:, 0] = x0 - np.sin(theta)
+
+    # arc_traj_below_x = arc_traj(
+    #     data.site(RSHOULD_S).xpos,
+    #     r + 1,
+    #     5 * np.pi / 4,
+    #     np.pi / 2.2 - np.pi / 4,
+    #     Tk - Tk2,
+    #     density_fn="",
+    # )
+    # arc_traj_below[:, 0] = arc_traj_below_x[:, -1]
+
+    grab_targ = data.site("ball").xpos + np.array([0, 0.01, 0.00])
+    # s = sigmoid(np.linspace(0, 1, Tk1), 5)
     s = sigmoid(np.linspace(0, 1, Tk1), 2)
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s * (grab_targ - handx)
@@ -135,9 +149,14 @@ def throw_traj(model, data, Tk):
     s = np.linspace(0, 1, Tk2 - Tk1)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
-    setup_traj_below1 = setup_traj - np.array([0, 0, 1])
-    setup_traj_below2 = setup_traj - np.array([1 / np.sqrt(2), 0, 1 / np.sqrt(2)])
-    setup_traj_below = (1 - s) * setup_traj_below1 + s * setup_traj_below2
+    setup_traj_below = grab_traj_below[-1] + s * (
+        arc_traj_below[0] - grab_traj_below[-1]
+    )
+    # setup_traj_below1 = setup_traj - np.array([0, 0, 1])
+    # setup_traj_below2 = setup_traj + np.array(
+    #     [0, np.cos(5 * np.pi / 4), np.sin(5 * np.pi / 4)]
+    # )
+    # setup_traj_below = (1 - s) * setup_traj_below1 + s * setup_traj_below2
 
     traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
     traj_below = np.concatenate(
@@ -153,6 +172,19 @@ def throw_traj(model, data, Tk):
         "Tk2": Tk2 - Tk1,
         "Tk3": Tk3 - Tk2,
     }
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection="3d")
+    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2])
+    # ax.plot(traj[:, 0], traj[:, 1], traj[:, 2])
+    # ax.set_xlabel("X")
+    # ax.set_xlim([-1, 1])
+    # ax.set_ylabel("Y")
+    # ax.set_ylim([-2.5, 1])
+    # ax.set_zlabel("Z")
+    # ax.set_zlim([0, 3])
+    # plt.show()
+    # breakpoint()
 
     return traj, traj_below, vel, time_dict
 
@@ -1425,7 +1457,7 @@ def arm_target_traj(
     T = Tk * dt
     tt = np.arange(0, T, dt)
 
-    progbar = util.ProgressBar(final_it=max_its)
+    progbar = util.ProgressBar(final_it=max_its)  # Progress bar
 
     def get_opt(lr):
         if optimizer == "rmsprop":
@@ -1463,7 +1495,6 @@ def arm_target_traj(
         if k0 in incr_its:
             for k in range(n_sites):
                 optms[k] = get_opt(lr)
-        progbar.update(" it: " + str(k0))
 
         traj_mask_curr = [traj_mask[k0] for traj_mask in traj_masks]
         vel_mask_curr = 0 * np.array(vel_masks[k0])
@@ -1496,8 +1527,8 @@ def arm_target_traj(
         util.reset_state(model, data, data0)
         grads = [0] * n_sites
         update_phase = k0 % grad_update_every
+        tic = time.time()
         for k in range(n_sites):
-            tic = time.time()
             grads[k] = opt_utils.traj_deriv_new(
                 model,
                 data,
@@ -1524,8 +1555,8 @@ def arm_target_traj(
             )
             # grads[k] = grads[k] / np.linalg.norm(grads[k])
             util.reset_state(model, data, data0)
-            toc = time.time()
-            print(f"grad time: {toc - tic}")
+        toc = time.time()
+        progbar.update(" |  it: " + str(k0) + " |  grad time: " + str(toc - tic))
         losses = [0] * n_sites
         for k in range(n_sites):
             ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
