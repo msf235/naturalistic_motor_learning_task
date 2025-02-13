@@ -128,6 +128,8 @@ grab_phase_tk = int(params["grab_phase_t"] / dt)
 
 Tke = int(params["t_after"] / dt)
 
+breakpoint()
+
 if args.rerun or not out_f.exists():
     ### Get initial stabilizing controls
     reset()
@@ -156,6 +158,7 @@ if args.rerun or not out_f.exists():
     # util.forward_sim_render(env, ctrls)
     # arm_t.forward_to_contact(env, ctrls, render=True)
     # reset()
+    # ctrls[:, acts["adh"]] = 1
 
     ctrls, lowest_losses = arm_t.arm_target_traj(
         config_name=config_name,

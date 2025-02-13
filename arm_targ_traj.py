@@ -212,18 +212,18 @@ def throw_traj(model, data, Tk):
         "Tk3": Tk3 - Tk2,
     }
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2])
-    ax.plot(traj[:, 0], traj[:, 1], traj[:, 2])
-    ax.set_xlabel("X")
-    ax.set_xlim([-1, 1])
-    ax.set_ylabel("Y")
-    ax.set_ylim([-2.5, 1])
-    ax.set_zlabel("Z")
-    ax.set_zlim([0, 3])
-    plt.show()
-    breakpoint()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection="3d")
+    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2])
+    # ax.plot(traj[:, 0], traj[:, 1], traj[:, 2])
+    # ax.set_xlabel("X")
+    # ax.set_xlim([-1, 1])
+    # ax.set_ylabel("Y")
+    # ax.set_ylim([-2.5, 1])
+    # ax.set_zlabel("Z")
+    # ax.set_zlim([0, 3])
+    # plt.show()
+    # breakpoint()
 
     return traj, traj_below, vel, time_dict
 
@@ -1188,6 +1188,16 @@ def forward_and_collect_data(env, ctrls, ret_fn=None, render=False):
             for key in dict_keys:
                 ret_dict[key][tk] = ret_vals[tk][key]
         return ret_dict
+
+
+# def forward(env, ctrls):
+#     """Simulate."""
+#     model = env.model
+#     data = env.data
+#     Tk = ctrls.shape[0]
+#     for tk in range(Tk):
+#         util.step(model, data, ctrls[tk])
+#
 
 
 def forward_with_dynamic_adhesion(

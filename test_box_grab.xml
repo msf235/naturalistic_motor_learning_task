@@ -32,7 +32,7 @@
     </body>
   </worldbody>
   <contact>
-    <pair geom1="arm" geom2="ball" friction="2 2 .01 .0002 .0002" solimp="0.1 0.99 0.0005" solref="0.002 1" margin=".005" gap=".005"/>
+    <pair geom1="arm" geom2="ball" friction="2 2 .01 .0002 .0002" solimp="0.1 0.99 0.0005" solref="0.002 1" margin=".065" gap=".065"/>
   </contact>
   <actuator>
     <position joint="arm" kv="100" kp="500"/>

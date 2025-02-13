@@ -276,7 +276,8 @@ class AdhCtrl:
                 # Check if cc == cp, ignoring order
                 if cc[0] in cp and cc[1] in cp:
                     adh_id = adh_ids[k]
-                    if adh_id not in adh_contact_ids:
+                    if adh_id not in adh_contact_ids:  # TODO: check this
+                        print("contact detected")
                         adh_contact_ids.append(adh_id)
                         ctrl[adh_id] = 1 / self.n_steps * self.ks[adh_id]
                         if self.ks[adh_id] < self.n_steps:

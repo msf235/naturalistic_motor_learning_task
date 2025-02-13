@@ -4,7 +4,7 @@
     <joint damping="10" armature="0.01" stiffness="0.0" margin=".3" limited="true" range="-120.0000 120.0000" solimplimit="0 0.95 1 0.5 1.5"/>
     <!-- <geom conaffinity="1" condim="3" contype="7" margin="0.01" rgba="0.8 0.6 .4 1" solimp=".9 .99 .003" solref=".015 1"/> -->
     <!-- <geom conaffinity="1" condim="3" contype="7" rgba="0.8 0.6 .4 1" solimp=".2 0.95 .01 .5 1.5"/> -->
-    <geom conaffinity="1" condim="3" contype="7" rgba="0.8 0.6 .4 1" solimp="0.5 0.99 0.001" solref="0.005 1"/>
+    <geom conaffinity="1" condim="3" contype="7" rgba="0.8 0.6 .4 .5" solimp="0.5 0.99 0.001" solref="0.005 1"/>
     <default class="wrist">
       <joint armature="0.01" stiffness="0" damping="0" />
       </default>
@@ -173,7 +173,9 @@
                       <!-- <geom class="hand" name="R_Hand2" pos="-0.07465 -0.0009  0.0194" size="0.02845 0.0164 0.0273"/> -->
                       <!-- <geom class="hand" name="R_Hand3" pos="-0.01775 -0.0009 -0.0352" size="0.02845 0.0164 0.0273"/> -->
                       <!-- <geom class="hand" name="R_Hand4" pos="-0.01775 -0.0009  0.0194" size="0.02845 0.0164 0.0273"/> -->
-                        <body name="R_Hand_core" pos="-0.0846 -0.0061 -0.0103">
+                        <body name="R_Hand_core" pos="-.05 0 0">
+                          <geom type="sphere" name="R_Hand_core" pos="0 0 0" size=".01" density="1"/>
+                        </body>
                     </body>
                   </body>
                 </body>
@@ -254,10 +256,12 @@
     <motor name="R_Hand_x" joint="R_Hand_x" gear="1"/>
     <motor name="R_Hand_y" joint="R_Hand_y" gear="1"/>
     <motor name="R_Hand_z" joint="R_Hand_z" gear="1"/>
-    <adhesion name="R_Hand_adh" body="R_Hand" gain="800"
+    <!-- <adhesion name="R_Hand_adh" body="R_Hand" gain="800" -->
+    <!--   ctrlrange="0 1"/> -->
+    <adhesion name="R_Hand_adh" body="R_Hand_core" gain="800"
       ctrlrange="0 1"/>
-    <adhesion name="L_Hand_adh" body="L_Hand" gain="800"
-      ctrlrange="0 1"/>
+    <!-- <adhesion name="L_Hand_adh" body="L_Hand" gain="800" -->
+    <!--   ctrlrange="0 1"/> -->
   </actuator>
   <contact>
     <exclude body1="Torso" body2="Chest"/>

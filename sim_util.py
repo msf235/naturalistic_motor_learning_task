@@ -163,44 +163,44 @@ def forward_sim_render_and_return_data(env, ctrls, extra_fun=None):
             env.render()
 
 
-def forward_with_dynamic_adhesion(
-    env,
-    ctrls,
-    noisev=None,
-    render=True,
-    let_go_times=[],
-    let_go_ids=[],
-    n_steps_adh=10,
-    contact_check_list=[],
-    adh_ids=[],
-):
-    model = env.model
-    act = opt_utils.get_act_ids(model)
-    data = env.data
-    ball_contact = False
-    Tk = ctrls.shape[0]
-    contact_cnt = 0
-    contact = False
-    adh_ctrl = opt_utils.AdhCtrl(
-        let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids
-    )
-    if noisev is None:
-        noisev = np.zeros((Tk, model.nu))
-    contacts = np.zeros((Tk, 2))
-    for k in range(Tk):
-        ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
-        contacts[k] = [cont_k1, cont_k2]  # TODO: address this
-        util.step(model, data, ctrls[k] + noisev[k])
-        if render:
-            env.render()
-        # contact_pairs = util.get_contact_pairs(model, data)
-        # for cp in contact_pairs:
-        # if 'racket_handle' in cp and 'hand_right1' in cp or 'hand_right2' in cp:
-        # contact = True
-        # if contact_cnt <= 20:
-        # ctrls[k:, act['adh_right_hand']] = .05 * contact_cnt
-        # contact_cnt += 1
-    return k, ctrls, contacts
+# def forward_with_dynamic_adhesion(
+#     env,
+#     ctrls,
+#     noisev=None,
+#     render=True,
+#     let_go_times=[],
+#     let_go_ids=[],
+#     n_steps_adh=10,
+#     contact_check_list=[],
+#     adh_ids=[],
+# ):
+#     model = env.model
+#     act = opt_utils.get_act_ids(model)
+#     data = env.data
+#     ball_contact = False
+#     Tk = ctrls.shape[0]
+#     contact_cnt = 0
+#     contact = False
+#     adh_ctrl = opt_utils.AdhCtrl(
+#         let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids
+#     )
+#     if noisev is None:
+#         noisev = np.zeros((Tk, model.nu))
+#     contacts = np.zeros((Tk, 2))
+#     for k in range(Tk):
+#         ctrls[k], cont_k1, cont_k2 = adh_ctrl.get_ctrl(model, data, ctrls[k])
+#         contacts[k] = [cont_k1, cont_k2]  # TODO: address this
+#         util.step(model, data, ctrls[k] + noisev[k])
+#         if render:
+#             env.render()
+#         # contact_pairs = util.get_contact_pairs(model, data)
+#         # for cp in contact_pairs:
+#         # if 'racket_handle' in cp and 'hand_right1' in cp or 'hand_right2' in cp:
+#         # contact = True
+#         # if contact_cnt <= 20:
+#         # ctrls[k:, act['adh_right_hand']] = .05 * contact_cnt
+#         # contact_cnt += 1
+#     return k, ctrls, contacts
 
 
 def forward_sim(model, data, ctrls):
