@@ -137,8 +137,9 @@ def throw_traj(model, data, Tk):
     # )
     # arc_traj_below[:, 0] = arc_traj_below_x[:, -1]
 
-    grab_targ = data.site("ball").xpos + np.array([0, 0.01, 0.00])
-    # s = sigmoid(np.linspace(0, 1, Tk1), 5)
+    grab_targ = data.site("ball").xpos + np.array(
+        [0.01, 0.01, 0.00]
+    )  # s = sigmoid(np.linspace(0, 1, Tk1), 5)
     s = sigmoid(np.linspace(0, 1, Tk1), 2)
     s = np.tile(s, (3, 1)).T
     grab_traj = handx + s * (grab_targ - handx)
