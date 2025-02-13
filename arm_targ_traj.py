@@ -101,6 +101,25 @@ def throw_grab_traj(model, data, Tk):
     return full_traj, time_dict
 
 
+def bezier(u, p0, p1, p2, p3):
+    """Compute the point on a cubic Bézier curve for parameter u."""
+    return (
+        (1 - u) ** 3 * p0
+        + 3 * (1 - u) ** 2 * u * p1
+        + 3 * (1 - u) * u**2 * p2
+        + u**3 * p3
+    )
+
+
+def ease_in_out(t):
+    """
+    Cubic ease in/out function.
+    s(t) = 3t^2 - 2t^3 has zero derivative at t=0 and t=1,
+    providing smooth acceleration and deceleration.
+    """
+    return 3 * t**2 - 2 * t**3
+
+
 def throw_traj(model, data, Tk):
     shouldx = data.site(RSHOULD_S).xpos
     elbowx = data.site(RELBOW_S).xpos
@@ -114,18 +133,26 @@ def throw_traj(model, data, Tk):
     arc_traj_vs = arc_traj(
         data.site(RSHOULD_S).xpos, r, np.pi, np.pi / 2.2, Tk - Tk2, density_fn=""
     )
-    arc_traj_below = arc_traj(
-        data.site(RSHOULD_S).xpos,
-        r + 1,
-        5 * np.pi / 4,
-        np.pi / 2.2 - np.pi / 4,
-        Tk - Tk2,
-        density_fn="",
-    )
 
-    x0 = data.site(RSHOULD_S).xpos[0]
-    theta = np.linspace(0, -np.pi, Tk - Tk2)
-    arc_traj_below[:, 0] = x0 - np.sin(theta)
+    p0 = np.array([0.75, -1.5, 1.5])
+    p1 = np.array([1, -0.5, 2])
+    p2 = np.array([0, -0.2, 2.5])
+    p3 = np.array([0, 0.9, 2.5])
+    t_vals = np.linspace(0, 1, Tk - Tk2)
+    arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
+
+    # arc_traj_below = arc_traj(
+    #     data.site(RSHOULD_S).xpos,
+    #     r + 1,
+    #     5 * np.pi / 4,
+    #     np.pi / 2.2 - np.pi / 4,
+    #     Tk - Tk2,
+    #     density_fn="",
+    # )
+    #
+    # x0 = data.site(RSHOULD_S).xpos[0]
+    # theta = np.linspace(0, -np.pi, Tk - Tk2)
+    # arc_traj_below[:, 0] = x0 - np.sin(theta)
 
     # arc_traj_below_x = arc_traj(
     #     data.site(RSHOULD_S).xpos,
@@ -137,11 +164,23 @@ def throw_traj(model, data, Tk):
     # )
     # arc_traj_below[:, 0] = arc_traj_below_x[:, -1]
 
-    grab_targ = data.site("ball").xpos + np.array([0, 0.01, 0.00])
-    # s = sigmoid(np.linspace(0, 1, Tk1), 5)
-    s = sigmoid(np.linspace(0, 1, Tk1), 2)
-    s = np.tile(s, (3, 1)).T
-    grab_traj = handx + s * (grab_targ - handx)
+    grab_targ = data.site("ball").xpos + np.array([0.01, 0.01, 0.00])
+    # Define start and end points
+    # p0 = np.array([2, 2, 10])  # Start point (x)
+    # p3 = np.array([0, 0, 0])  # End point (y)
+
+    # Choose control points:
+    # p1: halfway between grab_targ and p3 (helps direct the initial acceleration)
+    p1 = handx + (grab_targ - handx) / 2
+    # p2: above p3 so that the final approach is from above (ensures downward final tangent)
+    p2 = grab_targ + np.array([0, 0, 0.3])
+    t_vals = np.linspace(0, 1, Tk1)
+    grab_traj = np.array(
+        [bezier(ease_in_out(t), handx, p1, p2, grab_targ) for t in t_vals]
+    )
+    # s = sigmoid(np.linspace(0, 1, Tk1), 2)
+    # s = np.tile(s, (3, 1)).T
+    # grab_traj = handx + s * (grab_targ - handx)
     grab_traj_below = grab_traj - np.array([0, 0, 1])
     # grab_traj[-1] = grab_targ
 
@@ -173,18 +212,18 @@ def throw_traj(model, data, Tk):
         "Tk3": Tk3 - Tk2,
     }
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection="3d")
-    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2])
-    # ax.plot(traj[:, 0], traj[:, 1], traj[:, 2])
-    # ax.set_xlabel("X")
-    # ax.set_xlim([-1, 1])
-    # ax.set_ylabel("Y")
-    # ax.set_ylim([-2.5, 1])
-    # ax.set_zlabel("Z")
-    # ax.set_zlim([0, 3])
-    # plt.show()
-    # breakpoint()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2])
+    ax.plot(traj[:, 0], traj[:, 1], traj[:, 2])
+    ax.set_xlabel("X")
+    ax.set_xlim([-1, 1])
+    ax.set_ylabel("Y")
+    ax.set_ylim([-2.5, 1])
+    ax.set_zlabel("Z")
+    ax.set_zlim([0, 3])
+    plt.show()
+    breakpoint()
 
     return traj, traj_below, vel, time_dict
 
