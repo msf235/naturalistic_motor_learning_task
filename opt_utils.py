@@ -267,17 +267,20 @@ class AdhCtrl:
         if len(self.adh_ids) == 0 or len(self.contact_check_list) == 0:
             return ctrl, None, None
         ctrl = ctrl.copy()
-        ccl = self.contact_check_list
         adh_ids = self.adh_ids
         contact_pairs = util.get_contact_pairs(model, data)
         adh_contact_ids = []
-        for cp in contact_pairs:
-            for k, cc in enumerate(ccl):
-                # Check if cc == cp, ignoring order
-                if cc[0] in cp and cc[1] in cp:
+        for contact_pair in contact_pairs:
+            for k, contact_pair_check in enumerate(self.contact_check_list):
+                if "R_Hand" in contact_pairs:
+                    print("Hand contact")
+                # Check if contact_pair_check == contact_pair, ignoring order
+                if (
+                    contact_pair_check[0] in contact_pair
+                    and contact_pair_check[1] in contact_pair
+                ):
                     adh_id = adh_ids[k]
                     if adh_id not in adh_contact_ids:  # TODO: check this
-                        print("contact detected")
                         adh_contact_ids.append(adh_id)
                         ctrl[adh_id] = 1 / self.n_steps * self.ks[adh_id]
                         if self.ks[adh_id] < self.n_steps:

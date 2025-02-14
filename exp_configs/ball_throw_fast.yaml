@@ -1,0 +1,32 @@
+params:
+  name: ball_throw
+  xml_file: './model_files/humanoid_and_baseball.xml'
+  # Tf: 0.6
+  # t_after: 0.6
+  Tf: 1.2
+  t_after: 1.2
+  max_its: 1000
+  optimizer: 'adam'
+  lr: .3
+  lr_2: .3
+  it_lr_2: 800
+  grad_update_every: 10
+  reset_noise_scale: 0
+  t_incr: .2
+  t_incr_2: .2
+  incr_every: 100
+  incr_every_2: 100
+  grab_phase_it: 200
+  grab_phase_t: .4
+  grad_window_t: .05
+  mask_window_t: .25
+  joint_penalty_factor: 1e-6
+  balance_cost: 0
+  root_cost: 1e3
+  joint_cost: 5e6
+  foot_cost: 0
+  ctrl_cost: 1
+  # ctrl_reg_weight: 1e-6
+  ctrl_reg_weight: 0
+  q_pos_weight: 1e-6
+  mask_decay_factor: .9

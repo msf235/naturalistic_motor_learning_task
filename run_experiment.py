@@ -11,8 +11,9 @@ import config
 
 args = config.get_arg_parser().parse_args()
 vargs = vars(args)
-config_name = args.configfile.split("/")[-1].split(".")[0]
+# config_name = args.configfile.split("/")[-1].split(".")[0]
 params = config.get_config(args.configfile)["params"]
+config_name = params["name"]
 # Since numbers in scientific notation are converted to a string from yaml,
 # need to convert these to a number.
 params = {k: config.inp_to_num(v) for k, v in params.items()}
@@ -128,7 +129,6 @@ grab_phase_tk = int(params["grab_phase_t"] / dt)
 
 Tke = int(params["t_after"] / dt)
 
-breakpoint()
 
 if args.rerun or not out_f.exists():
     ### Get initial stabilizing controls

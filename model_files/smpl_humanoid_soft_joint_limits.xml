@@ -258,7 +258,7 @@
     <motor name="R_Hand_z" joint="R_Hand_z" gear="1"/>
     <!-- <adhesion name="R_Hand_adh" body="R_Hand" gain="800" -->
     <!--   ctrlrange="0 1"/> -->
-    <adhesion name="R_Hand_adh" body="R_Hand_core" gain="800"
+    <adhesion name="R_Hand_adh" body="R_Hand_core" gain="50"
       ctrlrange="0 1"/>
     <!-- <adhesion name="L_Hand_adh" body="L_Hand" gain="800" -->
     <!--   ctrlrange="0 1"/> -->

@@ -22,12 +22,12 @@ class targetRender:
                 size=np.array([0.05, 0.05, 0.05]),
                 pos=marker_pos,
                 matid=0,
-                rgba=(1, 1, 0, 1),
+                rgba=(1, 1, 0, 0.5),
                 type=mj.mjtGeom.mjGEOM_SPHERE,
                 label="targ",
                 emission=0,
-                specular=0.5,
-                shininess=0.5,
+                specular=0.1,
+                shininess=0.1,
                 reflectance=0,
             )
             marker_pos = self.env.data.site(self.sites[k]).xpos
@@ -35,12 +35,12 @@ class targetRender:
                 size=np.array([0.05, 0.05, 0.05]),
                 pos=marker_pos,
                 matid=0,
-                rgba=(1, 1, 0, 1),
+                rgba=(1, 1, 0, 0.5),
                 type=mj.mjtGeom.mjGEOM_SPHERE,
                 label="hand",
                 emission=0,
-                specular=0.5,
-                shininess=0.5,
+                specular=0.1,
+                shininess=0.1,
                 reflectance=0,
             )
         self.counter += 1

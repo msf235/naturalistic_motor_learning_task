@@ -588,7 +588,8 @@ def get_idx_sets(env, config_name):
             acts["adh_right_hand"][0],
         ]
         # contact_check_list = [["ball", "hand_right1"], ["ball", "hand_right2"]]
-        contact_check_list = [["ball", HAND_STR_RIGHT + str(i)] for i in range(1, 5)]
+        # contact_check_list = [["ball", HAND_STR_RIGHT + str(i)] for i in range(1, 5)]
+        contact_check_list = [["ball_core", HAND_STR_RIGHT + "_core"]]
     elif config_name in ["tennis_serve", "tennis_grab"]:
         # contact_check_list = [
         contact_check_list = [
@@ -761,12 +762,15 @@ def make_traj_sets(
     incr_time_right_endpoints_before = list(range(tk_incr, grab_phase_tk, tk_incr))
     if phase_2:
         m = int((phase_2_it - grab_phase_it) / incr_every)
-        tk_phase_2 = grab_phase_tk + m * tk_incr
+        tk_phase_2 = min(Tk + 1, grab_phase_tk + m * tk_incr)
         incr_time_right_endpoints_after = list(
             range(grab_phase_tk, tk_phase_2, tk_incr)
         )
         incr_time_right_endpoints_phase_2 = list(range(tk_phase_2, Tk + 1, tk_incrs[1]))
-        if incr_time_right_endpoints_phase_2[-1] != Tk:
+        if (
+            len(incr_time_right_endpoints_phase_2) > 0
+            and incr_time_right_endpoints_phase_2[-1] != Tk
+        ):
             incr_time_right_endpoints_phase_2.append(Tk)
         max_incr_its_before = len(incr_time_right_endpoints_before)
         max_incr_its_after = len(incr_time_right_endpoints_after)
