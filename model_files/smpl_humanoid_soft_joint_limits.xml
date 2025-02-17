@@ -130,11 +130,14 @@
                     <joint name="L_Wrist_z" type="hinge" pos="0 0 0" axis="0 0 1" user="100 1 1 150 1 1" armature="0.01" stiffness="0"/>
                     <geom type="capsule" contype="1" conaffinity="1" density="1000" fromto="0.0168 -0.0016 -0.0030 0.0672 -0.0065 -0.0120" size="0.0318" name="L_Wrist"/>
                     <body name="L_Hand" pos="0.084 -0.0082 -0.0149">
-                      <site name="L_Hand" pos="0 0 0"/>
+                      <site name="L_Hand" pos=".05 0 0" rgba="1 1 0 .5" size=".01"/>
                       <joint name="L_Hand_x" type="hinge" pos="0 0 0" axis="1 0 0" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <joint name="L_Hand_y" type="hinge" pos="0 0 0" axis="0 1 0" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <joint name="L_Hand_z" type="hinge" pos="0 0 0" axis="0 0 1" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <geom class="hand" pos="0.0493 0.0010 -0.0058" size="0.0585 0.0158 0.0538" name="L_Hand"/>
+                      <body name="L_Hand_core" pos=".05 0 0">
+                        <geom type="sphere" name="L_Hand_core" pos="0 0 0" size=".01" density="1" rgba="1 1 0 1"/>
+                      </body>
                     </body>
                   </body>
                 </body>
@@ -173,9 +176,9 @@
                       <!-- <geom class="hand" name="R_Hand2" pos="-0.07465 -0.0009  0.0194" size="0.02845 0.0164 0.0273"/> -->
                       <!-- <geom class="hand" name="R_Hand3" pos="-0.01775 -0.0009 -0.0352" size="0.02845 0.0164 0.0273"/> -->
                       <!-- <geom class="hand" name="R_Hand4" pos="-0.01775 -0.0009  0.0194" size="0.02845 0.0164 0.0273"/> -->
-                        <body name="R_Hand_core" pos="-.05 0 0">
-                          <geom type="sphere" name="R_Hand_core" pos="0 0 0" size=".01" density="1"/>
-                        </body>
+                      <body name="R_Hand_core" pos="-.05 0 0">
+                        <geom type="sphere" name="R_Hand_core" pos="0 0 0" size=".01" density="1" rgba="1 1 0 1"/>
+                      </body>
                     </body>
                   </body>
                 </body>
@@ -258,10 +261,8 @@
     <motor name="R_Hand_z" joint="R_Hand_z" gear="1"/>
     <!-- <adhesion name="R_Hand_adh" body="R_Hand" gain="800" -->
     <!--   ctrlrange="0 1"/> -->
-    <adhesion name="R_Hand_adh" body="R_Hand_core" gain="50"
-      ctrlrange="0 1"/>
-    <!-- <adhesion name="L_Hand_adh" body="L_Hand" gain="800" -->
-    <!--   ctrlrange="0 1"/> -->
+    <adhesion name="R_Hand_adh" body="R_Hand_core" gain="300" ctrlrange="0 1"/>
+    <adhesion name="L_Hand_adh" body="L_Hand_core" gain="300" ctrlrange="0 1"/>
   </actuator>
   <contact>
     <exclude body1="Torso" body2="Chest"/>

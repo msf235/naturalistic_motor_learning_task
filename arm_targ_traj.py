@@ -34,6 +34,25 @@ RELBOW_S = "R_Elbow"
 LELBOW_S = "L_Elbow"
 
 
+def bezier(u, p0, p1, p2, p3):
+    """Compute the point on a cubic Bézier curve for parameter u."""
+    return (
+        (1 - u) ** 3 * p0
+        + 3 * (1 - u) ** 2 * u * p1
+        + 3 * (1 - u) * u**2 * p2
+        + u**3 * p3
+    )
+
+
+def ease_in_out(t):
+    """
+    Cubic ease in/out function.
+    s(t) = 3t^2 - 2t^3 has zero derivative at t=0 and t=1,
+    providing smooth acceleration and deceleration.
+    """
+    return 3 * t**2 - 2 * t**3
+
+
 def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     acts = opt_utils.get_act_ids(model)
     adh = acts["adh_right_hand"]
@@ -101,25 +120,6 @@ def throw_grab_traj(model, data, Tk):
     return full_traj, time_dict
 
 
-def bezier(u, p0, p1, p2, p3):
-    """Compute the point on a cubic Bézier curve for parameter u."""
-    return (
-        (1 - u) ** 3 * p0
-        + 3 * (1 - u) ** 2 * u * p1
-        + 3 * (1 - u) * u**2 * p2
-        + u**3 * p3
-    )
-
-
-def ease_in_out(t):
-    """
-    Cubic ease in/out function.
-    s(t) = 3t^2 - 2t^3 has zero derivative at t=0 and t=1,
-    providing smooth acceleration and deceleration.
-    """
-    return 3 * t**2 - 2 * t**3
-
-
 def throw_traj(model, data, Tk):
     shouldx = data.site(RSHOULD_S).xpos
     elbowx = data.site(RELBOW_S).xpos
@@ -164,7 +164,7 @@ def throw_traj(model, data, Tk):
     # )
     # arc_traj_below[:, 0] = arc_traj_below_x[:, -1]
 
-    grab_targ = data.site("ball").xpos + np.array([0.01, 0.01, 0.00])
+    grab_targ = data.site("ball").xpos + np.array([0.01, 0.01, 0.02])
     # Define start and end points
     # p0 = np.array([2, 2, 10])  # Start point (x)
     # p3 = np.array([0, 0, 0])  # End point (y)
@@ -184,7 +184,6 @@ def throw_traj(model, data, Tk):
     grab_traj_below = grab_traj - np.array([0, 0, 1])
     # grab_traj[-1] = grab_targ
 
-    setup_traj = np.zeros((Tk2, 3))
     s = np.linspace(0, 1, Tk2 - Tk1)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
@@ -214,8 +213,8 @@ def throw_traj(model, data, Tk):
 
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection="3d")
-    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2])
-    # ax.plot(traj[:, 0], traj[:, 1], traj[:, 2])
+    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2], "x-")
+    # ax.plot(traj[:, 0], traj[:, 1], traj[:, 2], "x-")
     # ax.set_xlabel("X")
     # ax.set_xlim([-1, 1])
     # ax.set_ylabel("Y")
@@ -270,6 +269,9 @@ def tennis_grab_traj(model, data, Tk):
     s = sigmoid(s, 2)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
+    setup_traj_below = grab_traj_below[-1] + s * (
+        arc_traj_below[0] - grab_traj_below[-1]
+    )
 
     right_arm_traj = np.concatenate((grab_traj, setup_traj), axis=0)
 
@@ -284,12 +286,16 @@ def tennis_grab_traj(model, data, Tk):
     # Tk4 = int((Tk+Tk2)/2)
 
     # Left arm
-    # grab_targ = data.site('ball').xpos + np.array([0, 0, 0.04])
-    grab_targ = data.site("ball_top").xpos + np.array([0, 0, 0.03])
-    s = sigmoid(np.linspace(0, 1, Tk_left_1), 2)
-    s = np.tile(s, (3, 1)).T
-    s = np.concatenate((s, np.ones((Tk_left_2, 3))), axis=0)
-    grab_traj = handxl + s * (grab_targ - handxl)
+    grab_targ = data.site("ball").xpos + np.array([0.01, 0.01, 0.00])
+    # Choose control points:
+    # p1: halfway between grab_targ and p3 (helps direct the initial acceleration)
+    p1 = handxl + (grab_targ - handxl) / 2
+    # p2: above p3 so that the final approach is from above (ensures downward final tangent)
+    p2 = grab_targ + np.array([0, 0, 0.3])
+    t_vals = np.linspace(0, 1, Tk_left_1 + Tk_left_2)
+    grab_traj = np.array(
+        [bezier(ease_in_out(t), handxl, p1, p2, grab_targ) for t in t_vals]
+    )
 
     arc_traj_vs = arc_traj(
         data.site(LSHOULD_S).xpos, r, np.pi / 5, np.pi / 2, 10, density_fn=""
@@ -389,50 +395,68 @@ def tennis_traj(model, data, Tk):
     t_left_3 = t_left_2 + Tk_left_4  # Time to end of throwing ball up
     Tk_left_5 = Tk - t_left_3  # Time to move hand down
 
-    # Tk4 = int((Tk+Tk2)/2)
-
-    # fig, ax = plt.subplots()
-    # tt = np.linspace(0, 1, Tk)
-
-    # Right arm
+    ##---- Right arm
 
     # grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
-    grab_targ = data.site("racket_handle_top").xpos + np.array([0, 0, 0.01])
-    # grab_targ = data.site('racket_handle_top').xpos + np.array([0, 0, 0])
-    sx = np.linspace(0, 1, Tk_right_1)
-    s = sigmoid(sx, 2)
-    s = np.tile(s, (3, 1)).T
-    s = np.concatenate((s, np.ones((Tk_right_2, 3))), axis=0)
-    grab_traj = handxr + s * (grab_targ - handxr)
+    grab_targ = data.site("racket_handle").xpos + np.array([0.01, 0.01, 0.01])
+    # Choose control points:
+    # p1: halfway between grab_targ and p3 (helps direct the initial acceleration)
+    p1 = handxr + (grab_targ - handxr) / 2
+    # p2: above p3 so that the final approach is from above (ensures downward final tangent)
+    p2 = grab_targ + np.array([0, 0, 0.3])
+    t_vals = np.linspace(0, 1, Tk_right_1 + Tk_right_2)
+    grab_traj = np.array(
+        [bezier(ease_in_out(t), handxr, p1, p2, grab_targ) for t in t_vals]
+    )
+    grab_traj_below = grab_traj - np.array([0, 0, 1])
 
     arc_traj_vs = arc_traj(
         data.site(RSHOULD_S).xpos, r, np.pi, np.pi / 6, Tk_right_4, density_fn=""
     )
+    p0 = np.array([0.5, -1.5, 1.5])
+    p1 = np.array([1, -0.5, 2])
+    p2 = np.array([0, -0.4, 2.5])
+    p3 = np.array([0, 0.9, 2.5])
+    t_vals = np.linspace(0, 1, Tk_right_4)
+    arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
 
     s = np.linspace(0, 1, Tk_right_3)
-    s = sigmoid(s, 2)
     s = np.stack((s, s, s)).T
+
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
+    setup_traj_below = grab_traj_below[-1] + s * (
+        arc_traj_below[0] - grab_traj_below[-1]
+    )
 
     right_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
+    right_arm_traj_below = np.concatenate(
+        (grab_traj_below, setup_traj_below, arc_traj_below), axis=0
+    )
 
-    # fig, ax = plt.subplots()
-    # t_fin = Tk * model.opt.timestep
-    # tt = np.linspace(0, t_fin, Tk)
-    # ax.plot(tt[:t_right_1], grab_traj[:, 2], c='blue')
-    # ax.plot(tt[t_right_1:t_right_2], setup_traj[:, 2], c='red')
-    # ax.plot(tt[t_right_2:], arc_traj_vs[:, 2], c='blue')
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection="3d")
+    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2], "x-")
+    # ax.plot(right_arm_traj[:, 0], right_arm_traj[:, 1], right_arm_traj[:, 2], "x-")
+    # ax.set_xlabel("X")
+    # ax.set_xlim([-1, 1])
+    # ax.set_ylabel("Y")
+    # ax.set_ylim([-2.5, 1])
+    # ax.set_zlabel("Z")
+    # ax.set_zlim([0, 3])
     # plt.show()
+    # breakpoint()
 
-    # Tk4 = int((Tk+Tk2)/2)
-
-    # Left arm
-    # grab_targ = data.site('ball').xpos + np.array([0, 0, 0.04])
-    grab_targ = data.site("ball_top").xpos + np.array([0, 0, 0.01])
-    s = sigmoid(np.linspace(0, 1, Tk_left_1), 2)
-    s = np.tile(s, (3, 1)).T
-    s = np.concatenate((s, np.ones((Tk_left_2, 3))), axis=0)
-    grab_traj = handxl + s * (grab_targ - handxl)
+    ##---- Left arm
+    grab_targ = data.site("ball").xpos + np.array([0.01, 0.01, 0.02])
+    # grab_targ = data.site("ball_top").xpos + np.array([0, 0, 0.01])
+    p1 = handxl + (grab_targ - handxl) / 2
+    # p2: above p3 so that the final approach is from above (ensures downward final tangent)
+    p2 = grab_targ + np.array([0, 0, 0.3])
+    t_vals = np.linspace(0, 1, Tk_left_1 + Tk_left_2)
+    grab_traj = np.array(
+        [bezier(ease_in_out(t), handxl, p1, p2, grab_targ) for t in t_vals]
+    )
+    grab_traj_below = grab_traj - np.array([0, 0, 1])
 
     arc_traj_vs = arc_traj(
         data.site(LSHOULD_S).xpos,
@@ -446,9 +470,6 @@ def tennis_traj(model, data, Tk):
     x0 = xs[0]
     recenter_scale_xs = 0.8 * (xs - x0)
     arc_traj_vs[:, 1] = recenter_scale_xs + x0
-    # arc_traj_vs2 = arc_traj(data.site(LSHOULD_S).xpos, r,
-    # .9*np.pi/2, .7*np.pi/2, Tk_left_5, density_fn='')
-    # arc_traj_vs2 = arc_traj_vs[:-Tk_left_5:-1]
     arc_traj_vs2 = arc_traj(
         data.site(LSHOULD_S).xpos,
         r,
@@ -457,49 +478,39 @@ def tennis_traj(model, data, Tk):
         Tk_left_5,
         density_fn="",
     )
+    p0 = np.array([0.5, 0.0, 1.5])
+    p1 = np.array([1, -0.5, 2])
+    p2 = np.array([0, 0.5, 2.5])
+    p3 = np.array([0, -0.9, 2.25])
+    t_vals = np.linspace(0, 1, Tk_left_5)
+    arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
 
     setup_traj = np.zeros((Tk_left_3, 3))
     s = np.linspace(0, 1, Tk_left_3)
-    s = sigmoid(s, 2)
-    # s = 2*sigmoid(.5*s, 5)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
+    setup_traj_below = grab_traj_below[-1] + s * (
+        arc_traj_below[0] - grab_traj_below[-1]
+    )
 
     left_arm_traj = np.concatenate(
         (grab_traj, setup_traj, arc_traj_vs, arc_traj_vs2), axis=0
     )
-    # dim=2
-    # ax.plot(tt[:t_left_1], grab_traj[:, dim], c='blue', linestyle='--')
-    # ax.plot(tt[t_left_1:t_left_2], setup_traj[:, dim], c='red', linestyle='--')
-    # ax.plot(tt[t_left_2:t_left_3], arc_traj_vs[:, dim], c='blue', linestyle='--')
-    # ax.plot(tt[t_left_3:], arc_traj_vs2[:, dim], c='red', linestyle='--')
+    left_arm_traj_below = np.concatenate(
+        (grab_traj_below, setup_traj_below, arc_traj_below), axis=0
+    )
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection="3d")
+    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2], "x-")
+    # ax.plot(left_arm_traj[:, 0], left_arm_traj[:, 1], left_arm_traj[:, 2], "x-")
+    # ax.set_xlabel("X")
+    # ax.set_xlim([-1, 1])
+    # ax.set_ylabel("Y")
+    # ax.set_ylim([-2.5, 1])
+    # ax.set_zlabel("Z")
+    # ax.set_zlim([0, 3])
     # plt.show()
-
-    # fig, ax = plt.subplots()
-    # dim = 1
-    # # ax.plot(tt[:t_left_1], grab_traj[:, dim], c='blue', linestyle='--')
-    # # ax.plot(tt[t_left_1:t_left_2], setup_traj[:, dim], c='red', linestyle='--')
-    # # ax.plot(tt[t_left_2:t_left_3], arc_traj_vs[:, dim], c='blue', linestyle='--')
-    # # ax.plot(tt[t_left_2:t_left_3], xs, c='cyan', linestyle='-.')
-    # ax.plot(arc_traj_vs[:, 1], arc_traj_vs[:, 2], c='blue', linestyle='--')
-    # ax.plot(xs, arc_traj_vs[:, 2], c='cyan', linestyle='-.')
-    # # ax.plot(tt[t_left_3:], arc_traj_vs2[:, dim], c='red', linestyle='--')
-    # plt.show()
-
-    # Ball trajectory
-    # arc_traj_vs = arc_traj(data.site(LSHOULD_S).xpos, r,
-    # 0, .9*np.pi/2, Tk_left_4, density_fn='')
-    # arc_traj_ball = arc_traj(data.site(LSHOULD_S).xpos, r, 0,
-    # 1.1*np.pi/2, Tk_left_4, density_fn='')
-
-    # ball_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
-    ball_traj = left_arm_traj.copy()
-
-    # ax.plot(tt[:t_left_1], grab_traj[:, 2], c='blue', linestyle='-')
-    # ax.plot(tt[t_left_1:t_left_2], setup_traj[:, 2], c='red', linestyle='-')
-    # ax.plot(tt[t_left_2:t_left_3], arc_traj_vs[:, 2], c='blue', linestyle='-')
-    # ax.plot(tt[t_left_3:], arc_traj_vs2[:, 2], c='red', linestyle='--')
-    # plt.show()
+    # breakpoint()
 
     time_dict = dict(
         Tk_right_1=Tk_right_1,
@@ -518,7 +529,23 @@ def tennis_traj(model, data, Tk):
         t_left_3=t_left_3,
     )
 
-    return right_arm_traj, left_arm_traj, ball_traj, time_dict
+    right_arm_vel = (
+        np.diff(right_arm_traj, axis=0, prepend=right_arm_traj[0:1])
+        / model.opt.timestep
+    )
+    left_arm_vel = (
+        np.diff(left_arm_traj, axis=0, prepend=left_arm_traj[0:1]) / model.opt.timestep
+    )
+    return (
+        right_arm_traj,
+        right_arm_traj_below,
+        right_arm_vel,
+        left_arm_traj,
+        left_arm_traj_below,
+        left_arm_vel,
+        # ball_traj,
+        time_dict,
+    )
 
 
 def get_idx_sets(env, config_name):
@@ -558,7 +585,7 @@ def get_idx_sets(env, config_name):
         "tennis_serve",
         "tennis_grab",
     ]:  # Two-handed actions
-        sites = [RHAND_S, LHAND_S]
+        sites = [RHAND_S, RHAND_S, LHAND_S, LHAND_S]
         arm_ids = ids["right_arm"] + ids["left_arm"]
         stabilize_jnt_idx = [
             id for id in ids["not_root"] if id not in arm_ids
@@ -571,6 +598,8 @@ def get_idx_sets(env, config_name):
         left_arm_without_adh = [k for k in acts["left_arm"] if k not in acts["adh"]]
         site_grad_idxs = [
             right_arm_without_adh,
+            right_arm_without_adh,
+            left_arm_without_adh,
             left_arm_without_adh,
         ]
 
@@ -583,9 +612,6 @@ def get_idx_sets(env, config_name):
     if config_name in ["ball_grab", "ball_throw"]:
         adh_ids = [
             acts["adh_right_hand"][0],
-            acts["adh_right_hand"][0],
-            acts["adh_right_hand"][0],
-            acts["adh_right_hand"][0],
         ]
         # contact_check_list = [["ball", "hand_right1"], ["ball", "hand_right2"]]
         # contact_check_list = [["ball", HAND_STR_RIGHT + str(i)] for i in range(1, 5)]
@@ -593,20 +619,14 @@ def get_idx_sets(env, config_name):
     elif config_name in ["tennis_serve", "tennis_grab"]:
         # contact_check_list = [
         contact_check_list = [
-            ["ball", HAND_STR_RIGHT + str(i)] for i in range(1, 5)
-        ] + [["racket_handle", HAND_STR_LEFT + str(i)] for i in range(1, 5)]
+            ["ball_core", HAND_STR_LEFT + "_core"],
+            ["racket_core", HAND_STR_RIGHT + "_core"],
+        ]
         acts = opt_utils.get_act_ids(model)
         adh_ids = [
             acts["adh_right_hand"][0],
-            acts["adh_right_hand"][0],
-            acts["adh_right_hand"][0],
-            acts["adh_right_hand"][0],
-            acts["adh_left_hand"][0],
-            acts["adh_left_hand"][0],
-            acts["adh_left_hand"][0],
             acts["adh_left_hand"][0],
         ]
-        breakpoint()
     else:
         adh_ids = []
         contact_check_list = []
@@ -1025,20 +1045,6 @@ def make_traj_sets(
         targ_vels = [vel, vel]
         targ_trajs = [traj, traj_below]
 
-        # q_targs = [np.zeros((Tk, syssize))]
-        # q_targ_mask = np.zeros((Tk, syssize2))
-        # q_targ_mask2 = np.zeros((Tk, syssize2))
-        # # TODO: resolve quaternion
-        # q_targ_mask2[time_dict["t_1"] :, joints["all"]["wrist_left"]] = 1
-        # q_targ_nz = np.linspace(0, -2.44, time_dict["t_2"] - time_dict["t_1"])
-        # q_targ[time_dict["t_1"] : time_dict["t_2"], joints["all"]["wrist_left"]] = (
-        #     q_targ_nz
-        # )
-        # q_targ[time_dict["t_2"] :, joints["all"]["wrist_left"]] = -2.44
-        # q_targ_masks = [q_targ_mask, q_targ_mask2, q_targ_mask, q_targ_mask]
-        # q_targ_mask_types = ["const"]
-        # q_targs = [q_targ]
-        # tkzero =
         for k, it in enumerate(targ_traj_masks):
             if it > grab_phase_it:
                 targ_traj_masks[it][grab_phase_tk] = 0
@@ -1094,17 +1100,64 @@ def make_traj_sets(
         q_targs = [q_targ]
         ctrl_reg_weights = [None]
     elif exp_name == "tennis_serve":
-        targ_traj_mask_dict = np.ones((Tk,))
-        # targ_traj_mask_type = 'progressive'
-        targ_traj_mask_type = "double_sided_progressive"
-        # targ_traj_mask_type = 'const'
+        joint_targs_file = "exp_configs/ball_throw_joint_targs.csv"
+        (
+            q_pos_targs,
+            q_vel_targs,
+            q_pos_masks,
+            q_vel_masks,
+            _,
+            _,
+        ) = get_q_pos_and_vel_data(joint_targs_file)
+
         out = tennis_traj(model, data, Tk)
-        right_hand_traj, left_hand_traj, ball_traj, time_dict = out
-        ball_traj_mask = np.ones((Tk,))
-        ball_traj_mask[time_dict["t_left_3"] :] = 0
-        out = tennis_traj(model, data, Tk)
-        right_hand_traj, left_hand_traj, ball_traj, time_dict = out
-        targ_trajs = [right_hand_traj, left_hand_traj]
+        (
+            right_arm_traj,
+            right_arm_traj_below,
+            right_arm_vel,
+            left_arm_traj,
+            left_arm_traj_below,
+            left_arm_vel,
+            time_dict,
+        ) = out
+
+        right_targ_vels = [right_arm_vel, right_arm_vel]
+        left_targ_vels = [left_arm_vel, left_arm_vel]
+        right_targ_trajs = [right_arm_traj, right_arm_traj_below]
+        left_targ_trajs = [left_arm_traj, left_arm_traj_below]
+        targ_trajs = right_targ_trajs + left_targ_trajs
+        targ_vels = right_targ_vels + left_targ_vels
+
+        for k, it in enumerate(targ_traj_masks):
+            if it > grab_phase_it:
+                targ_traj_masks[it][grab_phase_tk] = 0
+                targ_vel_masks[it][grab_phase_tk] = 0
+                for tk in range(grab_phase_tk):  # TODO: convert below to numpy array
+                    q_pos_masks[it][tk] = 0
+                    q_vel_masks[it][tk] = 0
+            Tkk = incr_time_right_endpoints[k]
+            for tk in range(0, Tkk - mask_window_tk):
+                targ_traj_masks[it][tk] = 0
+        targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
+        for it in targ_traj_masks:
+            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
+
+        ctrl_reg_weights = [None]
+        return make_return_dict(
+            targ_trajs,
+            [targ_traj_masks, targ_traj_masks2, targ_traj_masks, targ_traj_masks2],
+            targ_vels,
+            targ_vel_masks,
+            q_pos_targs,
+            q_vel_targs,
+            q_pos_masks,
+            q_vel_masks,
+            ctrl_reg_weights,
+        )
+
+        ctrl_reg_weights = [None]
+
+        breakpoint()
         targ_traj_masks = [targ_traj_mask_dict, targ_traj_mask_dict]
         mask_types = [targ_traj_mask_type] * 2
         # q_targ = np.zeros((Tk, 2*model.nq))
