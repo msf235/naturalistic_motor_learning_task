@@ -1701,14 +1701,14 @@ def arm_target_traj(
 
         try:
             ctrls_trunc, _, qpos, _ = opt_utils.get_stabilized_ctrls(
-                model,
-                data,
-                Tk_trunc + 1,
-                noisev_trunc,
-                qpos0,
-                stabilize_act_idx,
-                stabilize_jnt_idx,
-                ctrls_trunc[:, not_stabilize_act_idx],
+                model=model,
+                data=data,
+                Tk=Tk_trunc + 1,
+                noisev=noisev_trunc,
+                qpos0=qpos0,
+                ctrl_act_ids=stabilize_act_idx,
+                stable_jnt_ids=stabilize_jnt_idx,
+                free_ctrls=ctrls_trunc[:, not_stabilize_act_idx],
                 K_update_interv=10000,
                 balance_cost=balance_cost,
                 joint_cost=joint_cost,

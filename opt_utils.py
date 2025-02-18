@@ -454,6 +454,7 @@ def get_stabilized_ctrls(
     n_steps_adh=20,
     contact_check_list=[],
     adh_ids=[],
+    free_act_ids=None,
 ):
     """Get stabilized controls.
 
@@ -480,7 +481,8 @@ def get_stabilized_ctrls(
         let_go_times, let_go_ids, n_steps_adh, contact_check_list, adh_ids
     )
 
-    free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
+    if free_act_ids is None:
+        free_act_ids = [k for k in range(model.nu) if k not in ctrl_act_ids]
     # free_jnt_qpos_adrs = [k for k in range(model.njnt) if k not in stable_jnt_qpos_adrs]
     # bodyj_id = joints['body']['body_qposs']
     # body_qpos = convert_qpos_adr(model, None, bodyj_id, concat=True)
@@ -526,6 +528,7 @@ def get_stabilized_ctrls(
         mj.mj_step2(model, data)  # type: ignore
         qs[k + 1] = data.qpos.copy()
         qvels[k + 1] = data.qvel.copy()
+        print(ctrls[k, -2:])
     return ctrls, K, qs, qvels
 
 
