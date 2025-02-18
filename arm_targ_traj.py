@@ -585,7 +585,7 @@ def get_idx_sets(env, config_name):
         "tennis_serve",
         "tennis_grab",
     ]:  # Two-handed actions
-        sites = [RHAND_S, RHAND_S, LHAND_S, LHAND_S]
+        sites = [RHAND_S, "R_Hand_below", LHAND_S, "L_Hand_below"]
         arm_ids = ids["right_arm"] + ids["left_arm"]
         stabilize_jnt_idx = [
             id for id in ids["not_root"] if id not in arm_ids
