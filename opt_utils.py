@@ -528,7 +528,6 @@ def get_stabilized_ctrls(
         mj.mj_step2(model, data)  # type: ignore
         qs[k + 1] = data.qpos.copy()
         qvels[k + 1] = data.qvel.copy()
-        print(ctrls[k, -2:])
     return ctrls, K, qs, qvels
 
 

@@ -89,22 +89,22 @@
       <freejoint name="racket_joint" align="true"/>
       <geom name="racket_handle" type="cylinder" size=".02 .15" pos="0 .06 0" 
         material="obj" condim="3" rgba=".7 0 0 .5"
-        zaxis="0 1 0" friction="1 0.005 .0001" density="500"/>
+        zaxis="0 1 0" friction="1 0.005 .0001" density="250"/>
       <site name="racket_handle" pos="0 .09 0" size=".05" rgba=".7 .7 .2 0"/>
       <site name="racket_handle_top" pos="0 .09 .02" size=".05" rgba=".7 .7 .2 0"/>
       <geom name="racket_handle_ball" type="sphere" size=".02" pos="0 .2 0" 
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 .5"
-        density="2000"/>
+        density="1000"/>
       <geom name="racket_net" type="box" size=".08 .14 .008" pos="0 -.21 0" 
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 .5"
-        density="200" contype="00" conaffinity="01" solref=".02 .4"/>
+        density="100" contype="00" conaffinity="01" solref=".02 .4"/>
       <geom name="racket_net_back" type="box" size=".08 .14 .018" pos="0 -.21 -.01"
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".2 .4 .4 .5"
         density="0" contype="10" conaffinity="10" solref=".02 .4"/>
       <site name="racket" pos="0 0.1 0"/>
       <body name="racket_core" pos="0 .1 0">
         <geom name="racket_core" size=".01" pos="0 0 0" type="sphere"
-          material="obj" condim="3" density="1" rgba="1 1 0 .5"/>
+          material="obj" condim="3" density="0" rgba="1 1 0 .5"/>
       </body>
     </body>
 
