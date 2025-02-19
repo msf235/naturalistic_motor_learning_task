@@ -25,7 +25,7 @@ DEFAULT_CAMERA_CONFIG = {
 let_go_times = [2610]
 let_go_ids = [70]
 n_steps_adh = 200
-contact_check_list = [["ball_core", "L_Hand_core"], ["racket_core", "R_Hand_core"]]
+contact_check_list = [["racket_core", "R_Hand_core"], ["ball_core", "L_Hand_core"]]
 env = basic_env.BasicEnv(
     render_mode="human",
     frame_skip=1,
@@ -52,6 +52,10 @@ adh_ids = [69, 70]
 # n_steps_adh,
 # contact_check_list,
 # adh_ids,
+# breakpoint()
+# ctrls[:, -2] = 1
+# arm_targ_traj.forward_and_collect_data(env, ctrls, render=True)
+# breakpoint()
 arm_targ_traj.forward_with_dynamic_adhesion(
     env,
     ctrls,

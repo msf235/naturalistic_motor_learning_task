@@ -137,7 +137,7 @@
                       <joint name="L_Hand_z" type="hinge" pos="0 0 0" axis="0 0 1" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <geom class="hand" pos="0.0493 0.0010 -0.0058" size="0.0585 0.0158 0.0538" name="L_Hand"/>
                       <body name="L_Hand_core" pos=".05 0 0">
-                        <geom type="sphere" name="L_Hand_core" pos="0 0 0" size=".01" density="1" rgba="1 1 0 1"/>
+                        <geom type="sphere" name="L_Hand_core" pos="0 0 0" size=".01" density="0" rgba="1 1 0 1"/>
                       </body>
                     </body>
                   </body>
@@ -174,7 +174,7 @@
                       <joint name="R_Hand_z" type="hinge" pos="0 0 0" axis="0 0 1" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <geom class="hand" name="R_Hand" pos="-0.0462 -0.0009 -0.0079" size="0.0569 0.0164 0.0546" />
                       <body name="R_Hand_core" pos="-.05 0 0">
-                        <geom type="sphere" name="R_Hand_core" pos="0 0 0" size=".01" density="1" rgba="1 1 0 1"/>
+                        <geom type="sphere" name="R_Hand_core" pos="0 0 0" size=".01" density="0" rgba="1 1 0 1"/>
                       </body>
                     </body>
                   </body>
