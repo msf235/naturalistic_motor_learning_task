@@ -1619,7 +1619,6 @@ def arm_target_traj(
         noisev_trunc = noisev[:Tk_trunc]
 
         util.reset_state(model, data, data0)
-        breakpoint()
         ctrls_trunc = forward_with_dynamic_adhesion(
             env,
             ctrls_trunc,
