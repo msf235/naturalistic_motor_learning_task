@@ -3,25 +3,45 @@ params:
   xml_file: './model_files/humanoid_and_tennis.xml'
   Tf: 1.8
   t_after: .8
-  max_its: 1000
+  max_its: 6000
   optimizer: 'adam'
-  lr: .3
-  lr_2: .3
-  it_lr_2: 800
+  lr: .2
+  lr_2: .2
+  # it_lr2: 350
+  # optimizer: 'rmsprop'
+  # lr: 0.02
+  # lr2: 0.02
+  # optimizer: 'sgd'
+  # lr: 2e5
+  # lr2: 1
+  it_lr_2: 1600
+  # it_lr_2: 6000
   grad_update_every: 10
   reset_noise_scale: 0
-  t_incr: .2
-  t_incr_2: .2
-  incr_every: 100
-  incr_every_2: 100
-  grab_phase_it: 200
+  t_incr: .1
+  # t_incr_2: .1
+  t_incr_2: .05
+  incr_every: 300
+  # incr_every: 300
+  # incr_every: 750
+  # incr_every_2: 750
+  incr_every_2: 300
+  grab_phase_it: 1200
+  # grab_phase_it: 1200
+  # grab_phase_it: 3000
   grab_phase_t: .4
   grad_window_t: .05
   mask_window_t: .25
+  # joint_penalty_factor: 1e-6
+  # balance_cost: 6000
+  # joint_cost: 200
+  # foot_cost: 6000
+  # ctrl_cost: 100
+  # root_cost: 10
   joint_penalty_factor: 1e-6
   balance_cost: 0
-  root_cost: 1e4
-  joint_cost: 5e7
+  root_cost: 1e3
+  joint_cost: 5e6
   foot_cost: 0
   ctrl_cost: 1
   # ctrl_reg_weight: 1e-6
