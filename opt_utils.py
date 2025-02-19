@@ -280,6 +280,7 @@ class AdhCtrl:
                     and contact_pair_check[1] in contact_pair
                 ):
                     adh_id = adh_ids[k]
+                    print(ctrl[-2:])
                     if adh_id not in adh_contact_ids:  # TODO: check this
                         adh_contact_ids.append(adh_id)
                         ctrl[adh_id] = 1 / self.n_steps * self.ks[adh_id]

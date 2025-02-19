@@ -65,10 +65,10 @@
     </body>
     <camera name="forward" pos="9 0 0" xyaxes="0 1 0 0 0 1"/>
 
-    <geom name="ballstand" size=".1 .1 .5" pos="0 .2 .5" type="box"
+    <geom name="ballstand" size=".1 .1 .5" pos="0 .34 .5" type="box"
       material="obj" condim="3" rgba = "1 0 1 .5"/>
 
-    <body name="ball" pos="0 0.2 1.03">
+    <body name="ball" pos="0 0.34 1.03">
       <freejoint name="ball_joint" align="true"/>
       <geom name="ball" size=".03 .03 .03" pos="0 0 0" type="box"
         material="obj" condim="3" friction="1 0.005 0.0001"
@@ -82,10 +82,10 @@
       </body>
     </body>
 
-    <geom name="racketstand" size=".1 .1 .5" pos="0 -1.1 .5" type="box"
+    <geom name="racketstand" size=".1 .1 .5" pos="0 -1.25 .5" type="box"
       material="obj" condim="3" rgba="1 1 0 .5"/>
 
-    <body name="racket" pos="0 -1.04 1.03" childclass="racket">
+    <body name="racket" pos="0 -1.25 1.03" childclass="racket">
       <freejoint name="racket_joint" align="true"/>
       <geom name="racket_handle" type="cylinder" size=".02 .15" pos="0 .06 0" 
         material="obj" condim="3" rgba=".7 0 0 .5"
