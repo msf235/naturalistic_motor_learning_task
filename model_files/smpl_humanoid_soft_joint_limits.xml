@@ -1,6 +1,7 @@
 <mujoco model="humanoid">
   <compiler coordinate="local"/>
   <default class="main">
+    <motor ctrlrange="-1 1" ctrllimited="true"/>
     <joint damping="10" armature="0.01" stiffness="0.0" margin=".3" limited="true" range="-120.0000 120.0000" solimplimit="0 0.95 1 0.5 1.5"/>
     <!-- <geom conaffinity="1" condim="3" contype="7" margin="0.01" rgba="0.8 0.6 .4 1" solimp=".9 .99 .003" solref=".015 1"/> -->
     <!-- <geom conaffinity="1" condim="3" contype="7" rgba="0.8 0.6 .4 1" solimp=".2 0.95 .01 .5 1.5"/> -->
