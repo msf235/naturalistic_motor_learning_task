@@ -433,27 +433,27 @@ def tennis_traj(model, data, Tk):
         (grab_traj_below, setup_traj_below, arc_traj_below), axis=0
     )
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    ax.plot(
-        right_arm_traj_below[:, 0],
-        right_arm_traj_below[:, 1],
-        right_arm_traj_below[:, 2],
-    )
-    ax.plot(right_arm_traj[:, 0], right_arm_traj[:, 1], right_arm_traj[:, 2])
-    # Do scatter plots of points p0 through p3
-    ax.scatter(p0[0], p0[1], p0[2], c="red")
-    ax.scatter(p1[0], p1[1], p1[2], c="red")
-    ax.scatter(p2[0], p2[1], p2[2], c="red")
-    ax.scatter(p3[0], p3[1], p3[2], c="red")
-    ax.set_xlabel("X")
-    ax.set_xlim([-1, 1])
-    ax.set_ylabel("Y")
-    ax.set_ylim([-2.5, 1])
-    ax.set_zlabel("Z")
-    ax.set_zlim([0, 3])
-    plt.show()
-    breakpoint()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection="3d")
+    # ax.plot(
+    #     right_arm_traj_below[:, 0],
+    #     right_arm_traj_below[:, 1],
+    #     right_arm_traj_below[:, 2],
+    # )
+    # ax.plot(right_arm_traj[:, 0], right_arm_traj[:, 1], right_arm_traj[:, 2])
+    # # Do scatter plots of points p0 through p3
+    # ax.scatter(p0[0], p0[1], p0[2], c="red")
+    # ax.scatter(p1[0], p1[1], p1[2], c="red")
+    # ax.scatter(p2[0], p2[1], p2[2], c="red")
+    # ax.scatter(p3[0], p3[1], p3[2], c="red")
+    # ax.set_xlabel("X")
+    # ax.set_xlim([-1, 1])
+    # ax.set_ylabel("Y")
+    # ax.set_ylim([-2.5, 1])
+    # ax.set_zlabel("Z")
+    # ax.set_zlim([0, 3])
+    # plt.show()
+    # breakpoint()
 
     ##---- Left arm
     grab_targ = data.site("ball").xpos + np.array([0.01, 0.01, 0.02])
