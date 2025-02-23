@@ -409,14 +409,14 @@ def tennis_traj(model, data, Tk):
         [bezier(ease_in_out(t), handxr, p1, p2, grab_targ) for t in t_vals]
     )
     grab_traj_below = grab_traj - np.array([0, 0, 1])
+    arc_center = data.site(RSHOULD_S).xpos
+    arc_center[0] = data.site("racket_handle").xpos[0]
 
-    arc_traj_vs = arc_traj(
-        data.site(RSHOULD_S).xpos, r, np.pi, np.pi / 6, Tk_right_4, density_fn=""
-    )
+    arc_traj_vs = arc_traj(arc_center, r, np.pi, np.pi / 6, Tk_right_4, density_fn="")
     p0 = np.array([0.5, -1.5, 1.5])
     p1 = np.array([1, -0.5, 2])
     p2 = np.array([0, -0.4, 2.5])
-    p3 = np.array([0, 0.9, 2.5])
+    p3 = np.array([0, 1.2, 2.5])
     t_vals = np.linspace(0, 1, Tk_right_4)
     arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
 
@@ -433,18 +433,27 @@ def tennis_traj(model, data, Tk):
         (grab_traj_below, setup_traj_below, arc_traj_below), axis=0
     )
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection="3d")
-    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2], "x-")
-    # ax.plot(right_arm_traj[:, 0], right_arm_traj[:, 1], right_arm_traj[:, 2], "x-")
-    # ax.set_xlabel("X")
-    # ax.set_xlim([-1, 1])
-    # ax.set_ylabel("Y")
-    # ax.set_ylim([-2.5, 1])
-    # ax.set_zlabel("Z")
-    # ax.set_zlim([0, 3])
-    # plt.show()
-    # breakpoint()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    ax.plot(
+        right_arm_traj_below[:, 0],
+        right_arm_traj_below[:, 1],
+        right_arm_traj_below[:, 2],
+    )
+    ax.plot(right_arm_traj[:, 0], right_arm_traj[:, 1], right_arm_traj[:, 2])
+    # Do scatter plots of points p0 through p3
+    ax.scatter(p0[0], p0[1], p0[2], c="red")
+    ax.scatter(p1[0], p1[1], p1[2], c="red")
+    ax.scatter(p2[0], p2[1], p2[2], c="red")
+    ax.scatter(p3[0], p3[1], p3[2], c="red")
+    ax.set_xlabel("X")
+    ax.set_xlim([-1, 1])
+    ax.set_ylabel("Y")
+    ax.set_ylim([-2.5, 1])
+    ax.set_zlabel("Z")
+    ax.set_zlim([0, 3])
+    plt.show()
+    breakpoint()
 
     ##---- Left arm
     grab_targ = data.site("ball").xpos + np.array([0.01, 0.01, 0.02])
