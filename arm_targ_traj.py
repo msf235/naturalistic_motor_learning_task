@@ -53,6 +53,48 @@ def ease_in_out(t):
     return 3 * t**2 - 2 * t**3
 
 
+def directional_distance_normalize(
+    x: np.ndarray, y: np.ndarray, d: float = 1.0
+) -> np.ndarray:
+    """
+    Compute points that are a distance d away from each point in x, directed toward y.
+
+    Given two numpy arrays `x` and `y` of shape (S, n) where S is the number of datapoints
+    and n is the dimension of each vector, this function returns an array `z` of the same shape.
+    Each row in `z` represents a point located at distance d from the corresponding row in `x`
+    in the direction towards the corresponding row in `y`.
+
+    The computation is performed using the formula:
+        z = x + d * ((y - x) / ||y - x||)
+    where ||y - x|| is the Euclidean norm computed along the last dimension for each datapoint.
+
+    Parameters:
+        x (np.ndarray): An array of shape (S, n) representing the starting points.
+        y (np.ndarray): An array of shape (S, n) representing the target points.
+        d (float, optional): The scalar distance from x at which the new points z will be located. Defaults to 1.0.
+
+    Returns:
+        np.ndarray: An array of shape (S, n) representing the computed points z.
+
+    Example:
+        >>> x = np.array([[0, 0], [1, 1]])
+        >>> y = np.array([[1, 1], [2, 2]])
+        >>> d = 1.0
+        >>> compute_points(x, y, d)
+        array([[0.70710678, 0.70710678],
+               [1.70710678, 1.70710678]])
+    """
+    # Compute the difference vectors from x to y
+    diff = y - x
+
+    # Compute the Euclidean norm of each difference vector; shape becomes (S, 1)
+    norms = np.linalg.norm(diff, axis=1, keepdims=True)
+
+    # Compute the new points by normalizing the difference and scaling by d
+    z = x + (diff / norms) * d
+    return z
+
+
 def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     acts = opt_utils.get_act_ids(model)
     adh = acts["adh_right_hand"]
@@ -404,10 +446,8 @@ def tennis_traj(model, data, Tk):
     p1 = handxr + (grab_targ - handxr) / 2
     # p2: above p3 so that the final approach is from above (ensures downward final tangent)
     p2 = grab_targ + np.array([0, 0, 0.3])
-    t_vals = np.linspace(0, 1, Tk_right_1 + Tk_right_2)
-    grab_traj = np.array(
-        [bezier(ease_in_out(t), handxr, p1, p2, grab_targ) for t in t_vals]
-    )
+    s = ease_in_out(np.linspace(0, 1, Tk_right_1 + Tk_right_2))
+    grab_traj = np.array([bezier(sv, handxr, p1, p2, grab_targ) for sv in s])
     grab_traj_below = grab_traj - np.array([0, 0, 1])
     arc_center = data.site(RSHOULD_S).xpos
     arc_center[0] = data.site("racket_handle").xpos[0]
@@ -416,17 +456,19 @@ def tennis_traj(model, data, Tk):
     p0 = np.array([0.5, -1.5, 1.5])
     p1 = np.array([1, -0.5, 2])
     p2 = np.array([0, -0.4, 2.5])
-    p3 = np.array([0, 1.2, 2.5])
-    t_vals = np.linspace(0, 1, Tk_right_4)
-    arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
+    p3 = np.array([0, 1.2, 1.5])
+    s = np.linspace(0, 1, Tk_right_4)
+    arc_traj_below = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
+    arc_traj_below = directional_distance_normalize(arc_traj_vs, arc_traj_below)
 
-    s = np.linspace(0, 1, Tk_right_3)
+    s = ease_in_out(np.linspace(0, 1, Tk_right_3))
     s = np.stack((s, s, s)).T
 
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
     setup_traj_below = grab_traj_below[-1] + s * (
         arc_traj_below[0] - grab_traj_below[-1]
     )
+    setup_traj_below = directional_distance_normalize(setup_traj, setup_traj_below)
 
     right_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
     right_arm_traj_below = np.concatenate(
@@ -461,10 +503,8 @@ def tennis_traj(model, data, Tk):
     p1 = handxl + (grab_targ - handxl) / 2
     # p2: above p3 so that the final approach is from above (ensures downward final tangent)
     p2 = grab_targ + np.array([0, 0, 0.3])
-    t_vals = np.linspace(0, 1, Tk_left_1 + Tk_left_2)
-    grab_traj = np.array(
-        [bezier(ease_in_out(t), handxl, p1, p2, grab_targ) for t in t_vals]
-    )
+    s = np.linspace(0, 1, Tk_left_1 + Tk_left_2)
+    grab_traj = np.array([bezier(sv, handxl, p1, p2, grab_targ) for sv in s])
     grab_traj_below = grab_traj - np.array([0, 0, 1])
 
     arc_traj_vs = arc_traj(
@@ -491,16 +531,22 @@ def tennis_traj(model, data, Tk):
     p1 = np.array([1, -0.5, 2])
     p2 = np.array([-0.02, 0.5, 2.5])
     p3 = np.array([-0.02, -1.2, 2.25])
-    t_vals = np.linspace(0, 1, Tk_left_5)
-    arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
+    s = np.linspace(0, 1, Tk_left_4 + Tk_left_5)
+    arc_traj_below = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
+    arc_traj_below = directional_distance_normalize(
+        np.concatenate((arc_traj_vs, arc_traj_vs2)), arc_traj_below
+    )
+
+    s = ease_in_out(np.linspace(0, 1, Tk_left_1 + Tk_left_2))
 
     setup_traj = np.zeros((Tk_left_3, 3))
-    s = np.linspace(0, 1, Tk_left_3)
+    s = ease_in_out(np.linspace(0, 1, Tk_left_3))
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
     setup_traj_below = grab_traj_below[-1] + s * (
         arc_traj_below[0] - grab_traj_below[-1]
     )
+    setup_traj_below = directional_distance_normalize(setup_traj, setup_traj_below)
 
     left_arm_traj = np.concatenate(
         (grab_traj, setup_traj, arc_traj_vs, arc_traj_vs2), axis=0
