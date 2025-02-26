@@ -414,6 +414,9 @@ def tennis_grab_traj(model, data, Tk):
 
 
 def tennis_traj(model, data, Tk):
+    # def directional_distance_normalize(x, y):
+    #     return y
+
     shouldxr = data.site(RSHOULD_S).xpos
     elbowx = data.site(RELBOW_S).xpos
     handxr = data.site(RHAND_S).xpos
@@ -437,7 +440,7 @@ def tennis_traj(model, data, Tk):
     t_left_3 = t_left_2 + Tk_left_4  # Time to end of throwing ball up
     Tk_left_5 = Tk - t_left_3  # Time to move hand down
 
-    ##---- Right arm
+    ##---- Right arm (racket)
 
     # grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
     grab_targ = data.site("racket_handle").xpos + np.array([0.01, 0.01, 0.01])
@@ -497,7 +500,8 @@ def tennis_traj(model, data, Tk):
     # plt.show()
     # breakpoint()
 
-    ##---- Left arm
+    ##---- Left arm (ball)
+
     grab_targ = data.site("ball").xpos + np.array([0.01, 0.01, 0.02])
     # grab_targ = data.site("ball_top").xpos + np.array([0, 0, 0.01])
     p1 = handxl + (grab_targ - handxl) / 2
@@ -527,17 +531,6 @@ def tennis_traj(model, data, Tk):
         Tk_left_5,
         density_fn="",
     )
-    p0 = np.array([0.5, 0.0, 1.5])
-    p1 = np.array([1, -0.5, 2])
-    p2 = np.array([-0.02, 0.5, 2.5])
-    p3 = np.array([-0.02, -1.2, 2.25])
-    s = np.linspace(0, 1, Tk_left_4 + Tk_left_5)
-    arc_traj_below = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
-    arc_traj_below = directional_distance_normalize(
-        np.concatenate((arc_traj_vs, arc_traj_vs2)), arc_traj_below
-    )
-
-    s = ease_in_out(np.linspace(0, 1, Tk_left_1 + Tk_left_2))
 
     setup_traj = np.zeros((Tk_left_3, 3))
     s = ease_in_out(np.linspace(0, 1, Tk_left_3))
@@ -546,7 +539,24 @@ def tennis_traj(model, data, Tk):
     setup_traj_below = grab_traj_below[-1] + s * (
         arc_traj_below[0] - grab_traj_below[-1]
     )
-    setup_traj_below = directional_distance_normalize(setup_traj, setup_traj_below)
+    # p0 = np.array([0.5, -0.2, 0.5])
+    p0 = np.array([0.5, -0.2, 0.5])
+    p0 = grab_traj_below[-1]
+    p1 = np.array([1.0, -0.5, 2])
+    p2 = np.array([-0.02, 0.5, 2.5])
+    p3 = np.array([-0.02, -1.2, 2.25])
+    setup_traj_below = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
+    # setup_traj_below = directional_distance_normalize(
+    #     np.concatenate((arc_traj_vs, arc_traj_vs2)), arc_traj_below
+    # )
+
+    # p0 = np.array([0.5, -0.2, 0.5])
+    s = np.linspace(0, 1, Tk_left_4 + Tk_left_5)
+    arc_traj_below = np.array([setup_traj_below[-1] for sv in s])
+    # arc_traj_below = directional_distance_normalize(
+    #     np.concatenate((arc_traj_vs, arc_traj_vs2)), arc_traj_below
+    # )
+    # setup_traj_below = directional_distance_normalize(setup_traj, setup_traj_below)
 
     left_arm_traj = np.concatenate(
         (grab_traj, setup_traj, arc_traj_vs, arc_traj_vs2), axis=0
@@ -554,12 +564,27 @@ def tennis_traj(model, data, Tk):
     left_arm_traj_below = np.concatenate(
         (grab_traj_below, setup_traj_below, arc_traj_below), axis=0
     )
+    left_arm_traj_below = directional_distance_normalize(
+        left_arm_traj, left_arm_traj_below
+    )
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection="3d")
     # ax.plot(
     #     left_arm_traj_below[:, 0], left_arm_traj_below[:, 1], left_arm_traj_below[:, 2]
     # )
+    # # ax.plot(setup_traj_below[:, 0], setup_traj_below[:, 1], setup_traj_below[:, 2])
     # ax.plot(left_arm_traj[:, 0], left_arm_traj[:, 1], left_arm_traj[:, 2])
+    # # # Do scatter plots of points p0 through p3
+    # labels = [str(k) for k in range(4)]
+    # ax.scatter(p0[0], p0[1], p0[2], c="red")
+    # ax.scatter(p1[0], p1[1], p1[2], c="red")
+    # ax.scatter(p2[0], p2[1], p2[2], c="red")
+    # ax.scatter(p3[0], p3[1], p3[2], c="red")
+    # xs = [p0[0], p1[0], p2[0], p3[0]]
+    # ys = [p0[1], p1[1], p2[1], p3[1]]
+    # zs = [p0[2], p1[2], p2[2], p3[2]]
+    # for i, label in enumerate(labels):
+    #     ax.text(xs[i], ys[i], zs[i] + 0.04, label, fontsize=12, ha="center")
     # ax.set_xlabel("X")
     # ax.set_xlim([-1, 1])
     # ax.set_ylabel("Y")
@@ -1114,7 +1139,7 @@ def make_traj_sets(
                 targ_traj_masks[it][tk] = 0
         targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
         for it in targ_traj_masks:
-            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
+            targ_traj_masks2[it] = 0.05 * targ_traj_masks[it]
 
         ctrl_reg_weights = [None]
         return make_return_dict(
@@ -1197,7 +1222,7 @@ def make_traj_sets(
                 targ_traj_masks[it][tk] = 0
         targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
         for it in targ_traj_masks:
-            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
+            targ_traj_masks2[it] = 0.05 * targ_traj_masks[it]
 
         ctrl_reg_weights = [None]
         return make_return_dict(
@@ -1719,7 +1744,7 @@ def arm_target_traj(
             # grads[k] = grads[k] / np.linalg.norm(grads[k])
             util.reset_state(model, data, data0)
         toc = time.time()
-        progbar.update(" |  it: " + str(k0) + " |  grad time: " + str(toc - tic))
+        progbar.update(" |  it: " + str(k0) + " |  grad time: {:.2f}".format(toc - tic))
         losses = [0] * n_sites
         for k in range(n_sites):
             ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
