@@ -54,21 +54,12 @@ def make_video_of_motion(
     model_file, qposs, output_file, traj_targs=None, site_names=None, speed_factor=1
 ):
     """Make video of mujoco positions as stored in qpos."""
-    DEFAULT_CAMERA_CONFIG = {
-        "trackbodyid": 2,
-        "distance": 5,
-        "lookat": np.array((0.0, 0.0, 1.15)),
-        "elevation": -10.0,
-        "azimuth": 180,
-    }
-
     # render_mode = "rgb_array"
     render_mode = "human"
 
     env = basic_env.BasicEnv(
         render_mode=render_mode,
         frame_skip=1,
-        default_camera_config=DEFAULT_CAMERA_CONFIG,
         xml_file=model_file,
     )
     env.reset()

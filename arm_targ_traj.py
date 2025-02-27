@@ -1324,7 +1324,7 @@ def forward_and_collect_data(env, ctrls, ret_fn=None, render=False):
     if ret_fn is not None:  # Now switch the key and time axes of ret_vals
         dict_keys = ret_vals[0].keys()
         ret_dict = {
-            key: np.zeros((Tk + 1, len(val))) for key, val in ret_vals[0].items()
+            key: np.zeros((Tk + 1, *val.shape)) for key, val in ret_vals[0].items()
         }
         for tk in range(Tk + 1):
             for key in dict_keys:
@@ -1818,14 +1818,13 @@ def arm_target_traj(
             render_class.reset_counter()
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
-        ret_dict_save = copy.deepcopy(ret_dict)
-        for key in ret_dict_save:
-            if key != "ctrl":
-                del ret_dict_save[key]
+        ret_dict_save = {}
+        ret_dict_save["ctrl"] = ret_dict["ctrl"].copy()
         ret_dict_save["site_names"] = site_names
-        ret_dict_save["model_file_loc"] = env.fullpath
+        ret_dict_save["model_file_location"] = env.fullpath
         ret_dict_save["reset_noise_scale"] = env._reset_noise_scale
         ret_dict_save["keyframe"] = env.keyframe_name
+        ret_dict_save["trajectory_target"] = traj_targs
 
         ret_dict["trajectory_target"] = traj_targs
         ret_dict["trajectory_mask"] = traj_mask_curr
