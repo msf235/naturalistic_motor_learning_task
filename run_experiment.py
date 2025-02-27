@@ -67,6 +67,7 @@ env = basic_env.BasicEnv(
 )
 model = env.model
 data = env.data
+breakpoint()
 
 dt = model.opt.timestep
 burn_step = int(0.01 / dt)
