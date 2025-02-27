@@ -7,7 +7,7 @@
     <geom conaffinity="1" condim="3" contype="7" rgba="0.8 0.6 .4 .5" solimp="0.5 0.99 0.001" solref="0.005 1"/>
     <default class="wrist">
       <joint armature="0.01" stiffness="0" damping="0" />
-      </default>
+    </default>
     <default class="thorax">
       <joint stiffness="2" damping="2" margin="1" range="-120.0000 120.0000" solimplimit="0 0.95 1 0.5 1.5"/>
     </default>

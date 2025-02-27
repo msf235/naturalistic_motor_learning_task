@@ -1815,15 +1815,24 @@ def arm_target_traj(
             render_class.reset_counter()
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
+        ret_dict_save = copy.deepcopy(ret_dict)
+        for key in ret_dict_save:
+            if key != "ctrl":
+                del ret_dict_save[key]
+        ret_dict_save["site_names"] = site_names
+        ret_dict_save["model_file_loc"] = env.fullpath
+        ret_dict_save["reset_noise_scale"] = env._reset_noise_scale
+        ret_dict_save["keyframe"] = env.keyframe_name
+
         ret_dict["trajectory_target"] = traj_targs
         ret_dict["trajectory_mask"] = traj_mask_curr
         ret_dict["site_names"] = site_names
         util.reset_state(model, data, data0)
 
         with open(out_path / f"data_{k0}.pkl", "wb") as f:
-            pkl.dump(ret_dict, f)
+            pkl.dump(ret_dict_save, f)
         with open(out_path / "data_latest.pkl", "wb") as f:
-            pkl.dump(ret_dict, f)
+            pkl.dump(ret_dict_save, f)
         # for k, site_name in enumerate(site_names):
         #     site_xpos = ret_dict[site_name + "_xpos"]
         #     site_ctrl0 = ret_dict[site_name + "_ctrl0"]
