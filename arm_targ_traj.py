@@ -456,21 +456,25 @@ def tennis_traj(model, data, Tk):
     arc_center[0] = data.site("racket_handle").xpos[0]
 
     arc_traj_vs = arc_traj(arc_center, r, np.pi, np.pi / 6, Tk_right_4, density_fn="")
-    p0 = np.array([0.5, -1.5, 1.5])
+    p0 = grab_traj_below[-1]
+    # p0 = np.array([0.5, -1.5, 1.5])
     p1 = np.array([1, -0.5, 2])
     p2 = np.array([0, -0.4, 2.5])
     p3 = np.array([0, 1.2, 1.5])
+
     s = np.linspace(0, 1, Tk_right_4)
-    arc_traj_below = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
+    # arc_traj_below = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
+    arc_traj_below = np.array([p3 for sv in s])
     arc_traj_below = directional_distance_normalize(arc_traj_vs, arc_traj_below)
 
     s = ease_in_out(np.linspace(0, 1, Tk_right_3))
     s = np.stack((s, s, s)).T
 
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
-    setup_traj_below = grab_traj_below[-1] + s * (
-        arc_traj_below[0] - grab_traj_below[-1]
-    )
+    # setup_traj_below = grab_traj_below[-1] + s * (
+    #     arc_traj_below[0] - grab_traj_below[-1]
+    # )
+    setup_traj_below = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
     setup_traj_below = directional_distance_normalize(setup_traj, setup_traj_below)
 
     right_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
@@ -540,7 +544,6 @@ def tennis_traj(model, data, Tk):
         arc_traj_below[0] - grab_traj_below[-1]
     )
     # p0 = np.array([0.5, -0.2, 0.5])
-    p0 = np.array([0.5, -0.2, 0.5])
     p0 = grab_traj_below[-1]
     p1 = np.array([1.0, -0.5, 2])
     p2 = np.array([-0.02, 0.5, 2.5])
@@ -567,11 +570,11 @@ def tennis_traj(model, data, Tk):
     left_arm_traj_below = directional_distance_normalize(
         left_arm_traj, left_arm_traj_below
     )
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection="3d")
-    # ax.plot(
-    #     left_arm_traj_below[:, 0], left_arm_traj_below[:, 1], left_arm_traj_below[:, 2]
-    # )
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    ax.plot(
+        left_arm_traj_below[:, 0], left_arm_traj_below[:, 1], left_arm_traj_below[:, 2]
+    )
     # # ax.plot(setup_traj_below[:, 0], setup_traj_below[:, 1], setup_traj_below[:, 2])
     # ax.plot(left_arm_traj[:, 0], left_arm_traj[:, 1], left_arm_traj[:, 2])
     # # # Do scatter plots of points p0 through p3
@@ -1139,7 +1142,7 @@ def make_traj_sets(
                 targ_traj_masks[it][tk] = 0
         targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
         for it in targ_traj_masks:
-            targ_traj_masks2[it] = 0.05 * targ_traj_masks[it]
+            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
 
         ctrl_reg_weights = [None]
         return make_return_dict(
@@ -1222,7 +1225,7 @@ def make_traj_sets(
                 targ_traj_masks[it][tk] = 0
         targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
         for it in targ_traj_masks:
-            targ_traj_masks2[it] = 0.05 * targ_traj_masks[it]
+            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
 
         ctrl_reg_weights = [None]
         return make_return_dict(
