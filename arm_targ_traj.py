@@ -1142,7 +1142,7 @@ def make_traj_sets(
                 targ_traj_masks[it][tk] = 0
         targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
         for it in targ_traj_masks:
-            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
+            targ_traj_masks2[it] = 0.05 * targ_traj_masks[it]
 
         ctrl_reg_weights = [None]
         return make_return_dict(
@@ -1225,7 +1225,7 @@ def make_traj_sets(
                 targ_traj_masks[it][tk] = 0
         targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
         for it in targ_traj_masks:
-            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
+            targ_traj_masks2[it] = 0.05 * targ_traj_masks[it]
 
         ctrl_reg_weights = [None]
         return make_return_dict(
