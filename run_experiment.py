@@ -197,7 +197,7 @@ if args.rerun or not out_f.exists():
         ctrl_cost=params["ctrl_cost"],
         let_go_times=out_time["let_go_times"],
         let_go_ids=out_idx["let_go_ids"],
-        n_steps_adh=200,
+        n_steps_adh=100,
         q_pos_weight=params["q_pos_weight"],
         ctrl_reg_weight=params["ctrl_reg_weight"],
         joint_penalty_factor=params["joint_penalty_factor"],

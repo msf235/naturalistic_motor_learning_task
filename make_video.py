@@ -12,7 +12,8 @@ with open(args[0], "rb") as f:
 
 # xml_path = Path("..") / Path(data_load["model_file_location"])
 env = basic_env.BasicEnv(
-    render_mode="None",
+    # render_mode="None",
+    render_mode="human",
     frame_skip=1,
     reset_noise_scale=data_load["reset_noise_scale"],
     xml_file=data_load["model_file_location"],
@@ -33,6 +34,16 @@ def ret_fn(model, data):
     )
     return ret_dict
 
+
+# ctrls_test = arm_t.forward_with_dynamic_adhesion(
+#     env,
+#     ctrls,
+#     render=True,
+#     n_steps_adh=100,
+#     adh_ids=[69, 70],
+#     contact_check_list=[["racket_core", "R_Hand_core"], ["ball_core", "L_Hand_core"]],
+# )
+# breakpoint()
 
 sim_data = arm_t.forward_and_collect_data(env, ctrls, ret_fn=ret_fn, render=False)
 

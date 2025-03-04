@@ -283,6 +283,7 @@ class AdhCtrl:
                         ctrl[adh_id] = 1 / self.n_steps * self.ks[adh_id]
                         if self.ks[adh_id] < self.n_steps:
                             self.ks[adh_id] += 1
+                        print(contact_pair, ctrl[adh_ids])
         for k in range(len(self.t_zero_thrs)):
             if self.t_zero_thrs[k] is not None and self.tk >= self.t_zero_thrs[k]:
                 ctrl[self.t_zero_ids[k]] = 0

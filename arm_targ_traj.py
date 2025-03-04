@@ -1715,6 +1715,7 @@ def arm_target_traj(
             contact_check_list,
             adh_ids,
         )
+        # print(ctrls_trunc[-10:, -2:])
         util.reset_state(model, data, data0)
         grads = [0] * n_sites
         update_phase = k0 % grad_update_every
@@ -1808,6 +1809,7 @@ def arm_target_traj(
             print("LinAlgError in get_stabilized_ctrls")
             ctrls_trunc[:, not_stabilize_act_idx] *= 0.99
 
+        # print(ctrls_trunc[-10:, -2:])
         ctrls[:Tk_trunc] = ctrls_trunc.copy()
         # tmp[k0] = ctrls[50, site_grad_idxs[0]]
         tk = Tk_trunc
