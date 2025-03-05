@@ -53,6 +53,48 @@ def ease_in_out(t):
     return 3 * t**2 - 2 * t**3
 
 
+def directional_distance_normalize(
+    x: np.ndarray, y: np.ndarray, d: float = 1.0
+) -> np.ndarray:
+    """
+    Compute points that are a distance d away from each point in x, directed toward y.
+
+    Given two numpy arrays `x` and `y` of shape (S, n) where S is the number of datapoints
+    and n is the dimension of each vector, this function returns an array `z` of the same shape.
+    Each row in `z` represents a point located at distance d from the corresponding row in `x`
+    in the direction towards the corresponding row in `y`.
+
+    The computation is performed using the formula:
+        z = x + d * ((y - x) / ||y - x||)
+    where ||y - x|| is the Euclidean norm computed along the last dimension for each datapoint.
+
+    Parameters:
+        x (np.ndarray): An array of shape (S, n) representing the starting points.
+        y (np.ndarray): An array of shape (S, n) representing the target points.
+        d (float, optional): The scalar distance from x at which the new points z will be located. Defaults to 1.0.
+
+    Returns:
+        np.ndarray: An array of shape (S, n) representing the computed points z.
+
+    Example:
+        >>> x = np.array([[0, 0], [1, 1]])
+        >>> y = np.array([[1, 1], [2, 2]])
+        >>> d = 1.0
+        >>> compute_points(x, y, d)
+        array([[0.70710678, 0.70710678],
+               [1.70710678, 1.70710678]])
+    """
+    # Compute the difference vectors from x to y
+    diff = y - x
+
+    # Compute the Euclidean norm of each difference vector; shape becomes (S, 1)
+    norms = np.linalg.norm(diff, axis=1, keepdims=True)
+
+    # Compute the new points by normalizing the difference and scaling by d
+    z = x + (diff / norms) * d
+    return z
+
+
 def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     acts = opt_utils.get_act_ids(model)
     adh = acts["adh_right_hand"]
@@ -395,7 +437,7 @@ def tennis_traj(model, data, Tk):
     t_left_3 = t_left_2 + Tk_left_4  # Time to end of throwing ball up
     Tk_left_5 = Tk - t_left_3  # Time to move hand down
 
-    ##---- Right arm
+    ##---- Right arm (tennis racket)
 
     # grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
     grab_targ = data.site("racket_handle").xpos + np.array([0.01, 0.01, 0.01])
@@ -419,6 +461,7 @@ def tennis_traj(model, data, Tk):
     p3 = np.array([0, 0.9, 2.5])
     t_vals = np.linspace(0, 1, Tk_right_4)
     arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
+    arc_traj_below = directional_distance_normalize(arc_traj_vs, arc_traj_below)
 
     s = np.linspace(0, 1, Tk_right_3)
     s = np.stack((s, s, s)).T
@@ -427,6 +470,7 @@ def tennis_traj(model, data, Tk):
     setup_traj_below = grab_traj_below[-1] + s * (
         arc_traj_below[0] - grab_traj_below[-1]
     )
+    setup_traj_below = directional_distance_normalize(setup_traj, setup_traj_below)
 
     right_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
     right_arm_traj_below = np.concatenate(
@@ -446,7 +490,7 @@ def tennis_traj(model, data, Tk):
     # plt.show()
     # breakpoint()
 
-    ##---- Left arm
+    ##---- Left arm (ball)
     grab_targ = data.site("ball").xpos + np.array([0.01, 0.01, 0.02])
     # grab_targ = data.site("ball_top").xpos + np.array([0, 0, 0.01])
     p1 = handxl + (grab_targ - handxl) / 2
