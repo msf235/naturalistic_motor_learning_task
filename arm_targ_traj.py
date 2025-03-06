@@ -571,23 +571,23 @@ def tennis_traj(model, data, Tk):
     left_arm_traj_below = np.concatenate(
         (grab_traj_below, setup_traj_below, arc_traj_below), axis=0
     )
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    ax.plot(
-        left_arm_traj_below[:, 0],
-        left_arm_traj_below[:, 1],
-        left_arm_traj_below[:, 2],
-        "x-",
-    )
-    ax.plot(left_arm_traj[:, 0], left_arm_traj[:, 1], left_arm_traj[:, 2], "x-")
-    ax.set_xlabel("X")
-    ax.set_xlim((-1, 1))
-    ax.set_ylabel("Y")
-    ax.set_ylim((-2.5, 1))
-    ax.set_zlabel("Z")
-    ax.set_zlim((0, 3))
-    plt.show()
-    breakpoint()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection="3d")
+    # ax.plot(
+    #     left_arm_traj_below[:, 0],
+    #     left_arm_traj_below[:, 1],
+    #     left_arm_traj_below[:, 2],
+    #     "x-",
+    # )
+    # ax.plot(left_arm_traj[:, 0], left_arm_traj[:, 1], left_arm_traj[:, 2], "x-")
+    # ax.set_xlabel("X")
+    # ax.set_xlim((-1, 1))
+    # ax.set_ylabel("Y")
+    # ax.set_ylim((-2.5, 1))
+    # ax.set_zlabel("Z")
+    # ax.set_zlim((0, 3))
+    # plt.show()
+    # breakpoint()
 
     time_dict = dict(
         Tk_right_1=Tk_right_1,
