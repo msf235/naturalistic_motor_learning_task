@@ -502,11 +502,11 @@ def tennis_traj(model, data, Tk):
     # ax.text(p2[0], p2[1], p2[2], "p2")
     # ax.text(p3[0], p3[1], p3[2], "p3")
     # ax.set_xlabel("X")
-    # ax.set_xlim((-1, 1))
+    # ax.set_xlim([-1, 1])
     # ax.set_ylabel("Y")
-    # ax.set_ylim((-2.5, 1))
+    # ax.set_ylim([-2.5, 1])
     # ax.set_zlabel("Z")
-    # ax.set_zlim((0, 3))
+    # ax.set_zlim([0, 3])
     # plt.show()
     # breakpoint()
 
@@ -546,12 +546,8 @@ def tennis_traj(model, data, Tk):
     p1 = np.array([1, -0.5, 2])
     p2 = np.array([0, 0.5, 2.5])
     p3 = np.array([0, -0.9, 2.25])
-    t_vals = np.linspace(0, 1, Tk_left_4 // 2)
-    arc_traj_below_1 = np.array(
-        [bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals]
-    )
-    arc_traj_below_2 = np.tile(p3, (Tk_left_4 // 2 + Tk_left_5, 1))
-    arc_traj_below = np.concatenate((arc_traj_below_1, arc_traj_below_2), axis=0)
+    t_vals = np.linspace(0, 1, Tk_left_4 + Tk_left_5)
+    arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
     arc_traj_below = directional_distance_normalize(
         np.concatenate((arc_traj_vs, arc_traj_vs2), axis=0), arc_traj_below
     )
@@ -571,23 +567,18 @@ def tennis_traj(model, data, Tk):
     left_arm_traj_below = np.concatenate(
         (grab_traj_below, setup_traj_below, arc_traj_below), axis=0
     )
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    ax.plot(
-        left_arm_traj_below[:, 0],
-        left_arm_traj_below[:, 1],
-        left_arm_traj_below[:, 2],
-        "x-",
-    )
-    ax.plot(left_arm_traj[:, 0], left_arm_traj[:, 1], left_arm_traj[:, 2], "x-")
-    ax.set_xlabel("X")
-    ax.set_xlim((-1, 1))
-    ax.set_ylabel("Y")
-    ax.set_ylim((-2.5, 1))
-    ax.set_zlabel("Z")
-    ax.set_zlim((0, 3))
-    plt.show()
-    breakpoint()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection="3d")
+    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2], "x-")
+    # ax.plot(left_arm_traj[:, 0], left_arm_traj[:, 1], left_arm_traj[:, 2], "x-")
+    # ax.set_xlabel("X")
+    # ax.set_xlim([-1, 1])
+    # ax.set_ylabel("Y")
+    # ax.set_ylim([-2.5, 1])
+    # ax.set_zlabel("Z")
+    # ax.set_zlim([0, 3])
+    # plt.show()
+    # breakpoint()
 
     time_dict = dict(
         Tk_right_1=Tk_right_1,
