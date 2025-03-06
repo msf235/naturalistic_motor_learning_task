@@ -528,7 +528,9 @@ def tennis_traj(model, data, Tk):
     p3 = np.array([0, -0.9, 2.25])
     t_vals = np.linspace(0, 1, Tk_left_4 + Tk_left_5)
     arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
-    arc_traj_below = directional_distance_normalize(arc_traj_vs, arc_traj_below)
+    arc_traj_below = directional_distance_normalize(
+        np.concatenate((arc_traj_vs, arc_traj_vs2), axis=0), arc_traj_below
+    )
 
     setup_traj = np.zeros((Tk_left_3, 3))
     s = np.linspace(0, 1, Tk_left_3)
