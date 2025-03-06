@@ -526,7 +526,7 @@ def tennis_traj(model, data, Tk):
     p1 = np.array([1, -0.5, 2])
     p2 = np.array([0, 0.5, 2.5])
     p3 = np.array([0, -0.9, 2.25])
-    t_vals = np.linspace(0, 1, Tk_left_5)
+    t_vals = np.linspace(0, 1, Tk_left_4 + Tk_left_5)
     arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
 
     setup_traj = np.zeros((Tk_left_3, 3))
