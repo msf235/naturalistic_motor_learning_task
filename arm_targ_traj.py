@@ -1812,12 +1812,13 @@ def arm_target_traj(
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
         ret_dict_save = {
-            "ctrl": ctrls,
+            "ctrls_trunc": ctrls_trunc,
             "site_names": site_names,
             "reset_noise_scale": env._reset_noise_scale,
-            "model_file_location": env.full_path,
-            "keyframe": env.keyframe,
+            "model_file_location": env.fullpath,
+            "keyframe": env.keyframe_name,
             "state0": state0,
+            "trajectory_target": traj_targs,
         }
         ret_dict["trajectory_target"] = traj_targs
         ret_dict["trajectory_mask"] = traj_mask_curr
