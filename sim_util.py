@@ -76,6 +76,19 @@ def reset_state(model, data_to, data_from):
     # data_from.qfrc_applied[:] = data_to.qfrc_applied.copy()
     # state = get_state(data_from)
     # set_state(data_to, state)
+    #
+
+
+def get_state(data):
+    state = {
+        "qpos": data.qpos.copy(),
+        "qvel": data.qvel.copy(),
+        "qacc": data.qacc.copy(),
+        "act": data.act.copy(),
+        "ctrl": data.ctrl.copy(),
+        "time": data.time,
+    }
+    return state
 
 
 def save_state(data, save_loc):

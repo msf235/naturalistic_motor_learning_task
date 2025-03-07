@@ -1604,6 +1604,7 @@ def arm_target_traj(
     n_sites = len(site_names)
 
     data0 = copy.deepcopy(data)
+    state0 = util.get_state(data0)
 
     noisev = make_noisev(model, seed, Tk, ctrl_std, ctrl_rate)
 
@@ -1810,7 +1811,14 @@ def arm_target_traj(
             render_class.reset_counter()
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
-        ret_dict_save = {"ctrl": ctrls, "site_names": site_names}
+        ret_dict_save = {
+            "ctrl": ctrls,
+            "site_names": site_names,
+            "reset_noise_scale": env._reset_noise_scale,
+            "model_file_location": env.full_path,
+            "keyframe": env.keyframe,
+            "state0": state0,
+        }
         ret_dict["trajectory_target"] = traj_targs
         ret_dict["trajectory_mask"] = traj_mask_curr
         ret_dict["site_names"] = site_names
