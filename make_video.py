@@ -16,12 +16,12 @@ with open(args[0], "rb") as f:
 env = basic_env.BasicEnv(
     render_mode="None",
     frame_skip=1,
-    # reset_noise_scale=data_load["reset_noise_scale"],
-    reset_noise_scale=0,
-    # xml_file=data_load["model_file_location"],
-    xml_file="./model_files/humanoid_and_tennis.xml",
-    # keyframe_name=data_load["keyframe"],
-    keyframe_name="tpose1",
+    reset_noise_scale=data_load["reset_noise_scale"],
+    # reset_noise_scale=0,
+    xml_file=data_load["model_file_location"],
+    # xml_file="./model_files/humanoid_and_tennis.xml",
+    keyframe_name=data_load["keyframe"],
+    # keyframe_name="tpose1",
 )
 model = env.model
 data = env.data
@@ -31,11 +31,11 @@ data.qvel[:] = data_load["state0"]["qvel"].copy()
 # data_to.qacc[:] = data_from.qacc.copy()
 # data.act[:] = data_from.act.copy()
 # data.ctrl[:] = data_from.ctrl.copy()
-data.time = data_load["state0"]["time"].copy()
+data.time = data_load["state0"]["time"]
 mj.mj_forward(model, data)
-ctrls = data_load["ctrl"]
+ctrls = data_load["ctrls_trunc"]
 
-breakpoint()
+# breakpoint()
 
 
 def ret_fn(model, data):
