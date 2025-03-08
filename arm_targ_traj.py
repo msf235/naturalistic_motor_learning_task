@@ -701,10 +701,7 @@ def get_idx_sets(env, config_name):
             ["ball_core", HAND_STR_LEFT + "_core"],
         ]
         acts = opt_utils.get_act_ids(model)
-        adh_ids = [
-            acts["adh_right_hand"][0],
-            acts["adh_left_hand"][0],
-        ]
+        adh_ids = acts["adh_right_hand"] + acts["adh_left_hand"]
     else:
         adh_ids = []
         contact_check_list = []
