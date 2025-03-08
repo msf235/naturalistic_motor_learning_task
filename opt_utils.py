@@ -268,6 +268,7 @@ class AdhCtrl:
             return ctrl, None, None
         ctrl = ctrl.copy()
         adh_ids = self.adh_ids
+        breakpoint()
         contact_pairs = util.get_contact_pairs(model, data)
         adh_contact_ids = []
         for contact_pair in contact_pairs:
