@@ -165,7 +165,7 @@
                     <joint class="wrist" name="R_Wrist_x" type="hinge" pos="0 0 0" axis="1 0 0" user="100 1 1 150 1 1"/>
                     <joint class="wrist" name="R_Wrist_y" type="hinge" pos="0 0 0" axis="0 1 0" user="100 1 1 150 1 1"/>
                     <joint class="wrist" name="R_Wrist_z" type="hinge" pos="0 0 0" axis="0 0 1" user="100 1 1 150 1 1"/>
-                    <geom type="capsule" contype="10" conaffinity="10" density="1000" fromto="-0.0169 -0.0012 -0.0021 -0.0677 -0.0049 -0.0083" size="0.0326" name="R_Wrist"/>
+                    <geom type="capsule" contype="0" conaffinity="0" density="1000" fromto="-0.0169 -0.0012 -0.0021 -0.0677 -0.0049 -0.0083" size="0.0326" name="R_Wrist"/>
                     <body name="R_Hand" pos="-0.0846 -0.0061 -0.0103">
                       <site name="R_Hand" pos="-.05 0 0" size=".01"/>
                       <site name="R_Hand_below" pos="-.05 -1 0" size=".05" rgba="1 1 0 0"/>
@@ -173,8 +173,11 @@
                       <joint name="R_Hand_y" type="hinge" pos="0 0 0" axis="0 1 0" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <joint name="R_Hand_z" type="hinge" pos="0 0 0" axis="0 0 1" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <geom class="hand" name="R_Hand" pos="-0.0462 -0.0009 -0.0079" size="0.0569 0.0164 0.0546" />
-                      <body name="R_Hand_core" pos="-.05 0 0">
-                        <geom type="sphere" name="R_Hand_core" pos="0 0 0" size=".01" density="0" rgba="1 1 0 1"/>
+                      <body name="R_Hand_node_1" pos="-.03 0 0">
+                        <geom type="sphere" name="R_Hand_node_1" pos="0 0 0" size=".01" density="0" rgba="1 1 0 1"/>
+                      </body>
+                      <body name="R_Hand_node_2" pos="-.07 0 0">
+                        <geom type="sphere" name="R_Hand_node_2" pos="0 0 0" size=".01" density="0" rgba="1 1 0 1"/>
                       </body>
                     </body>
                   </body>
@@ -258,7 +261,8 @@
     <motor name="R_Hand_z" joint="R_Hand_z" gear="1"/>
     <!-- <adhesion name="R_Hand_adh" body="R_Hand" gain="800" -->
     <!--   ctrlrange="0 1"/> -->
-    <adhesion name="R_Hand_adh" body="R_Hand_core" gain="300" ctrlrange="0 1"/>
+    <adhesion name="R_Hand_adh" body="R_Hand_node_1" gain="300" ctrlrange="0 1"/>
+    <adhesion name="R_Hand_adh" body="R_Hand_node_2" gain="300" ctrlrange="0 1"/>
     <adhesion name="L_Hand_adh" body="L_Hand_core" gain="300" ctrlrange="0 1"/>
   </actuator>
   <contact>

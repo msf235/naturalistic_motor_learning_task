@@ -696,7 +696,8 @@ def get_idx_sets(env, config_name):
     elif config_name in ["tennis_serve", "tennis_grab"]:
         # contact_check_list = [
         contact_check_list = [
-            ["racket_core", HAND_STR_RIGHT + "_core"],
+            ["racket_node_1", HAND_STR_RIGHT + "_node_1"],
+            ["racket_node_2", HAND_STR_RIGHT + "_node_2"],
             ["ball_core", HAND_STR_LEFT + "_core"],
         ]
         acts = opt_utils.get_act_ids(model)
