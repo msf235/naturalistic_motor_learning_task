@@ -69,6 +69,7 @@ class BasicEnv(MujocoEnv, utils.EzPickle):
         )
 
         self._reset_noise_scale = reset_noise_scale
+        self.keyframe_name = keyframe_name
         MujocoEnv.__init__(
             self,
             xml_file,

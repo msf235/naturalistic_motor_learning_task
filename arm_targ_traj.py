@@ -53,6 +53,48 @@ def ease_in_out(t):
     return 3 * t**2 - 2 * t**3
 
 
+def directional_distance_normalize(
+    x: np.ndarray, y: np.ndarray, d: float = 1.0
+) -> np.ndarray:
+    """
+    Compute points that are a distance d away from each point in x, directed toward y.
+
+    Given two numpy arrays `x` and `y` of shape (S, n) where S is the number of datapoints
+    and n is the dimension of each vector, this function returns an array `z` of the same shape.
+    Each row in `z` represents a point located at distance d from the corresponding row in `x`
+    in the direction towards the corresponding row in `y`.
+
+    The computation is performed using the formula:
+        z = x + d * ((y - x) / ||y - x||)
+    where ||y - x|| is the Euclidean norm computed along the last dimension for each datapoint.
+
+    Parameters:
+        x (np.ndarray): An array of shape (S, n) representing the starting points.
+        y (np.ndarray): An array of shape (S, n) representing the target points.
+        d (float, optional): The scalar distance from x at which the new points z will be located. Defaults to 1.0.
+
+    Returns:
+        np.ndarray: An array of shape (S, n) representing the computed points z.
+
+    Example:
+        >>> x = np.array([[0, 0], [1, 1]])
+        >>> y = np.array([[1, 1], [2, 2]])
+        >>> d = 1.0
+        >>> compute_points(x, y, d)
+        array([[0.70710678, 0.70710678],
+               [1.70710678, 1.70710678]])
+    """
+    # Compute the difference vectors from x to y
+    diff = y - x
+
+    # Compute the Euclidean norm of each difference vector; shape becomes (S, 1)
+    norms = np.linalg.norm(diff, axis=1, keepdims=True)
+
+    # Compute the new points by normalizing the difference and scaling by d
+    z = x + (diff / norms) * d
+    return z
+
+
 def make_noisev(model, seed, Tk, CTRL_STD, CTRL_RATE):
     acts = opt_utils.get_act_ids(model)
     adh = acts["adh_right_hand"]
@@ -395,7 +437,7 @@ def tennis_traj(model, data, Tk):
     t_left_3 = t_left_2 + Tk_left_4  # Time to end of throwing ball up
     Tk_left_5 = Tk - t_left_3  # Time to move hand down
 
-    ##---- Right arm
+    ##---- Right arm (tennis racket)
 
     # grab_targ = data.site('racket_handle').xpos + np.array([0, 0, -0.05])
     grab_targ = data.site("racket_handle").xpos + np.array([0.01, 0.01, 0.01])
@@ -413,12 +455,18 @@ def tennis_traj(model, data, Tk):
     arc_traj_vs = arc_traj(
         data.site(RSHOULD_S).xpos, r, np.pi, np.pi / 6, Tk_right_4, density_fn=""
     )
-    p0 = np.array([0.5, -1.5, 1.5])
+    p0 = np.array([0.5, -1.0, 1.5])
     p1 = np.array([1, -0.5, 2])
     p2 = np.array([0, -0.4, 2.5])
     p3 = np.array([0, 0.9, 2.5])
-    t_vals = np.linspace(0, 1, Tk_right_4)
-    arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
+    t_vals = np.linspace(0, 1, Tk_right_4 // 2)
+    arc_traj_below_1 = np.array(
+        [bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals]
+    )
+    # t_vals = np.linspace(0, 1, Tk_right_4 / 2)
+    arc_traj_below_2 = np.tile(p3, (Tk_right_4 // 2, 1))
+    arc_traj_below = np.concatenate((arc_traj_below_1, arc_traj_below_2), axis=0)
+    arc_traj_below = directional_distance_normalize(arc_traj_vs, arc_traj_below)
 
     s = np.linspace(0, 1, Tk_right_3)
     s = np.stack((s, s, s)).T
@@ -427,6 +475,7 @@ def tennis_traj(model, data, Tk):
     setup_traj_below = grab_traj_below[-1] + s * (
         arc_traj_below[0] - grab_traj_below[-1]
     )
+    setup_traj_below = directional_distance_normalize(setup_traj, setup_traj_below)
 
     right_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
     right_arm_traj_below = np.concatenate(
@@ -435,18 +484,33 @@ def tennis_traj(model, data, Tk):
 
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection="3d")
-    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2], "x-")
+    # ax.plot(
+    #     right_arm_traj_below[:, 0],
+    #     right_arm_traj_below[:, 1],
+    #     right_arm_traj_below[:, 2],
+    #     "x-",
+    # )
     # ax.plot(right_arm_traj[:, 0], right_arm_traj[:, 1], right_arm_traj[:, 2], "x-")
+    # # plot scatter of p0, p1, p2, p3
+    # ax.scatter(p0[0], p0[1], p0[2], c="red")
+    # ax.scatter(p1[0], p1[1], p1[2], c="green")
+    # ax.scatter(p2[0], p2[1], p2[2], c="blue")
+    # ax.scatter(p3[0], p3[1], p3[2], c="yellow")
+    # # Add text labels for p0, p1, p2, p3
+    # ax.text(p0[0], p0[1], p0[2], "p0")
+    # ax.text(p1[0], p1[1], p1[2], "p1")
+    # ax.text(p2[0], p2[1], p2[2], "p2")
+    # ax.text(p3[0], p3[1], p3[2], "p3")
     # ax.set_xlabel("X")
-    # ax.set_xlim([-1, 1])
+    # ax.set_xlim((-1, 1))
     # ax.set_ylabel("Y")
-    # ax.set_ylim([-2.5, 1])
+    # ax.set_ylim((-2.5, 1))
     # ax.set_zlabel("Z")
-    # ax.set_zlim([0, 3])
+    # ax.set_zlim((0, 3))
     # plt.show()
     # breakpoint()
 
-    ##---- Left arm
+    ##---- Left arm (ball)
     grab_targ = data.site("ball").xpos + np.array([0.01, 0.01, 0.02])
     # grab_targ = data.site("ball_top").xpos + np.array([0, 0, 0.01])
     p1 = handxl + (grab_targ - handxl) / 2
@@ -482,8 +546,15 @@ def tennis_traj(model, data, Tk):
     p1 = np.array([1, -0.5, 2])
     p2 = np.array([0, 0.5, 2.5])
     p3 = np.array([0, -0.9, 2.25])
-    t_vals = np.linspace(0, 1, Tk_left_5)
-    arc_traj_below = np.array([bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals])
+    t_vals = np.linspace(0, 1, Tk_left_4 // 2)
+    arc_traj_below_1 = np.array(
+        [bezier(ease_in_out(t), p0, p1, p2, p3) for t in t_vals]
+    )
+    arc_traj_below_2 = np.tile(p3, (Tk_left_4 // 2 + Tk_left_5, 1))
+    arc_traj_below = np.concatenate((arc_traj_below_1, arc_traj_below_2), axis=0)
+    arc_traj_below = directional_distance_normalize(
+        np.concatenate((arc_traj_vs, arc_traj_vs2), axis=0), arc_traj_below
+    )
 
     setup_traj = np.zeros((Tk_left_3, 3))
     s = np.linspace(0, 1, Tk_left_3)
@@ -492,6 +563,7 @@ def tennis_traj(model, data, Tk):
     setup_traj_below = grab_traj_below[-1] + s * (
         arc_traj_below[0] - grab_traj_below[-1]
     )
+    setup_traj_below = directional_distance_normalize(setup_traj, setup_traj_below)
 
     left_arm_traj = np.concatenate(
         (grab_traj, setup_traj, arc_traj_vs, arc_traj_vs2), axis=0
@@ -501,14 +573,19 @@ def tennis_traj(model, data, Tk):
     )
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection="3d")
-    # ax.plot(traj_below[:, 0], traj_below[:, 1], traj_below[:, 2], "x-")
+    # ax.plot(
+    #     left_arm_traj_below[:, 0],
+    #     left_arm_traj_below[:, 1],
+    #     left_arm_traj_below[:, 2],
+    #     "x-",
+    # )
     # ax.plot(left_arm_traj[:, 0], left_arm_traj[:, 1], left_arm_traj[:, 2], "x-")
     # ax.set_xlabel("X")
-    # ax.set_xlim([-1, 1])
+    # ax.set_xlim((-1, 1))
     # ax.set_ylabel("Y")
-    # ax.set_ylim([-2.5, 1])
+    # ax.set_ylim((-2.5, 1))
     # ax.set_zlabel("Z")
-    # ax.set_zlim([0, 3])
+    # ax.set_zlim((0, 3))
     # plt.show()
     # breakpoint()
 
@@ -619,7 +696,8 @@ def get_idx_sets(env, config_name):
     elif config_name in ["tennis_serve", "tennis_grab"]:
         # contact_check_list = [
         contact_check_list = [
-            ["racket_core", HAND_STR_RIGHT + "_core"],
+            ["racket_node_1", HAND_STR_RIGHT + "_node_1"],
+            ["racket_node_2", HAND_STR_RIGHT + "_node_2"],
             ["ball_core", HAND_STR_LEFT + "_core"],
         ]
         acts = opt_utils.get_act_ids(model)
@@ -1527,6 +1605,7 @@ def arm_target_traj(
     n_sites = len(site_names)
 
     data0 = copy.deepcopy(data)
+    state0 = util.get_state(data0)
 
     noisev = make_noisev(model, seed, Tk, ctrl_std, ctrl_rate)
 
@@ -1733,15 +1812,24 @@ def arm_target_traj(
             render_class.reset_counter()
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
+        ret_dict_save = {
+            "ctrls_trunc": ctrls_trunc,
+            "site_names": site_names,
+            "reset_noise_scale": env._reset_noise_scale,
+            "model_file_location": env.fullpath,
+            "keyframe": env.keyframe_name,
+            "state0": state0,
+            "trajectory_target": traj_targs,
+        }
         ret_dict["trajectory_target"] = traj_targs
         ret_dict["trajectory_mask"] = traj_mask_curr
         ret_dict["site_names"] = site_names
         util.reset_state(model, data, data0)
 
         with open(out_path / f"data_{k0}.pkl", "wb") as f:
-            pkl.dump(ret_dict, f)
+            pkl.dump(ret_dict_save, f)
         with open(out_path / "data_latest.pkl", "wb") as f:
-            pkl.dump(ret_dict, f)
+            pkl.dump(ret_dict_save, f)
         # for k, site_name in enumerate(site_names):
         #     site_xpos = ret_dict[site_name + "_xpos"]
         #     site_ctrl0 = ret_dict[site_name + "_ctrl0"]
