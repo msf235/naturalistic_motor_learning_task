@@ -102,11 +102,11 @@
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".2 .4 .4 .5"
         density="0" contype="10" conaffinity="10" solref=".02 .4"/>
       <site name="racket" pos="0 0.1 0"/>
-      <body name="racket_node_1" pos="0 .12 0">
+      <body name="racket_node_1" pos="0 .14 0">
         <geom name="racket_node_1" size=".01" pos="0 0 0" type="sphere"
           material="obj" condim="3" density="0" rgba="1 1 0 .5"/>
       </body>
-      <body name="racket_node_2" pos="0 .08 0">
+      <body name="racket_node_2" pos="0 .06 0">
         <geom name="racket_node_2" size=".01" pos="0 0 0" type="sphere"
           material="obj" condim="3" density="0" rgba="1 1 0 .5"/>
       </body>

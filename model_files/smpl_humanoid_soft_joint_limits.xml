@@ -174,10 +174,10 @@
                       <joint name="R_Hand_y" type="hinge" pos="0 0 0" axis="0 1 0" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <joint name="R_Hand_z" type="hinge" pos="0 0 0" axis="0 0 1" user="50 1 1 150 1 1" armature="0.01" stiffness="0"/>
                       <geom class="hand" name="R_Hand" pos="-0.0462 -0.0009 -0.0079" size="0.0569 0.0164 0.0546" />
-                      <body name="R_Hand_node_1" pos="-.03 0 0">
+                      <body name="R_Hand_node_1" pos="-.02 0 0">
                         <geom type="sphere" name="R_Hand_node_1" pos="0 0 0" size=".01" density="0" rgba="1 1 0 1"/>
                       </body>
-                      <body name="R_Hand_node_2" pos="-.07 0 0">
+                      <body name="R_Hand_node_2" pos="-.08 0 0">
                         <geom type="sphere" name="R_Hand_node_2" pos="0 0 0" size=".01" density="0" rgba="1 1 0 1"/>
                       </body>
                     </body>
@@ -262,9 +262,9 @@
     <motor name="R_Hand_z" joint="R_Hand_z" gear="1"/>
     <!-- <adhesion name="R_Hand_adh" body="R_Hand" gain="800" -->
     <!--   ctrlrange="0 1"/> -->
-    <adhesion name="R_Hand_adh" body="R_Hand_node_1" gain="300" ctrlrange="0 1"/>
-    <adhesion name="R_Hand_adh" body="R_Hand_node_2" gain="300" ctrlrange="0 1"/>
-    <adhesion name="L_Hand_adh" body="L_Hand_core" gain="300" ctrlrange="0 1"/>
+    <adhesion name="R_Hand_adh_1" body="R_Hand_node_1" gain="500" ctrlrange="0 1"/>
+    <adhesion name="R_Hand_adh_2" body="R_Hand_node_2" gain="500" ctrlrange="0 1"/>
+    <adhesion name="L_Hand_adh" body="L_Hand_core" gain="500" ctrlrange="0 1"/>
   </actuator>
   <contact>
     <exclude body1="Torso" body2="Chest"/>
