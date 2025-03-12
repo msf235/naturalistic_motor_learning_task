@@ -1739,7 +1739,7 @@ def arm_target_traj(
             # grads[k] = grads[k] / np.linalg.norm(grads[k])
             util.reset_state(model, data, data0)
         toc = time.time()
-        progbar.update(" |  it: " + str(k0) + " |  grad time: " + str(toc - tic))
+        progbar.update(" |  it: " + str(k0) + " |  grad time: {:.2f}".format(toc - tic))
         losses = [0] * n_sites
         for k in range(n_sites):
             ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
