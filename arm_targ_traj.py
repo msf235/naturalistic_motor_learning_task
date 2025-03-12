@@ -1652,7 +1652,7 @@ def arm_target_traj(
             return opts.SGD(lr=lr, momentum=0.2)
 
     optms = [None] * n_sites
-    lowest_losses = LimLowestDict(keep_top)
+    # lowest_losses = LimLowestDict(keep_top)
     lowest_losses_curr_mask = LimLowestDict(keep_top)
 
     nplots = 5
@@ -1689,7 +1689,7 @@ def arm_target_traj(
         q_pos_mask_curr = q_pos_mask_curr[: Tk_trunc + 1] * q_pos_weight
         q_vel_mask_curr = q_vel_mask_curr[: Tk_trunc + 1]
         if Tk_trunc_prev > 0 and Tk_trunc != Tk_trunc_prev:
-            ctrls = lowest_losses_curr_mask.popitem(0)[1][1]
+            ctrls = lowest_losses_curr_mask.values()[0][1]
             lowest_losses_curr_mask = LimLowestDict(keep_top)
         ctrls_trunc = ctrls[:Tk_trunc]
         noisev_trunc = noisev[:Tk_trunc]
@@ -1809,24 +1809,11 @@ def arm_target_traj(
             render_class.reset_counter()
         else:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, False)
-        ret_dict_save = {
-            "ctrls_trunc": ctrls_trunc,
-            "site_names": site_names,
-            "reset_noise_scale": env._reset_noise_scale,
-            "model_file_location": env.fullpath,
-            "keyframe": env.keyframe_name,
-            "state0": state0,
-            "trajectory_target": traj_targs,
-        }
         ret_dict["trajectory_target"] = traj_targs
         ret_dict["trajectory_mask"] = traj_mask_curr
         ret_dict["site_names"] = site_names
         util.reset_state(model, data, data0)
 
-        with open(out_path / f"data_{k0}.pkl", "wb") as f:
-            pkl.dump(ret_dict_save, f)
-        with open(out_path / "data_latest.pkl", "wb") as f:
-            pkl.dump(ret_dict_save, f)
         # for k, site_name in enumerate(site_names):
         #     site_xpos = ret_dict[site_name + "_xpos"]
         #     site_ctrl0 = ret_dict[site_name + "_ctrl0"]
@@ -1854,7 +1841,6 @@ def arm_target_traj(
         # loss_qvels[1, k0, : Tk_trunc + 1] = 0.5 * (
         #     (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
         # ).mean(axis=1)
-        # breakpoint()
         qpos = ret_dict["qpos"]
         q_targs_masked = []
         qs_list = []
@@ -1881,10 +1867,24 @@ def arm_target_traj(
             qs_tmp[qpos_mask == 0] = np.nan
             qs_list.append(qs_tmp)
         loss = sum([loss.item() for loss in losses]) / n_sites
-        lowest_losses.append(loss, (k0, ctrls.copy()))
+        # lowest_losses.append(loss, (k0, ctrls.copy()))
         loss_curr_mask_avg = sum([loss.item() for loss in losses_curr_mask]) / n_sites
-        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
+        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls_trunc.copy()))
         toc = time.time()
+        ret_dict_save = {
+            "ctrls_trunc": ctrls_trunc,
+            "best_pair": lowest_losses_curr_mask.values()[0],  # (k0, ctrl)
+            "site_names": site_names,
+            "reset_noise_scale": env._reset_noise_scale,
+            "model_file_location": env.fullpath,
+            "keyframe": env.keyframe_name,
+            "state0": state0,
+            "trajectory_target": traj_targs,
+        }
+        with open(out_path / f"data_{k0}.pkl", "wb") as f:
+            pkl.dump(ret_dict_save, f)
+        with open(out_path / "data_latest.pkl", "wb") as f:
+            pkl.dump(ret_dict_save, f)
         # print(loss, toc-tic)
         if k0 % plot_every == 0:
             # qs_wr = qs[:, joints['all']['wrist_left']]
@@ -1955,4 +1955,4 @@ def arm_target_traj(
     # except KeyboardInterrupt:
     # pass
 
-    return ctrls, lowest_losses
+    return ctrls, lowest_losses_curr_mask

@@ -21,7 +21,7 @@ params:
   t_incr: .1
   # t_incr_2: .1
   t_incr_2: .05
-  incr_every: 150
+  incr_every: 10
   # incr_every: 300
   # incr_every: 750
   # incr_every_2: 750
