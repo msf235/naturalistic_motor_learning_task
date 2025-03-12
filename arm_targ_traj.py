@@ -1688,11 +1688,11 @@ def arm_target_traj(
         vel_mask_curr = vel_mask_curr[: Tk_trunc + 1]
         q_pos_mask_curr = q_pos_mask_curr[: Tk_trunc + 1] * q_pos_weight
         q_vel_mask_curr = q_vel_mask_curr[: Tk_trunc + 1]
+        ctrls_trunc = ctrls[:Tk_trunc]
         if Tk_trunc_prev > 0 and Tk_trunc != Tk_trunc_prev:
             ctrls_trunc = lowest_losses_curr_mask.values()[0][1]
             # ctrls[:Tk_trunc] = lowest_losses_curr_mask.values()[0][1]
             lowest_losses_curr_mask = LimLowestDict(keep_top)
-        # ctrls_trunc = ctrls[:Tk_trunc]
         noisev_trunc = noisev[:Tk_trunc]
 
         util.reset_state(model, data, data0)
