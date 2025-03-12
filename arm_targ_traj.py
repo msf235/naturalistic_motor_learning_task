@@ -1869,11 +1869,13 @@ def arm_target_traj(
         loss = sum([loss.item() for loss in losses]) / n_sites
         # lowest_losses.append(loss, (k0, ctrls.copy()))
         loss_curr_mask_avg = sum([loss.item() for loss in losses_curr_mask]) / n_sites
-        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls_trunc.copy()))
+        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
+        best_pair = lowest_losses_curr_mask.values()[0]
+        best_pair[1] = best_pair[1][:Tk_trunc]
         toc = time.time()
         ret_dict_save = {
             "ctrls_trunc": ctrls_trunc,
-            "best_pair": lowest_losses_curr_mask.values()[0],  # (k0, ctrl)
+            "best_pair": best_pair,  # (k0, ctrl)
             "site_names": site_names,
             "reset_noise_scale": env._reset_noise_scale,
             "model_file_location": env.fullpath,
