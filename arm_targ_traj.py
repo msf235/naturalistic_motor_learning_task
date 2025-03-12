@@ -1689,9 +1689,10 @@ def arm_target_traj(
         q_pos_mask_curr = q_pos_mask_curr[: Tk_trunc + 1] * q_pos_weight
         q_vel_mask_curr = q_vel_mask_curr[: Tk_trunc + 1]
         if Tk_trunc_prev > 0 and Tk_trunc != Tk_trunc_prev:
-            ctrls = lowest_losses_curr_mask.values()[0][1]
+            ctrls_trunc = lowest_losses_curr_mask.values()[0][1]
+            # ctrls[:Tk_trunc] = lowest_losses_curr_mask.values()[0][1]
             lowest_losses_curr_mask = LimLowestDict(keep_top)
-        ctrls_trunc = ctrls[:Tk_trunc]
+        # ctrls_trunc = ctrls[:Tk_trunc]
         noisev_trunc = noisev[:Tk_trunc]
 
         util.reset_state(model, data, data0)
@@ -1869,13 +1870,11 @@ def arm_target_traj(
         loss = sum([loss.item() for loss in losses]) / n_sites
         # lowest_losses.append(loss, (k0, ctrls.copy()))
         loss_curr_mask_avg = sum([loss.item() for loss in losses_curr_mask]) / n_sites
-        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls.copy()))
-        best_pair = lowest_losses_curr_mask.values()[0]
-        best_pair[1] = best_pair[1][:Tk_trunc]
+        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls_trunc.copy()))
         toc = time.time()
         ret_dict_save = {
             "ctrls_trunc": ctrls_trunc,
-            "best_pair": best_pair,  # (k0, ctrl)
+            "best_pair": lowest_losses_curr_mask.values()[0],  # (k0, ctrl)
             "site_names": site_names,
             "reset_noise_scale": env._reset_noise_scale,
             "model_file_location": env.fullpath,
