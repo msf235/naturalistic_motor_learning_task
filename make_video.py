@@ -41,7 +41,6 @@ data.time = data_load["state0"]["time"]
 mj.mj_forward(model, data)
 # ctrls = data_load["ctrls_trunc"]
 ctrls = data_load["best_pair"][1]
-breakpoint()
 targ = data_load["trajectory_target"]
 site_names = data_load["site_names"]
 
