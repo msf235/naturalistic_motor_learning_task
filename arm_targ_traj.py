@@ -429,20 +429,26 @@ def tennis_traj(model, data, Tk):
     Tk_right_2 = Tk // 4  # Time to set up
     t_right_2 = t_right_1 + Tk_right_2
     Tk_right_3 = Tk - t_right_2  # Time to swing
-    breakpoint()
 
-    # Tk_right_orient_1 = Tk // 3 # Time to orient down
-    # Tk_right_orient_2 = Tk // 6 # Time to orient around
-    # Tk_right_orient_3 = Tk //   # Time to hold final orientation
+    Tk_right_orient_1 = Tk // 3  # Time to orient down
+    Tk_right_orient_2 = Tk // 3  # Time to orient around
+    Tk_right_orient_3 = (
+        Tk - Tk_right_orient_2 - Tk_right_orient_1
+    )  # Time to hold final orientation
 
-    Tk_left_1 = int(Tk / 3)  # Duration to grab with left hand (1)
-    Tk_left_2 = int(Tk / 8)  # Duration to grab with left hand (2)
-    t_left_1 = Tk_left_1 + Tk_left_2  # Time up to end of grab
-    Tk_left_3 = int(Tk / 6)  # Duration to set up
-    t_left_2 = t_left_1 + Tk_left_3  # Time to end of setting up
-    Tk_left_4 = int(Tk / 10)  # Duration to throw ball up
-    t_left_3 = t_left_2 + Tk_left_4  # Time to end of throwing ball up
-    Tk_left_5 = Tk - t_left_3  # Time to move hand down
+    Tk_left_1 = (11 * Tk) // 24  # Duration to grab with left hand (1)
+    t_left_1 = Tk_left_1  # Time up to end of grab
+    Tk_left_2 = Tk // 6  # Duration to set up
+    t_left_2 = t_left_1 + Tk_left_2  # Time to end of setting up
+    Tk_left_3 = Tk // 10  # Duration to throw ball up
+    t_left_3 = t_left_2 + Tk_left_3  # Time to end of throwing ball up
+    Tk_left_4 = Tk - t_left_3  # Time to move hand down
+
+    Tk_left_orient_1 = (11 * Tk) // 24  # Time to orient down
+    Tk_left_orient_2 = Tk // 4  # Time to orient around
+    Tk_left_orient_3 = (
+        Tk - Tk_left_orient_2 - Tk_left_orient_1
+    )  # Time to hold final orientation
 
     ##---- Right arm (racket)
 
@@ -455,6 +461,7 @@ def tennis_traj(model, data, Tk):
     p2 = grab_targ + np.array([0, 0, 0.3])
     s = ease_in_out(np.linspace(0, 1, Tk_right_1))
     grab_traj = np.array([bezier(sv, handxr, p1, p2, grab_targ) for sv in s])
+
     grab_traj_orient = grab_traj - np.array([0, 0, 1])
     arc_center = data.site(RSHOULD_S).xpos
     arc_center[0] = data.site("racket_handle").xpos[0]
@@ -466,32 +473,30 @@ def tennis_traj(model, data, Tk):
     p2 = np.array([0, -0.4, 2.5])
     p3 = np.array([0, 1.2, 1.5])
 
-    s = np.linspace(0, 1, Tk_right_3)
-    # arc_traj_below = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
-    arc_traj_orient = np.array([p3 for sv in s])
-    arc_traj_orient = directional_distance_normalize(arc_traj_vs, arc_traj_orient)
+    s = np.linspace(0, 1, Tk_right_orient_3)
+    end_traj_orient = np.array([p3 for sv in s])
 
     s = ease_in_out(np.linspace(0, 1, Tk_right_2))
     s = np.stack((s, s, s)).T
-
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
-    # setup_traj_below = grab_traj_below[-1] + s * (
-    #     arc_traj_below[0] - grab_traj_below[-1]
-    # )
-    setup_traj_reload = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
-    setup_traj_reload = directional_distance_normalize(setup_traj, setup_traj_reload)
+    s = ease_in_out(np.linspace(0, 1, Tk_right_orient_2))
+    s = np.stack((s, s, s)).T
+    setup_and_arc_traj_orient = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
 
     right_arm_traj = np.concatenate((grab_traj, setup_traj, arc_traj_vs), axis=0)
     right_arm_traj_orient = np.concatenate(
-        (grab_traj_orient, setup_traj_reload, arc_traj_orient), axis=0
+        (grab_traj_orient, setup_and_arc_traj_orient, end_traj_orient), axis=0
+    )
+    right_arm_traj_orient = directional_distance_normalize(
+        right_arm_traj, right_arm_traj_orient
     )
 
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection="3d")
     # ax.plot(
-    #     right_arm_traj_below[:, 0],
-    #     right_arm_traj_below[:, 1],
-    #     right_arm_traj_below[:, 2],
+    #     right_arm_traj_orient[:, 0],
+    #     right_arm_traj_orient[:, 1],
+    #     right_arm_traj_orient[:, 2],
     # )
     # ax.plot(right_arm_traj[:, 0], right_arm_traj[:, 1], right_arm_traj[:, 2])
     # # Do scatter plots of points p0 through p3
@@ -515,8 +520,9 @@ def tennis_traj(model, data, Tk):
     p1 = handxl + (grab_targ - handxl) / 2
     # p2: above p3 so that the final approach is from above (ensures downward final tangent)
     p2 = grab_targ + np.array([0, 0, 0.3])
-    s = np.linspace(0, 1, Tk_left_1 + Tk_left_2)
+    s = np.linspace(0, 1, Tk_left_1)
     grab_traj = np.array([bezier(sv, handxl, p1, p2, grab_targ) for sv in s])
+    s = np.linspace(0, 1, Tk_left_orient_1)
     grab_traj_orient = grab_traj - np.array([0, 0, 1])
 
     arc_traj_vs = arc_traj(
@@ -524,7 +530,7 @@ def tennis_traj(model, data, Tk):
         r,
         -np.pi / 8,
         0.9 * np.pi / 2,
-        Tk_left_4,
+        Tk_left_3,
         density_fn="",
     )
     xs = arc_traj_vs[:, 1].copy()
@@ -536,30 +542,30 @@ def tennis_traj(model, data, Tk):
         r,
         0.9 * np.pi / 2,
         0.7 * np.pi / 2,
-        Tk_left_5,
+        Tk_left_4,
         density_fn="",
     )
 
-    setup_traj = np.zeros((Tk_left_3, 3))
-    s = ease_in_out(np.linspace(0, 1, Tk_left_3))
+    setup_traj = np.zeros((Tk_left_2, 3))
+    s = ease_in_out(np.linspace(0, 1, Tk_left_2))
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
-    setup_traj_reload = grab_traj_orient[-1] + s * (
-        arc_traj_orient[0] - grab_traj_orient[-1]
-    )
-    # p0 = np.array([0.5, -0.2, 0.5])
+
+    s = ease_in_out(np.linspace(0, 1, Tk_left_orient_2))
+    s = np.stack((s, s, s)).T
     p0 = grab_traj_orient[-1]
     p1 = np.array([1.0, -0.5, 2])
     p2 = np.array([-0.02, 0.5, 2.5])
     p3 = np.array([-0.02, -1.2, 2.25])
-    setup_traj_reload = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
+    setup_arc_traj_orient = np.array([bezier(sv, p0, p1, p2, p3) for sv in s])
+
     # setup_traj_below = directional_distance_normalize(
     #     np.concatenate((arc_traj_vs, arc_traj_vs2)), arc_traj_below
     # )
 
     # p0 = np.array([0.5, -0.2, 0.5])
-    s = np.linspace(0, 1, Tk_left_4 + Tk_left_5)
-    arc_traj_orient = np.array([setup_traj_reload[-1] for sv in s])
+    s = np.linspace(0, 1, Tk_left_orient_3)
+    end_traj_orient = np.array([p3 for sv in s])
     # arc_traj_below = directional_distance_normalize(
     #     np.concatenate((arc_traj_vs, arc_traj_vs2)), arc_traj_below
     # )
@@ -569,18 +575,18 @@ def tennis_traj(model, data, Tk):
         (grab_traj, setup_traj, arc_traj_vs, arc_traj_vs2), axis=0
     )
     left_arm_traj_orient = np.concatenate(
-        (grab_traj_orient, setup_traj_reload, arc_traj_orient), axis=0
+        (grab_traj_orient, setup_arc_traj_orient, end_traj_orient), axis=0
     )
     left_arm_traj_orient = directional_distance_normalize(
         left_arm_traj, left_arm_traj_orient
     )
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    ax.plot(
-        left_arm_traj_orient[:, 0],
-        left_arm_traj_orient[:, 1],
-        left_arm_traj_orient[:, 2],
-    )
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection="3d")
+    # ax.plot(
+    #     left_arm_traj_orient[:, 0],
+    #     left_arm_traj_orient[:, 1],
+    #     left_arm_traj_orient[:, 2],
+    # )
     # # ax.plot(setup_traj_below[:, 0], setup_traj_below[:, 1], setup_traj_below[:, 2])
     # ax.plot(left_arm_traj[:, 0], left_arm_traj[:, 1], left_arm_traj[:, 2])
     # # # Do scatter plots of points p0 through p3
@@ -610,9 +616,9 @@ def tennis_traj(model, data, Tk):
         Tk_right_4=Tk_right_3,
         Tk_left_1=Tk_left_1,
         Tk_left_2=Tk_left_2,
-        Tk_left_3=Tk_left_3,
-        Tk_left_4=Tk_left_4,
-        Tk_left_5=Tk_left_5,
+        Tk_left_3=Tk_left_2,
+        Tk_left_4=Tk_left_3,
+        Tk_left_5=Tk_left_4,
         t_right_1=t_right_1,
         t_right_2=t_right_2,
         t_left_1=t_left_1,
