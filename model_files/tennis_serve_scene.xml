@@ -97,10 +97,10 @@
       <site name="racket_handle_top" pos="0 .09 .02" size=".05" rgba=".7 .7 .2 0"/>
       <geom name="racket_handle_ball" type="sphere" size=".02" pos="0 .2 0" 
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 .5"
-        />
+        density="200" />
       <geom name="racket_net" type="box" size=".08 .14 .008" pos="0 -.21 0" 
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 .5"
-        density="1" contype="00" conaffinity="01" solref=".02 .4"/>
+        density="20" contype="00" conaffinity="01" solref=".02 .4"/>
       <geom name="racket_net_back" type="box" size=".08 .14 .018" pos="0 -.21 -.01"
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".2 .4 .4 .5"
         density="0" contype="10" conaffinity="10" solref=".02 .4"/>
