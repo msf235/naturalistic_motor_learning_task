@@ -27,10 +27,10 @@
 
   <default>
     <default class="racket">
-      <geom solimp=".9 .99 .003" density="1" />
+      <geom solimp=".9 .99 .003" density="100" />
     </default>
     <default class="ball">
-      <geom solimp=".9 .99 .003" density="1" />
+      <geom solimp=".9 .99 .003" density="100" />
     </default>
   </default>
 
