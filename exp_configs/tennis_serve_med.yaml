@@ -26,7 +26,7 @@ params:
   # incr_every: 300
   # incr_every: 750
   # incr_every_2: 750
-  incr_every_2: 150
+  incr_every_2: 300
   # grab_phase_it: 1200
   grab_phase_it: 600
   # grab_phase_it: 1200
