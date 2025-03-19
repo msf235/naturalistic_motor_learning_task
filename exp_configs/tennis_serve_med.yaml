@@ -26,12 +26,13 @@ params:
   # incr_every: 300
   # incr_every: 750
   # incr_every_2: 750
-  incr_every_2: 300
+  incr_every_2: 600
   # grab_phase_it: 1200
-  grab_phase_it: 600
+  # grab_phase_it: 600
+  grab_phase_it: 1200
   # grab_phase_it: 1200
   # grab_phase_it: 3000
-  grab_phase_t: .4
+  grab_phase_t: .8
   grad_window_t: .05
   mask_window_t: .25
   # joint_penalty_factor: 1e-6
