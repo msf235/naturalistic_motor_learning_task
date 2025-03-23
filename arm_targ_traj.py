@@ -9,8 +9,6 @@ import copy
 import sortedcontainers as sc
 import pickle as pkl
 from pathlib import Path
-
-# import seaborn as sns
 from matplotlib import pyplot as plt
 import time
 import basic_movements
@@ -413,7 +411,7 @@ def tennis_grab_traj(model, data, Tk):
     return right_arm_traj, left_arm_traj, ball_traj, time_dict
 
 
-def tennis_traj(model, data, Tk):
+def tennis_traj(model, data, Tk, Tk_left_3=None):
     # def directional_distance_normalize(x, y):
     #     return y
 
@@ -440,7 +438,8 @@ def tennis_traj(model, data, Tk):
     t_left_1 = Tk_left_1  # Time up to end of grab
     Tk_left_2 = Tk // 6  # Duration to set up
     t_left_2 = t_left_1 + Tk_left_2  # Time to end of setting up
-    Tk_left_3 = Tk // 10  # Duration to throw ball up
+    if Tk_left_3 is None:
+        Tk_left_3 = Tk // 10  # Duration to throw ball up
     t_left_3 = t_left_2 + Tk_left_3  # Time to end of throwing ball up
     Tk_left_4 = Tk - t_left_3  # Time to move hand down
 
@@ -545,6 +544,7 @@ def tennis_traj(model, data, Tk):
         Tk_left_4,
         density_fn="",
     )
+    breakpoint()
 
     setup_traj = np.zeros((Tk_left_2, 3))
     s = ease_in_out(np.linspace(0, 1, Tk_left_2))

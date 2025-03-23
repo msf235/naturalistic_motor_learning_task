@@ -1,3 +1,4 @@
+#!/bin/zsh
 commit_id=$(git rev-parse --short HEAD)
 echo $commit_id
 py run_experiment.py --configfile="exp_configs/tennis_serve_med.yaml" \
