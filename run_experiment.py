@@ -109,7 +109,9 @@ sites = out_idx["sites"]
 site_grad_idxs = out_idx["site_grad_idxs"]
 stabilize_jnt_idx = out_idx["stabilize_jnt_idx"]
 stabilize_act_idx = out_idx["stabilize_act_idx"]
-out_time = arm_t.get_times(env, params["name"], Tf)
+out_time = arm_t.get_times(
+    env, params["name"], Tf
+)  # TODO: check with varying Tk_left_3
 
 
 tk_incrs = [int(t / dt) for t in t_incr]

@@ -438,10 +438,12 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     t_left_1 = Tk_left_1  # Time up to end of grab
     Tk_left_2 = Tk // 6  # Duration to set up
     t_left_2 = t_left_1 + Tk_left_2  # Time to end of setting up
+    Tk_left_3_base = Tk // 10  # Duration to throw ball up
     if Tk_left_3 is None:
-        Tk_left_3 = Tk // 10  # Duration to throw ball up
+        Tk_left_3 = Tk_left_3_base  # Duration to throw ball up
     t_left_3 = t_left_2 + Tk_left_3  # Time to end of throwing ball up
     Tk_left_4 = Tk - t_left_3  # Time to move hand down
+    Tk_left_4_base = Tk - Tk_left_3_base - Tk_left_2 - Tk_left_1
 
     Tk_left_orient_1 = (11 * Tk) // 24  # Time to orient down
     Tk_left_orient_2 = Tk // 4  # Time to orient around
@@ -541,10 +543,9 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
         r,
         0.9 * np.pi / 2,
         0.7 * np.pi / 2,
-        Tk_left_4,
+        Tk_left_4_base,
         density_fn="",
     )
-    breakpoint()
 
     setup_traj = np.zeros((Tk_left_2, 3))
     s = ease_in_out(np.linspace(0, 1, Tk_left_2))
@@ -573,7 +574,7 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
 
     left_arm_traj = np.concatenate(
         (grab_traj, setup_traj, arc_traj_vs, arc_traj_vs2), axis=0
-    )
+    )[:Tk]
     left_arm_traj_orient = np.concatenate(
         (grab_traj_orient, setup_arc_traj_orient, end_traj_orient), axis=0
     )
@@ -601,11 +602,11 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     # for i, label in enumerate(labels):
     #     ax.text(xs[i], ys[i], zs[i] + 0.04, label, fontsize=12, ha="center")
     # ax.set_xlabel("X")
-    # ax.set_xlim([-1, 1])
+    # ax.set_xlim((-1, 1))
     # ax.set_ylabel("Y")
-    # ax.set_ylim([-2.5, 1])
+    # ax.set_ylim((-2.5, 1))
     # ax.set_zlabel("Z")
-    # ax.set_zlim([0, 3])
+    # ax.set_zlim((0, 3))
     # plt.show()
     # breakpoint()
 
@@ -1205,23 +1206,33 @@ def make_traj_sets(
             _,
         ) = get_q_pos_and_vel_data(joint_targs_file)
 
-        out = tennis_traj(model, data, Tk)
-        (
-            right_arm_traj,
-            right_arm_traj_below,
-            right_arm_vel,
-            left_arm_traj,
-            left_arm_traj_below,
-            left_arm_vel,
-            time_dict,
-        ) = out
+        it_keys = list(targ_traj_masks.keys())
+        n_past_grab = np.sum(np.array(it_keys) > grab_phase_it).item()
+        n_before_grab = np.sum(np.array(it_keys) <= grab_phase_it).item()
+        Tk_left_3s = [Tk // 2] * len(it_keys)
+        Tk_left_3s[n_before_grab:] = np.linspace(
+            Tk // 2, Tk // 10, n_past_grab, dtype=int
+        ).tolist()
+        targ_trajs = {}
+        targ_vels = {}
+        for Tk_left_3, it_key in zip(Tk_left_3s, it_keys):
+            out = tennis_traj(model, data, Tk, Tk_left_3)
+            (
+                right_arm_traj,
+                right_arm_traj_below,
+                right_arm_vel,
+                left_arm_traj,
+                left_arm_traj_below,
+                left_arm_vel,
+                time_dict,
+            ) = out
 
-        right_targ_vels = [right_arm_vel, right_arm_vel]
-        left_targ_vels = [left_arm_vel, left_arm_vel]
-        right_targ_trajs = [right_arm_traj, right_arm_traj_below]
-        left_targ_trajs = [left_arm_traj, left_arm_traj_below]
-        targ_trajs = right_targ_trajs + left_targ_trajs
-        targ_vels = right_targ_vels + left_targ_vels
+            right_targ_vels = [right_arm_vel, right_arm_vel]
+            left_targ_vels = [left_arm_vel, left_arm_vel]
+            right_targ_trajs = [right_arm_traj, right_arm_traj_below]
+            left_targ_trajs = [left_arm_traj, left_arm_traj_below]
+            targ_trajs[it_key] = right_targ_trajs + left_targ_trajs
+            targ_vels[it_key] = right_targ_vels + left_targ_vels
 
         for k, it in enumerate(targ_traj_masks):
             if it > grab_phase_it:
@@ -1598,12 +1609,15 @@ def arm_target_traj(
     #     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
     # ]
 
-    traj_targs = traj_and_masks["traj_targs"]
+    traj_targ_dict = butil.LeftEndpointDict(
+        shift_endpoints(traj_and_masks["traj_targs"])
+    )
     traj_masks = [
         butil.LeftEndpointDict(shift_endpoints(mask))
         for mask in traj_and_masks["traj_masks"]
     ]
-    vel_targs = traj_and_masks["vel_targs"]
+    # vel_targs = traj_and_masks["vel_targs"]
+    vel_targ_dict = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["vel_targs"]))
     vel_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["vel_masks"]))
     q_pos_targs = traj_and_masks["q_pos_targs"]
     q_pos_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["q_pos_masks"]))
@@ -1613,9 +1627,6 @@ def arm_target_traj(
         q_vel_masks[key] = joint_penalty_factor * q_vel_masks[key]
 
     incr_its = sorted(list(traj_masks[0].keys()))
-
-    render_class = butil.targetRender(env, traj_targs, site_names)
-    render_fn = render_class.render
 
     not_stabilize_act_idx = [k for k in range(model.nu) if k not in stabilize_act_idx]
 
@@ -1692,6 +1703,10 @@ def arm_target_traj(
     out_path.mkdir(parents=True, exist_ok=True)
 
     for k0 in range(max_its):
+        traj_targs = traj_targ_dict[k0]
+        vel_targs = vel_targ_dict[k0]
+        render_class = butil.targetRender(env, traj_targs, site_names)
+        render_fn = render_class.render
         if k0 >= phase_2_it:
             lr = lrs[1]
         if k0 in incr_its:
