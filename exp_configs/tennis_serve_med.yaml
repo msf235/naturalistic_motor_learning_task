@@ -34,7 +34,7 @@ params:
   # grab_phase_it: 3000
   grab_phase_t: .8
   grad_window_t: .05
-  mask_window_t: .25
+  mask_window_t: .4
   # joint_penalty_factor: 1e-6
   # balance_cost: 6000
   # joint_cost: 200
