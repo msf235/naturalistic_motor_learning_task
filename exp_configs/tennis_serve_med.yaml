@@ -44,7 +44,7 @@ params:
   joint_penalty_factor: 1e-6
   balance_cost: 0
   root_cost: 1e4
-  joint_cost: 5e7
+  joint_cost: 3e7
   foot_cost: 0
   ctrl_cost: 1
   ctrl_reg_weight: 1e-8
