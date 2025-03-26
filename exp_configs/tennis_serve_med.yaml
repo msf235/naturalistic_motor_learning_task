@@ -26,15 +26,14 @@ params:
   # incr_every: 300
   # incr_every: 750
   # incr_every_2: 750
-  incr_every_2: 600
+  incr_every_2: 150
   # grab_phase_it: 1200
-  # grab_phase_it: 600
-  grab_phase_it: 1200
+  grab_phase_it: 600
   # grab_phase_it: 1200
   # grab_phase_it: 3000
-  grab_phase_t: .8
+  grab_phase_t: .4
   grad_window_t: .05
-  mask_window_t: .4
+  mask_window_t: .25
   # joint_penalty_factor: 1e-6
   # balance_cost: 6000
   # joint_cost: 200
@@ -44,10 +43,10 @@ params:
   joint_penalty_factor: 1e-6
   balance_cost: 0
   root_cost: 1e4
-  joint_cost: 3e7
+  joint_cost: 5e7
   foot_cost: 0
   ctrl_cost: 1
-  ctrl_reg_weight: 1e-8
-  # ctrl_reg_weight: 0
+  # ctrl_reg_weight: 1e-6
+  ctrl_reg_weight: 0
   q_pos_weight: 1e-6
   mask_decay_factor: .9
