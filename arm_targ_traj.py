@@ -1699,7 +1699,7 @@ def arm_target_traj(
     # ctrl_reg_weight = 0
     lr = lrs[0]
 
-    out_path = Path(f"output/{run_name}")
+    out_path = Path(f"/storage/naturalistic_motor_learning_task/output/{run_name}")
     out_path.mkdir(parents=True, exist_ok=True)
 
     for k0 in range(max_its):
