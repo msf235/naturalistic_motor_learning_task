@@ -1630,9 +1630,9 @@ def arm_target_traj(
     loss_ctrls = np.zeros((2, len(site_names), max_its, Tk - 1))
     # ctrl_reg_weight = 0
 
-    out_path = Path(save_dir) / run_name
+    # out_path = Path(save_dir) / run_name
+    out_path = Path(save_dir)
     out_path.mkdir(parents=True, exist_ok=True)
-    breakpoint()
 
     for k0 in range(start_it, max_its - start_it):
         traj_targs = traj_targ_dict[k0]
@@ -1853,7 +1853,6 @@ def arm_target_traj(
             pkl.dump(ret_dict_save, f)
         with open(out_path / "data_latest.pkl", "wb") as f:
             pkl.dump(ret_dict_save, f)
-        breakpoint()
         # print(loss, toc-tic)
         if k0 % plot_every == 0:
             # qs_wr = qs[:, joints['all']['wrist_left']]
