@@ -3,7 +3,8 @@ params:
   xml_file: './model_files/humanoid_and_tennis.xml'
   Tf: 1.8
   t_after: .8
-  max_its: 5000
+  # max_its: 5000
+  max_its: 900
   optimizer: 'adam'
   lr: .2
   lr_2: .2
@@ -29,7 +30,8 @@ params:
   # incr_every_2: 150
   incr_every_2: 300
   # grab_phase_it: 1200
-  grab_phase_it: 600
+  # grab_phase_it: 600
+  grab_phase_it: 900
   # grab_phase_it: 1200
   # grab_phase_it: 3000
   grab_phase_t: .4
