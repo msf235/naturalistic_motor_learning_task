@@ -1728,7 +1728,9 @@ def arm_target_traj(
             # grads[k] = grads[k] / np.linalg.norm(grads[k])
             util.reset_state(model, data, data0)
         toc = time.time()
-        progbar.update(" |  it: " + str(k0) + " |  grad time: {:.2f}".format(toc - tic))
+        progbar.update(
+            " |  it: " + str(k0 + 1) + " |  grad time: {:.2f}".format(toc - tic)
+        )
         losses = [0] * n_sites
         for k in range(n_sites):
             ctrls_trunc[:, site_grad_idxs[k]] = optms[k].update(
@@ -1859,7 +1861,7 @@ def arm_target_traj(
         loss = sum([loss.item() for loss in losses]) / n_sites
         # lowest_losses.append(loss, (k0, ctrls.copy()))
         loss_curr_mask_avg = sum([loss.item() for loss in losses_curr_mask]) / n_sites
-        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0, ctrls_trunc.copy()))
+        lowest_losses_curr_mask.append(loss_curr_mask_avg, (k0 + 1, ctrls_trunc.copy()))
         toc = time.time()
         ret_dict_save = {
             "ctrls_trunc": ctrls_trunc,
@@ -1871,7 +1873,7 @@ def arm_target_traj(
             "state0": state0,
             "trajectory_target": traj_targs,
         }
-        with open(out_path / f"data_{k0}.pkl", "wb") as f:
+        with open(out_path / f"data_{k0+1}.pkl", "wb") as f:
             pkl.dump(ret_dict_save, f)
         with open(out_path / "data_latest.pkl", "wb") as f:
             pkl.dump(ret_dict_save, f)
@@ -1932,7 +1934,7 @@ def arm_target_traj(
                     show=False,
                 )
                 # plt.pause(0.1)
-            fig.savefig(out_path / f"fig_{k0}.pdf")
+            fig.savefig(out_path / f"fig_{k0+1}.pdf")
             fig.savefig(out_path / "fig_latest.pdf")
         # util.reset_state(model, data, data0)
         # ctrls = forward_with_dynamic_adhesion(env, ctrls, noisev, True)
