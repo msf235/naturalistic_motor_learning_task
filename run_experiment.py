@@ -40,17 +40,7 @@ out_dir.parent.mkdir(parents=True, exist_ok=True)
 Tf = params["Tf"]
 
 # I'm assuming that if there is a second phase, lr_2 is always defined
-if "lr_2" in params.keys():
-    lrs = [params["lr"], params["lr_2"]]
-    it_lr_2 = params["it_lr_2"]
-    t_incr = [params["t_incr"], params["t_incr_2"]]
-    incr_everys = [params["incr_every"], params["incr_every_2"]]
-else:
-    lrs = [params["lr"]]
-    it_lr_2 = None
-    t_incr = [params["t_incr"]]
-    incr_everys = [params["incr_every"]]
-
+t_incr = params["t_incr"]
 
 if args.render:
     render_mode = "human"
@@ -117,7 +107,7 @@ out_time = arm_t.get_times(
 )  # TODO: check with varying Tk_left_3
 
 
-tk_incrs = [int(t / dt) for t in t_incr]
+tk_incr = int(t_incr / dt)
 mask_window_tk: int = int(params["mask_window_t"] / dt)
 # incr_times = np.arange(amnt_to_incr, Tk, amnt_to_incr)
 # incr_tk_left_intervals = np.arange(0, Tk, amnt_to_incr)
@@ -197,13 +187,13 @@ else:
         ctrl_std=CTRL_STD,
         Tk=Tk,
         max_its=params["max_its"],
-        lrs=lrs,
+        lr=params["lr"],
         keep_top=10,
-        incr_everys=incr_everys,
+        incr_every=params["incr_every"],
         mask_window_tk=mask_window_tk,
         grab_phase_it=params["grab_phase_it"],
         grab_phase_tk=grab_phase_tk,
-        tk_incrs=tk_incrs,
+        tk_incr=tk_incr,
         grad_update_every=params["grad_update_every"],
         plot_every=args.plot_every,
         render_every=args.render_every,

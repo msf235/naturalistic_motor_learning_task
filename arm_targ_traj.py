@@ -820,8 +820,8 @@ def make_traj_sets(
     env,
     exp_name,
     Tk,
-    tk_incrs,
-    incr_everys,
+    tk_incr,
+    incr_every,
     mask_window_tk,
     seed=2,
     mask_decay_factor=0.9,
@@ -835,7 +835,7 @@ def make_traj_sets(
         Tk: Final time index.
         amnt_to_incr: The amount of timesteps that the mask increments every
         time it increments.
-        incr_everys: The number of iterations between mask incrments.
+        incr_every: The number of iterations between mask incrments.
         seed: rng seed.
         grab_phase_it: Iteration at which the grab phase ends.
         grab_phase_tk: Time index at which the grab ends.
@@ -861,9 +861,6 @@ def make_traj_sets(
     # smoothing_sigma = int(.1 / model.opt.timestep)
     # arc_std = 0.0001 / model.opt.timestep
     arc_std = 0.02
-
-    incr_every = incr_everys[0]
-    tk_incr = tk_incrs[0]
 
     # smoothing_time = 0.1
     smoothing_time = 0.2
@@ -1161,44 +1158,27 @@ def make_traj_sets(
             _,
         ) = get_q_pos_and_vel_data(joint_targs_file)
 
-        it_keys = list(targ_traj_masks.keys())
-        n_past_grab = np.sum(np.array(it_keys) > grab_phase_it).item()
-        n_before_grab = np.sum(np.array(it_keys) <= grab_phase_it).item()
-        Tk_left_3s = [Tk // 2] * len(it_keys)
-        Tk_left_3s[n_before_grab:] = np.linspace(
-            Tk // 2, Tk // 10, n_past_grab, dtype=int
-        ).tolist()
+        out = tennis_traj(model, data, Tk)
+        (
+            right_arm_traj,
+            right_arm_traj_below,
+            right_arm_vel,
+            left_arm_traj,
+            left_arm_traj_below,
+            left_arm_vel,
+            time_dict,
+        ) = out
+
+        right_targ_vels = [right_arm_vel, right_arm_vel]
+        left_targ_vels = [left_arm_vel, left_arm_vel]
+        right_targ_trajs = [right_arm_traj, right_arm_traj_below]
+        left_targ_trajs = [left_arm_traj, left_arm_traj_below]
         targ_trajs = {}
         targ_vels = {}
-        for Tk_left_3, it_key in zip(Tk_left_3s, it_keys):
-            out = tennis_traj(model, data, Tk, Tk_left_3)
-            (
-                right_arm_traj,
-                right_arm_traj_below,
-                right_arm_vel,
-                left_arm_traj,
-                left_arm_traj_below,
-                left_arm_vel,
-                time_dict,
-            ) = out
-
-            right_targ_vels = [right_arm_vel, right_arm_vel]
-            left_targ_vels = [left_arm_vel, left_arm_vel]
-            right_targ_trajs = [right_arm_traj, right_arm_traj_below]
-            left_targ_trajs = [left_arm_traj, left_arm_traj_below]
+        for it_key in targ_traj_masks:
             targ_trajs[it_key] = right_targ_trajs + left_targ_trajs
             targ_vels[it_key] = right_targ_vels + left_targ_vels
 
-        for k, it in enumerate(targ_traj_masks):
-            if it > grab_phase_it:
-                targ_traj_masks[it][grab_phase_tk] = 0
-                targ_vel_masks[it][grab_phase_tk] = 0
-                for tk in range(grab_phase_tk):  # TODO: convert below to numpy array
-                    q_pos_masks[it][tk] = 0
-                    q_vel_masks[it][tk] = 0
-            Tkk = incr_time_right_endpoints[k]
-            for tk in range(0, Tkk - mask_window_tk):
-                targ_traj_masks[it][tk] = 0
         targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
         for it in targ_traj_masks:
             targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
@@ -1476,11 +1456,11 @@ def arm_target_traj(
     Tk,
     max_its=30,
     start_it=0,
-    lrs=[10],
+    lr=10,
     keep_top=1,
-    incr_everys=[10],
+    incr_every=10,
     mask_window_tk=5,
-    tk_incrs=[5],
+    tk_incr=5,
     grad_update_every=1,
     grab_phase_it=0,
     grab_phase_tk=0,
@@ -1516,7 +1496,7 @@ def arm_target_traj(
         stabilize_act_idx: list of actuator indices
         target_trajs: list of target trajectories
         targ_traj_masks: dict of target trajectory masks
-        incr_everys: number of iterations between mask increments
+        incr_every: number of iterations between mask increments
         tk_incr: number of timesteps to increment the mask by each
             time it is incremented
         ctrls: initial arm controls
@@ -1549,8 +1529,8 @@ def arm_target_traj(
         env,
         config_name,
         Tk,
-        tk_incrs,
-        incr_everys,
+        tk_incr,
+        incr_every,
         mask_window_tk,
         seed,
         mask_decay_factor,
@@ -1649,7 +1629,6 @@ def arm_target_traj(
     loss_qvels = np.zeros((2, max_its, Tk))
     loss_ctrls = np.zeros((2, len(site_names), max_its, Tk - 1))
     # ctrl_reg_weight = 0
-    lr = lrs[0]
 
     out_path = Path(save_dir) / run_name
     out_path.mkdir(parents=True, exist_ok=True)
@@ -1659,8 +1638,6 @@ def arm_target_traj(
         vel_targs = vel_targ_dict[k0]
         render_class = butil.targetRender(env, traj_targs, site_names)
         render_fn = render_class.render
-        if k0 >= phase_2_it:
-            lr = lrs[1]
         if k0 in incr_its:
             for k in range(n_sites):
                 optms[k] = get_opt(lr)
