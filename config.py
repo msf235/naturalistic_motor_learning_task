@@ -238,6 +238,12 @@ def get_arg_parser():
         default=None,
         help="Name of experiment, used to name output files etc.",
     )
+    parser.add_argument(
+        "--savedir",
+        type=str,
+        default="./output",
+        help="Location of save directory (highest level).",
+    )
     parser.add_argument("--seed", type=int, default=2, help="Random seed.")
     parser.add_argument(
         "--task-phase", type=int, default=1, help="Task phase (from 1 to 7)."

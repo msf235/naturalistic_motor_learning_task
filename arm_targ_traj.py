@@ -445,7 +445,8 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     Tk_left_4 = Tk - t_left_3  # Time to move hand down
     Tk_left_4_base = Tk - Tk_left_3_base - Tk_left_2 - Tk_left_1
 
-    Tk_left_orient_1 = (11 * Tk) // 24  # Time to orient down
+    # Tk_left_orient_1 = (11 * Tk) // 24  # Time to orient down
+    Tk_left_orient_1 = Tk // 3  # Time to orient down
     Tk_left_orient_2 = Tk // 4  # Time to orient around
     Tk_left_orient_3 = (
         Tk - Tk_left_orient_2 - Tk_left_orient_1
@@ -1548,7 +1549,7 @@ def arm_target_traj(
     joint_penalty_factor=0,
     mask_decay_factor=0.9,
     run_name="",
-    save_dir="./output"
+    save_dir="./output",
 ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
@@ -1701,13 +1702,10 @@ def arm_target_traj(
     # ctrl_reg_weight = 0
     lr = lrs[0]
 
-    out_path = Path(save_dir)/run_name
+    out_path = Path(save_dir) / run_name
     out_path.mkdir(parents=True, exist_ok=True)
 
-    if start_it is not None:
-
-
-    for k0 in range(start_it, max_its-start_it):
+    for k0 in range(start_it, max_its - start_it):
         traj_targs = traj_targ_dict[k0]
         vel_targs = vel_targ_dict[k0]
         render_class = butil.targetRender(env, traj_targs, site_names)

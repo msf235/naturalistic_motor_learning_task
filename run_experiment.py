@@ -8,6 +8,7 @@ import pickle as pkl
 import arm_targ_traj as arm_t
 from matplotlib import pyplot as plt
 import config
+import mujoco as mj
 
 args = config.get_arg_parser().parse_args()
 vargs = vars(args)
@@ -28,13 +29,13 @@ DEFAULT_CAMERA_CONFIG = {
     "elevation": -10.0,
     "azimuth": 180,
 }
-
-if args.savedir is None:
+savedir = Path(args.savedir)
+if "start_it" not in args:
+    args.start_it = 0
 name = args.name
-out_dir = Path(args.savedir)
-out_f = (Path("output") / name).with_suffix(".pkl")
+out_dir = Path(savedir) / name
 
-out_f.parent.mkdir(parents=True, exist_ok=True)
+out_dir.parent.mkdir(parents=True, exist_ok=True)
 
 Tf = params["Tf"]
 
@@ -133,36 +134,54 @@ grab_phase_tk = int(params["grab_phase_t"] / dt)
 
 Tke = int(params["t_after"] / dt)
 
-
-if args.rerun or not out_f.exists():
-    ### Get initial stabilizing controls
-    reset()
-    # stab_ctrls_idx = {k: out_idx[k] for k in
-    # ['let_go_ids', 'contact_check_list',
-    # 'adh_ids']}
-    # stab_ctrls_idx.update({'let_go_times': out_time['let_go_times']})
-    ctrls, K = opt_utils.get_stabilized_ctrls(
-        model,
-        data,
-        Tk,
-        noisev,
-        data.qpos.copy(),
-        acts["not_adh"],
-        stable_jnt_ids=body_ids["not_root"],
-        free_ctrls=np.zeros((Tk, len(acts["adh"]))),
-        balance_cost=params["balance_cost"],
-        joint_cost=params["joint_cost"],
-        root_cost=params["root_cost"],
-        foot_cost=params["foot_cost"],
-        ctrl_cost=params["ctrl_cost"],
-    )[:2]
-    # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
-    # while True:
-    reset()
-    # util.forward_sim_render(env, ctrls)
-    # arm_t.forward_to_contact(env, ctrls, render=True)
-    # reset()
-    # ctrls[:, acts["adh"]] = 1
+if (  # Load latest data
+    not args.rerun and out_dir.exists() and args.start_it == -1
+):  # For instance, args.start_it == -1
+    with open(out_dir / "data_latest.pkl", "rb") as f:
+        data_load = pkl.load(f)
+    ctrls = data_load["ctrl"]
+    data.qpos[:] = data_load["state0"]["qpos"].copy()
+    data.qvel[:] = data_load["state0"]["qvel"].copy()
+    data.time = data_load["state0"]["time"]
+    mj.mj_forward(model, data)
+else:
+    if args.start_it == 0 or args.rerun or not out_dir.exists():  # Start from scratch
+        ### Get initial stabilizing controls
+        reset()
+        # stab_ctrls_idx = {k: out_idx[k] for k in
+        # ['let_go_ids', 'contact_check_list',
+        # 'adh_ids']}
+        # stab_ctrls_idx.update({'let_go_times': out_time['let_go_times']})
+        ctrls, K = opt_utils.get_stabilized_ctrls(
+            model,
+            data,
+            Tk,
+            noisev,
+            data.qpos.copy(),
+            acts["not_adh"],
+            stable_jnt_ids=body_ids["not_root"],
+            free_ctrls=np.zeros((Tk, len(acts["adh"]))),
+            balance_cost=params["balance_cost"],
+            joint_cost=params["joint_cost"],
+            root_cost=params["root_cost"],
+            foot_cost=params["foot_cost"],
+            ctrl_cost=params["ctrl_cost"],
+        )[:2]
+        # ctrls[:, tennis_idxs['adh_left_hand']] = left_adh_act_vals
+        # while True:
+        reset()
+        # util.forward_sim_render(env, ctrls)
+        # arm_t.forward_to_contact(env, ctrls, render=True)
+        # reset()
+        # ctrls[:, acts["adh"]] = 1
+    elif args.start_it > 0:  # Load a particular start_it
+        with open(savedir / f"data_{args.start_it}.pkl", "rb") as f:
+            data_load = pkl.load(f)
+        ctrls = data_load["ctrl"]
+        data.qpos[:] = data_load["state0"]["qpos"].copy()
+        data.qvel[:] = data_load["state0"]["qvel"].copy()
+        data.time = data_load["state0"]["time"]
+        mj.mj_forward(model, data)
 
     ctrls, lowest_losses = arm_t.arm_target_traj(
         config_name=config_name,
@@ -208,24 +227,6 @@ if args.rerun or not out_f.exists():
         mask_decay_factor=params["mask_decay_factor"],
         run_name=name,
     )
-    ctrls = np.vstack((ctrls, ctrls_burn_in))
-    ctrls_end = np.zeros((Tke, model.nu))
-    with open(out_f, "wb") as f:
-        pkl.dump(
-            {
-                "ctrls": ctrls,
-                "lowest_losses": lowest_losses,
-                "ctrls_burn_in": ctrls_burn_in,
-                "ctrls_end": ctrls_end,
-            },
-            f,
-        )
-else:
-    with open(out_f, "rb") as f:
-        load_data = pkl.load(f)
-    ctrls = load_data["ctrls"]
-    ctrls_burn_in = load_data["ctrls_burn_in"]
-    lowest_losses = load_data["lowest_losses"]
 
 
 ctrls = lowest_losses.peekitem(0)[1][1]
