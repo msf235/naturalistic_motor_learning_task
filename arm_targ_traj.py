@@ -434,9 +434,9 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
         Tk - Tk_right_orient_2 - Tk_right_orient_1
     )  # Time to hold final orientation
 
-    Tk_left_1 = (11 * Tk) // 24  # Duration to grab with left hand (1)
+    Tk_left_1 = Tk // 3  # Duration to grab with left hand (1)
     t_left_1 = Tk_left_1  # Time up to end of grab
-    Tk_left_2 = Tk // 6  # Duration to set up
+    Tk_left_2 = Tk // 4  # Duration to set up
     t_left_2 = t_left_1 + Tk_left_2  # Time to end of setting up
     Tk_left_3_base = Tk // 10  # Duration to throw ball up
     if Tk_left_3 is None:
@@ -1520,6 +1520,7 @@ def arm_target_traj(
     ctrl_std,
     Tk,
     max_its=30,
+    start_it=0,
     lrs=[10],
     phase_2_it=None,
     keep_top=1,
@@ -1547,6 +1548,7 @@ def arm_target_traj(
     joint_penalty_factor=0,
     mask_decay_factor=0.9,
     run_name="",
+    save_dir="./output"
 ):
     """Trains the right arm to follow the target trajectory (targ_traj). This
     involves gradient steps to update the arm controls and alternating with
@@ -1699,10 +1701,13 @@ def arm_target_traj(
     # ctrl_reg_weight = 0
     lr = lrs[0]
 
-    out_path = Path(f"/storage/naturalistic_motor_learning_task/output/{run_name}")
+    out_path = Path(save_dir)/run_name
     out_path.mkdir(parents=True, exist_ok=True)
 
-    for k0 in range(max_its):
+    if start_it is not None:
+
+
+    for k0 in range(start_it, max_its-start_it):
         traj_targs = traj_targ_dict[k0]
         vel_targs = vel_targ_dict[k0]
         render_class = butil.targetRender(env, traj_targs, site_names)

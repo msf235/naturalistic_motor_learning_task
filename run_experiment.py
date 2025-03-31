@@ -29,7 +29,9 @@ DEFAULT_CAMERA_CONFIG = {
     "azimuth": 180,
 }
 
+if args.savedir is None:
 name = args.name
+out_dir = Path(args.savedir)
 out_f = (Path("output") / name).with_suffix(".pkl")
 
 out_f.parent.mkdir(parents=True, exist_ok=True)
