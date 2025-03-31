@@ -825,7 +825,6 @@ def make_traj_sets(
     mask_window_tk,
     seed=2,
     mask_decay_factor=0.9,
-    grab_phase_it=0,
     grab_phase_tk=0,
 ):
     """
@@ -875,71 +874,28 @@ def make_traj_sets(
     dt = model.opt.timestep
     # incr_time_right_endpoints = list(range(amnt_to_incr, Tk + 1, amnt_to_incr))
     incr_time_right_endpoints_before = list(range(tk_incr, grab_phase_tk, tk_incr))
-    if phase_2:
-        m = int((phase_2_it - grab_phase_it) / incr_every)
-        tk_phase_2 = min(Tk + 1, grab_phase_tk + m * tk_incr)
-        incr_time_right_endpoints_after = list(
-            range(grab_phase_tk, tk_phase_2, tk_incr)
-        )
-        incr_time_right_endpoints_phase_2 = list(range(tk_phase_2, Tk + 1, tk_incrs[1]))
-        if (
-            len(incr_time_right_endpoints_phase_2) > 0
-            and incr_time_right_endpoints_phase_2[-1] != Tk
-        ):
-            incr_time_right_endpoints_phase_2.append(Tk)
-        max_incr_its_before = len(incr_time_right_endpoints_before)
-        max_incr_its_after = len(incr_time_right_endpoints_after)
-        max_incr_its_phase_2 = len(incr_time_right_endpoints_phase_2)
-        incr_time_right_endpoints = (
-            incr_time_right_endpoints_before
-            + incr_time_right_endpoints_after
-            + incr_time_right_endpoints_phase_2
-        )
-        incr_it_right_endpoints_before = list(
-            range(incr_every, max_incr_its_before * incr_every + 1, incr_every)
-        )
-        incr_it_right_endpoints_after = list(
-            range(
-                grab_phase_it,
-                max_incr_its_after * incr_every + grab_phase_it,
-                incr_every,
-            )
-        )
-        incr_it_right_endpoints_phase_2 = list(
-            range(
-                phase_2_it,
-                max_incr_its_phase_2 * incr_everys[1] + phase_2_it,
-                incr_everys[1],
-            )
-        )
-        incr_it_right_endpoints = (
-            incr_it_right_endpoints_before
-            + incr_it_right_endpoints_after
-            + incr_it_right_endpoints_phase_2
-        )
-    else:
-        incr_time_right_endpoints_after = list(range(grab_phase_tk, Tk + 1, tk_incr))
-        if incr_time_right_endpoints_after[-1] != Tk:
-            incr_time_right_endpoints_after.append(Tk)
+    incr_time_right_endpoints_after = list(range(grab_phase_tk, Tk + 1, tk_incr))
+    if incr_time_right_endpoints_after[-1] != Tk:
+        incr_time_right_endpoints_after.append(Tk)
 
-        max_incr_its_before = len(incr_time_right_endpoints_before)
-        max_incr_its_after = len(incr_time_right_endpoints_after)
-        incr_time_right_endpoints = (
-            incr_time_right_endpoints_before + incr_time_right_endpoints_after
+    max_incr_its_before = len(incr_time_right_endpoints_before)
+    max_incr_its_after = len(incr_time_right_endpoints_after)
+    incr_time_right_endpoints = (
+        incr_time_right_endpoints_before + incr_time_right_endpoints_after
+    )
+    incr_it_right_endpoints_before = list(
+        range(incr_every, max_incr_its_before * incr_every + 1, incr_every)
+    )
+    incr_it_right_endpoints_after = list(
+        range(
+            0,
+            max_incr_its_after * incr_every,
+            incr_every,
         )
-        incr_it_right_endpoints_before = list(
-            range(incr_every, max_incr_its_before * incr_every + 1, incr_every)
-        )
-        incr_it_right_endpoints_after = list(
-            range(
-                grab_phase_it,
-                max_incr_its_after * incr_every + grab_phase_it,
-                incr_every,
-            )
-        )
-        incr_it_right_endpoints = (
-            incr_it_right_endpoints_before + incr_it_right_endpoints_after
-        )
+    )
+    incr_it_right_endpoints = (
+        incr_it_right_endpoints_before + incr_it_right_endpoints_after
+    )
     targ_traj_mask_lists = masks.make_basic_xpos_masks(
         incr_time_right_endpoints, mask_decay_factor
     )
@@ -953,6 +909,8 @@ def make_traj_sets(
         for k, mask in enumerate(targ_traj_mask_lists)
     }
 
+    breakpoint()
+
     def get_q_pos_and_vel_data(joint_targs_file):
         q_pos_data = get_data_from_qtarg_file(joint_targs_file, dt)
         q_pos_targs = q_pos_data["targ_val"]
@@ -963,7 +921,7 @@ def make_traj_sets(
         q_pos_targs_expanded = np.zeros((Tk, model.nq))
         # q_pos_targs_expanded = np.zeros((Tk, model.nq))
         for tk, targ in zip(q_pos_time_tks, q_pos_targs):
-            q_pos_targs_expanded[tk][qpos_adrs] = targ
+            q_pos_targs_expanded[tk][q_pos_adrs] = targ
         # q_pos_mask_list = masks.make_basic_qpos_masks(
         #     qpos_adrs,
         #     incr_time_right_endpoints,
@@ -1599,7 +1557,6 @@ def arm_target_traj(
         seed,
         mask_decay_factor,
         grab_phase_it,
-        grab_phase_tk,
     )
 
     # traj_and_masks["q_pos_masks"] = [
