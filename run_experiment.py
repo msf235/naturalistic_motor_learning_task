@@ -205,7 +205,6 @@ else:
         grab_phase_tk=grab_phase_tk,
         tk_incrs=tk_incrs,
         grad_update_every=params["grad_update_every"],
-        phase_2_it=it_lr_2,
         plot_every=args.plot_every,
         render_every=args.render_every,
         optimizer=params["optimizer"],
@@ -226,6 +225,7 @@ else:
         joint_penalty_factor=params["joint_penalty_factor"],
         mask_decay_factor=params["mask_decay_factor"],
         run_name=name,
+        save_dir=out_dir,
     )
 
 

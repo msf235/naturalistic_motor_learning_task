@@ -822,7 +822,6 @@ def make_traj_sets(
     Tk,
     tk_incrs,
     incr_everys,
-    phase_2_it,
     mask_window_tk,
     seed=2,
     mask_decay_factor=0.9,
@@ -866,7 +865,6 @@ def make_traj_sets(
 
     incr_every = incr_everys[0]
     tk_incr = tk_incrs[0]
-    phase_2 = phase_2_it is not None
 
     # smoothing_time = 0.1
     smoothing_time = 0.2
@@ -1523,7 +1521,6 @@ def arm_target_traj(
     max_its=30,
     start_it=0,
     lrs=[10],
-    phase_2_it=None,
     keep_top=1,
     incr_everys=[10],
     mask_window_tk=5,
@@ -1576,8 +1573,6 @@ def arm_target_traj(
         lr: learning rate
         keep_top: number of lowest losses to keep
     """
-    if phase_2_it is None:
-        phase_2_it = max_its
     if plot_every is None:
         update_plot_every = max_its
     if render_every is None:
@@ -1600,7 +1595,6 @@ def arm_target_traj(
         Tk,
         tk_incrs,
         incr_everys,
-        phase_2_it,
         mask_window_tk,
         seed,
         mask_decay_factor,
