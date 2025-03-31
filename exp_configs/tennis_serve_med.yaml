@@ -4,7 +4,7 @@ params:
   Tf: 1.8
   t_after: .8
   # max_its: 5000
-  max_its: 900
+  max_its: 1200
   optimizer: 'adam'
   lr: .2
   lr_2: .2
