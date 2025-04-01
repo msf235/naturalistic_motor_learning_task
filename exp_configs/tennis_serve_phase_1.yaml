@@ -1,0 +1,25 @@
+params:
+  name: tennis_serve
+  xml_file: './model_files/humanoid_and_tennis.xml'
+  Tf: 1.8
+  max_its: 600
+  optimizer: 'adam'
+  lr: .2
+  grad_update_every: 10
+  reset_noise_scale: 0
+  t_incr: .1
+  incr_every: 150
+  grab_phase_it: 900
+  grab_phase_t: .4
+  grad_window_t: .05
+  mask_window_t: .6
+  joint_penalty_factor: 1e-6
+  balance_cost: 0
+  root_cost: 1e4
+  joint_cost: 5e7
+  foot_cost: 0
+  ctrl_cost: 1
+  # ctrl_reg_weight: 1e-6
+  ctrl_reg_weight: 0
+  q_pos_weight: 1e-6
+  mask_decay_factor: .9
