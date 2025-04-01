@@ -703,6 +703,7 @@ def get_idx_sets(env, config_name):
         ]
 
     else:
+        breakpoint()
         raise ValueError("Invalid config_name")
 
     ## Contact check list and adhesion ids
@@ -870,28 +871,14 @@ def make_traj_sets(
     syssize = model.nq + model.nv
     dt = model.opt.timestep
     # incr_time_right_endpoints = list(range(amnt_to_incr, Tk + 1, amnt_to_incr))
-    incr_time_right_endpoints_before = list(range(tk_incr, grab_phase_tk, tk_incr))
-    incr_time_right_endpoints_after = list(range(grab_phase_tk, Tk + 1, tk_incr))
-    if incr_time_right_endpoints_after[-1] != Tk:
-        incr_time_right_endpoints_after.append(Tk)
+    incr_time_right_endpoints = list(range(tk_incr, Tk + 1, tk_incr))
+    if incr_time_right_endpoints[-1] != Tk:
+        breakpoint()
+        incr_time_right_endpoints.append(Tk)
 
-    max_incr_its_before = len(incr_time_right_endpoints_before)
-    max_incr_its_after = len(incr_time_right_endpoints_after)
-    incr_time_right_endpoints = (
-        incr_time_right_endpoints_before + incr_time_right_endpoints_after
-    )
-    incr_it_right_endpoints_before = list(
-        range(incr_every, max_incr_its_before * incr_every + 1, incr_every)
-    )
-    incr_it_right_endpoints_after = list(
-        range(
-            0,
-            max_incr_its_after * incr_every,
-            incr_every,
-        )
-    )
-    incr_it_right_endpoints = (
-        incr_it_right_endpoints_before + incr_it_right_endpoints_after
+    max_incr_its = len(incr_time_right_endpoints)
+    incr_it_right_endpoints = list(
+        range(incr_every, max_incr_its * incr_every + 1, incr_every)
     )
     targ_traj_mask_lists = masks.make_basic_xpos_masks(
         incr_time_right_endpoints, mask_decay_factor
@@ -1178,6 +1165,12 @@ def make_traj_sets(
         for it_key in targ_traj_masks:
             targ_trajs[it_key] = right_targ_trajs + left_targ_trajs
             targ_vels[it_key] = right_targ_vels + left_targ_vels
+        # it_key = list(targ_traj_masks.keys())[0]
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection="3d")
+        # ax.plot(right_arm_traj[:, 0], right_arm_traj[:, 1], right_arm_traj[:, 2])
+        # fig.show()
+        # breakpoint()
 
         targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
         for it in targ_traj_masks:

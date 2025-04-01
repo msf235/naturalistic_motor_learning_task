@@ -122,8 +122,6 @@ grad_update_every = params["grad_update_every"]
 grad_trunc_tk = int(params["grad_window_t"] / dt)
 grab_phase_tk = int(params["grab_phase_t"] / dt)
 
-Tke = int(params["t_after"] / dt)
-
 if (  # Load latest data
     not args.rerun and out_dir.exists() and args.start_it == -1
 ):  # For instance, args.start_it == -1
