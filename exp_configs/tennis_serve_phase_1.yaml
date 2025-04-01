@@ -2,7 +2,7 @@ params:
   name: tennis_serve
   xml_file: './model_files/humanoid_and_tennis.xml'
   Tf: 1.8
-  max_its: 600
+  max_its: 900
   optimizer: 'adam'
   lr: .2
   grad_update_every: 10
@@ -10,7 +10,7 @@ params:
   t_incr: .1
   incr_every: 150
   grab_phase_it: 900
-  grab_phase_t: .4
+  grab_phase_t: .6
   grad_window_t: .05
   mask_window_t: .6
   joint_penalty_factor: 1e-6
