@@ -23,7 +23,9 @@ plt.rcParams.update({"axes.titlesize": "small"})
 
 # Site names
 RHAND_S = "R_Hand"
+RHAND_S_below = "R_Hand_below"
 LHAND_S = "L_Hand"
+LHAND_S_below = "L_Hand_below"
 RFOOT_S = "R_Ankle"
 LFOOT_S = "L_Ankle"
 RSHOULD_S = "R_Shoulder"
@@ -418,7 +420,9 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     shouldxr = data.site(RSHOULD_S).xpos
     elbowx = data.site(RELBOW_S).xpos
     handxr = data.site(RHAND_S).xpos
+    handxr_below = data.site(RHAND_S_below).xpos
     handxl = data.site(LHAND_S).xpos
+    handxl_below = data.site(LHAND_S_below).xpos
     r1 = np.sum((shouldxr - elbowx) ** 2) ** 0.5
     r2 = np.sum((elbowx - handxr) ** 2) ** 0.5
     r = r1 + r2
@@ -464,7 +468,10 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     s = ease_in_out(np.linspace(0, 1, Tk_right_1))
     grab_traj = np.array([bezier(sv, handxr, p1, p2, grab_targ) for sv in s])
 
-    grab_traj_orient = grab_traj - np.array([0, 0, 1])
+    orient_final = grab_traj[-1] - np.array([0, 0, 1])
+    grab_traj_orient = np.array(
+        [handxr_below + sv * (orient_final - handxr_below) for sv in s]
+    )
     arc_center = data.site(RSHOULD_S).xpos
     arc_center[0] = data.site("racket_handle").xpos[0]
 
@@ -522,10 +529,13 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     p1 = handxl + (grab_targ - handxl) / 2
     # p2: above p3 so that the final approach is from above (ensures downward final tangent)
     p2 = grab_targ + np.array([0, 0, 0.3])
-    s = np.linspace(0, 1, Tk_left_1)
+    s = ease_in_out(np.linspace(0, 1, Tk_left_1))
     grab_traj = np.array([bezier(sv, handxl, p1, p2, grab_targ) for sv in s])
-    s = np.linspace(0, 1, Tk_left_orient_1)
-    grab_traj_orient = grab_traj - np.array([0, 0, 1])
+    # s = np.linspace(0, 1, Tk_left_orient_1)
+    orient_final = grab_traj[-1] - np.array([0, 0, 1])
+    grab_traj_orient = np.array(
+        [handxl_below + sv * (orient_final - handxl_below) for sv in s]
+    )
 
     arc_traj_vs = arc_traj(
         data.site(LSHOULD_S).xpos,
@@ -1516,8 +1526,10 @@ def arm_target_traj(
 
     model = env.model
     data = env.data
-    nu = model.nu
-    nv = model.nv
+    data0 = copy.deepcopy(data)
+    qpos0 = data.qpos.copy()
+    state0 = util.get_state(data0)
+    util.reset_state(model, data, data0)
     traj_and_masks = make_traj_sets(
         env,
         config_name,
@@ -1557,12 +1569,7 @@ def arm_target_traj(
 
     n_sites = len(site_names)
 
-    data0 = copy.deepcopy(data)
-    state0 = util.get_state(data0)
-
     noisev = make_noisev(model, seed, Tk, ctrl_std, ctrl_rate)
-
-    util.reset_state(model, data, data0)
 
     def ret_fn(model, data):
         # jnt_ids = [55, 56, 57]
@@ -1589,7 +1596,6 @@ def arm_target_traj(
         return ret_dict
 
     ### Gradient descent
-    qpos0 = data.qpos.copy()
 
     dt = model.opt.timestep
     T = Tk * dt
