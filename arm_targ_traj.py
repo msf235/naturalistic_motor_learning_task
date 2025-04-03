@@ -848,7 +848,6 @@ def make_traj_sets(
         time it increments.
         incr_every: The number of iterations between mask incrments.
         seed: rng seed.
-        grab_phase_it: Iteration at which the grab phase ends.
         grab_phase_tk: Time index at which the grab ends.
 
     TODO: This would perhaps be easier to understand if there was a
@@ -1633,6 +1632,7 @@ def arm_target_traj(
     out_path = Path(save_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
+    breakpoint()
     for k0 in range(start_it, max_its - start_it):
         traj_targs = traj_targ_dict[k0]
         vel_targs = vel_targ_dict[k0]
@@ -1848,7 +1848,7 @@ def arm_target_traj(
             "state0": state0,
             "trajectory_target": traj_targs,
         }
-        with open(out_path / f"data_{k0+1}.pkl", "wb") as f:
+        with open(out_path / f"data_{k0 + 1}.pkl", "wb") as f:
             pkl.dump(ret_dict_save, f)
         with open(out_path / "data_latest.pkl", "wb") as f:
             pkl.dump(ret_dict_save, f)
@@ -1909,7 +1909,7 @@ def arm_target_traj(
                     show=False,
                 )
                 # plt.pause(0.1)
-            fig.savefig(out_path / f"fig_{k0+1}.pdf")
+            fig.savefig(out_path / f"fig_{k0 + 1}.pdf")
             fig.savefig(out_path / "fig_latest.pdf")
         # util.reset_state(model, data, data0)
         # ctrls = forward_with_dynamic_adhesion(env, ctrls, noisev, True)

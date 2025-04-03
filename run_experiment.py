@@ -30,8 +30,6 @@ DEFAULT_CAMERA_CONFIG = {
     "azimuth": 180,
 }
 savedir = Path(args.savedir)
-if "start_it" not in args:
-    args.start_it = 0
 name = args.name
 out_dir = Path(savedir) / name
 
@@ -121,9 +119,10 @@ noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 grad_update_every = params["grad_update_every"]
 grad_trunc_tk = int(params["grad_window_t"] / dt)
 grab_phase_tk = int(params["grab_phase_t"] / dt)
+breakpoint()
 
 if (  # Load latest data
-    not args.rerun and out_dir.exists() and args.start_it == -1
+    not args.rerun and out_dir.exists() and params["start_it"] == -1
 ):  # For instance, args.start_it == -1
     with open(out_dir / "data_latest.pkl", "rb") as f:
         data_load = pkl.load(f)
@@ -133,7 +132,9 @@ if (  # Load latest data
     data.time = data_load["state0"]["time"]
     mj.mj_forward(model, data)
 else:
-    if args.start_it == 0 or args.rerun or not out_dir.exists():  # Start from scratch
+    if (
+        params["start_it"] == 0 or args.rerun or not out_dir.exists()
+    ):  # Start from scratch
         ### Get initial stabilizing controls
         reset()
         # stab_ctrls_idx = {k: out_idx[k] for k in
@@ -162,14 +163,16 @@ else:
         # arm_t.forward_to_contact(env, ctrls, render=True)
         # reset()
         # ctrls[:, acts["adh"]] = 1
-    elif args.start_it > 0:  # Load a particular start_it
-        with open(savedir / f"data_{args.start_it}.pkl", "rb") as f:
+    elif params["start_it"] > 0:  # Load a particular start_it
+        # TODO: maybe also load optimizer states?
+        with open(savedir / f"data_{params['start_it']}.pkl", "rb") as f:
             data_load = pkl.load(f)
-        ctrls = data_load["ctrl"]
+        ctrls = data_load["best_pair"][1]
         data.qpos[:] = data_load["state0"]["qpos"].copy()
         data.qvel[:] = data_load["state0"]["qvel"].copy()
         data.time = data_load["state0"]["time"]
         mj.mj_forward(model, data)
+        breakpoint()
 
     ctrls, lowest_losses = arm_t.arm_target_traj(
         config_name=config_name,
