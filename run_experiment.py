@@ -30,8 +30,6 @@ DEFAULT_CAMERA_CONFIG = {
     "azimuth": 180,
 }
 savedir = Path(args.savedir)
-if "start_it" not in args:
-    args.start_it = 0
 name = args.name
 out_dir = Path(savedir) / name
 
@@ -88,6 +86,7 @@ ctrls_burn_in = reset()
 # util.forward_sim_render(env, ctrls_burn_in)
 
 Tk = int(Tf / dt)
+tk_mask_start = int(params["t_mask_start"] / dt)
 tt = np.arange(0, Tf, dt)
 
 joints = opt_utils.get_joints(model)
@@ -123,17 +122,20 @@ grad_trunc_tk = int(params["grad_window_t"] / dt)
 grab_phase_tk = int(params["grab_phase_t"] / dt)
 
 if (  # Load latest data
-    not args.rerun and out_dir.exists() and args.start_it == -1
+    not args.rerun and out_dir.exists() and params["start_it"] == -1
 ):  # For instance, args.start_it == -1
     with open(out_dir / "data_latest.pkl", "rb") as f:
         data_load = pkl.load(f)
-    ctrls = data_load["ctrl"]
+    ctrls = data_load["best_pair"][1]
+    # ctrls = data_load["ctrl"]
     data.qpos[:] = data_load["state0"]["qpos"].copy()
     data.qvel[:] = data_load["state0"]["qvel"].copy()
     data.time = data_load["state0"]["time"]
     mj.mj_forward(model, data)
 else:
-    if args.start_it == 0 or args.rerun or not out_dir.exists():  # Start from scratch
+    if (
+        params["start_it"] == 0 or args.rerun or not out_dir.exists()
+    ):  # Start from scratch
         ### Get initial stabilizing controls
         reset()
         # stab_ctrls_idx = {k: out_idx[k] for k in
@@ -162,10 +164,12 @@ else:
         # arm_t.forward_to_contact(env, ctrls, render=True)
         # reset()
         # ctrls[:, acts["adh"]] = 1
-    elif args.start_it > 0:  # Load a particular start_it
-        with open(savedir / f"data_{args.start_it}.pkl", "rb") as f:
+    elif params["start_it"] > 0:  # Load a particular start_it
+        with open(out_dir / f"data_{params['start_it']}.pkl", "rb") as f:
             data_load = pkl.load(f)
-        ctrls = data_load["ctrl"]
+        ctrls_load = data_load["best_pair"][1]
+        ctrls = np.zeros((Tk - 1, model.nu))
+        ctrls[: ctrls_load.shape[0]] = ctrls_load
         data.qpos[:] = data_load["state0"]["qpos"].copy()
         data.qvel[:] = data_load["state0"]["qvel"].copy()
         data.time = data_load["state0"]["time"]
@@ -185,9 +189,11 @@ else:
         ctrl_std=CTRL_STD,
         Tk=Tk,
         max_its=params["max_its"],
+        start_it=params["start_it"],
         lr=params["lr"],
         keep_top=10,
         incr_every=params["incr_every"],
+        tk_mask_start=tk_mask_start,
         mask_window_tk=mask_window_tk,
         grab_phase_it=params["grab_phase_it"],
         grab_phase_tk=grab_phase_tk,
@@ -215,6 +221,7 @@ else:
         run_name=name,
         save_dir=out_dir,
     )
+    breakpoint()
 
 
 ctrls = lowest_losses.peekitem(0)[1][1]

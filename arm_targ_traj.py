@@ -426,21 +426,21 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     r1 = np.sum((shouldxr - elbowx) ** 2) ** 0.5
     r2 = np.sum((elbowx - handxr) ** 2) ** 0.5
     r = r1 + r2
-    Tk_right_1 = Tk // 3  # Time to grab with right hand
+    Tk_right_1 = Tk // 4  # Time to grab with right hand
     t_right_1 = Tk_right_1
-    Tk_right_2 = Tk // 4  # Time to set up
+    Tk_right_2 = Tk // 3  # Time to set up
     t_right_2 = t_right_1 + Tk_right_2
     Tk_right_3 = Tk - t_right_2  # Time to swing
 
-    Tk_right_orient_1 = Tk // 3  # Time to orient down
-    Tk_right_orient_2 = Tk // 3  # Time to orient around
+    Tk_right_orient_1 = Tk // 4  # Time to orient down
+    Tk_right_orient_2 = Tk // 2  # Time to orient around
     Tk_right_orient_3 = (
         Tk - Tk_right_orient_2 - Tk_right_orient_1
     )  # Time to hold final orientation
 
-    Tk_left_1 = Tk // 3  # Duration to grab with left hand (1)
+    Tk_left_1 = Tk // 4  # Duration to grab with left hand (1)
     t_left_1 = Tk_left_1  # Time up to end of grab
-    Tk_left_2 = Tk // 4  # Duration to set up
+    Tk_left_2 = Tk // 3  # Duration to set up
     t_left_2 = t_left_1 + Tk_left_2  # Time to end of setting up
     Tk_left_3_base = Tk // 10  # Duration to throw ball up
     if Tk_left_3 is None:
@@ -450,8 +450,8 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     Tk_left_4_base = Tk - Tk_left_3_base - Tk_left_2 - Tk_left_1
 
     # Tk_left_orient_1 = (11 * Tk) // 24  # Time to orient down
-    Tk_left_orient_1 = Tk // 3  # Time to orient down
-    Tk_left_orient_2 = Tk // 4  # Time to orient around
+    Tk_left_orient_1 = Tk // 4  # Time to orient down
+    Tk_left_orient_2 = Tk // 2  # Time to orient around
     Tk_left_orient_3 = (
         Tk - Tk_left_orient_2 - Tk_left_orient_1
     )  # Time to hold final orientation
@@ -837,6 +837,8 @@ def make_traj_sets(
     seed=2,
     mask_decay_factor=0.9,
     grab_phase_tk=0,
+    tk_start=0,
+    start_it=0,
 ):
     """
     params:
@@ -850,6 +852,7 @@ def make_traj_sets(
         seed: rng seed.
         grab_phase_it: Iteration at which the grab phase ends.
         grab_phase_tk: Time index at which the grab ends.
+        start_it: Iteration at which the optimization starts.
 
     TODO: This would perhaps be easier to understand if there was a
     datatype for interval dictionaries with its own description.
@@ -881,14 +884,14 @@ def make_traj_sets(
     syssize = model.nq + model.nv
     dt = model.opt.timestep
     # incr_time_right_endpoints = list(range(amnt_to_incr, Tk + 1, amnt_to_incr))
-    incr_time_right_endpoints = list(range(tk_incr, Tk + 1, tk_incr))
-    if incr_time_right_endpoints[-1] != Tk:
-        breakpoint()
-        incr_time_right_endpoints.append(Tk)
+    incr_time_right_endpoints = list(range(tk_start + tk_incr, Tk, tk_incr))
+    incr_time_right_endpoints.append(Tk)
 
     max_incr_its = len(incr_time_right_endpoints)
     incr_it_right_endpoints = list(
-        range(incr_every, max_incr_its * incr_every + 1, incr_every)
+        range(
+            incr_every + start_it, max_incr_its * incr_every + 1 + start_it, incr_every
+        )
     )
     targ_traj_mask_lists = masks.make_basic_xpos_masks(
         incr_time_right_endpoints, mask_decay_factor
@@ -1175,6 +1178,9 @@ def make_traj_sets(
         for it_key in targ_traj_masks:
             targ_trajs[it_key] = right_targ_trajs + left_targ_trajs
             targ_vels[it_key] = right_targ_vels + left_targ_vels
+        for k, it in enumerate(targ_traj_masks):
+            targ_traj_masks[it][:grab_phase_tk] = 0
+            targ_vel_masks[it][:grab_phase_tk] = 0
         # it_key = list(targ_traj_masks.keys())[0]
         # fig = plt.figure()
         # ax = fig.add_subplot(111, projection="3d")
@@ -1464,6 +1470,7 @@ def arm_target_traj(
     incr_every=10,
     mask_window_tk=5,
     tk_incr=5,
+    tk_mask_start=0,
     grad_update_every=1,
     grab_phase_it=0,
     grab_phase_tk=0,
@@ -1518,7 +1525,7 @@ def arm_target_traj(
         render_every = max_its
 
     def shift_endpoints(inp_dict):
-        keys = [0] + list(inp_dict.keys())
+        keys = [start_it] + list(inp_dict.keys())
         ret_dict = {}
         for k in range(len(keys) - 1):
             ret_dict[keys[k]] = inp_dict[keys[k + 1]]
@@ -1539,7 +1546,9 @@ def arm_target_traj(
         mask_window_tk,
         seed,
         mask_decay_factor,
-        grab_phase_it,
+        grab_phase_tk,
+        tk_mask_start,
+        start_it,
     )
 
     # traj_and_masks["q_pos_masks"] = [
@@ -1633,7 +1642,7 @@ def arm_target_traj(
     out_path = Path(save_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    for k0 in range(start_it, max_its - start_it):
+    for k0 in range(start_it, max_its + start_it):
         traj_targs = traj_targ_dict[k0]
         vel_targs = vel_targ_dict[k0]
         render_class = butil.targetRender(env, traj_targs, site_names)
@@ -1717,27 +1726,27 @@ def arm_target_traj(
             site_xpos = ret_dict[site_name + "_xpos"]
             site_ctrl0 = ret_dict[site_name + "_ctrl0"]
             site_deriv = np.diff(site_xpos, axis=0, prepend=site_xpos[:1]) / dt
-            loss_site_xposs[0, k, k0, : Tk_trunc + 1] = (
+            loss_site_xposs[0, k, k0 - start_it, : Tk_trunc + 1] = (
                 0.5
                 * ((site_xpos - traj_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
                 * traj_mask_curr[k]
             )
-            loss_vels[0, k, k0, : Tk_trunc + 1] = (
+            loss_vels[0, k, k0 - start_it, : Tk_trunc + 1] = (
                 0.5
                 * ((site_deriv - vel_targs[k][: Tk_trunc + 1]) ** 2).mean(axis=1)
                 * vel_mask_curr[k]
             )
-            loss_ctrls[0, k, k0, :Tk_trunc] = (
+            loss_ctrls[0, k, k0 - start_it, :Tk_trunc] = (
                 0.5
                 * ((ctrls_trunc[:, site_grad_idxs[k]] - site_ctrl0[:-1]) ** 2).mean(
                     axis=1
                 )
                 * ctrl_reg_weight
             )
-        loss_qposs[0, k0, : Tk_trunc + 1] = 0.5 * (
+        loss_qposs[0, k0 - start_it, : Tk_trunc + 1] = 0.5 * (
             (ret_dict["qpos"] - q_pos_targs[: Tk_trunc + 1]) ** 2 * q_pos_mask_curr
         ).mean(axis=1)
-        loss_qvels[0, k0, : Tk_trunc + 1] = 0.5 * (
+        loss_qvels[0, k0 - start_it, : Tk_trunc + 1] = 0.5 * (
             (ret_dict["qvel"] - q_vel_targs[: Tk_trunc + 1]) ** 2 * q_vel_mask_curr
         ).mean(axis=1)
         hxs = [ret_dict[site + "_xpos"] for site in site_names]
@@ -1770,7 +1779,7 @@ def arm_target_traj(
         # tmp[k0] = ctrls[50, site_grad_idxs[0]]
         tk = Tk_trunc
         util.reset_state(model, data, data0)
-        render = k0 % render_every == 0
+        render = (k0 - start_it) % render_every == 0
         if env.render_mode == "human" and render:
             ret_dict = forward_and_collect_data(env, ctrls[:tk], ret_fn, render_fn)
             render_class.reset_counter()
@@ -1853,7 +1862,7 @@ def arm_target_traj(
         with open(out_path / "data_latest.pkl", "wb") as f:
             pkl.dump(ret_dict_save, f)
         # print(loss, toc-tic)
-        if k0 % plot_every == 0:
+        if (k0 - start_it) % plot_every == 0:
             # qs_wr = qs[:, joints['all']['wrist_left']]
             # print()
             # print(ctrls[:10, :5])
@@ -1875,7 +1884,7 @@ def arm_target_traj(
                 ctrls[:tk],
                 qvals=qs_list,
                 qtargs=q_targs_masked,
-                losses=loss_site_xposs[0, :, :k0, : tk + 1].mean(axis=-1),
+                losses=loss_site_xposs[0, :, : k0 - start_it, : tk + 1].mean(axis=-1),
                 grads=grads,
                 # qs_list,
                 # q_targs_masked,
@@ -1888,7 +1897,7 @@ def arm_target_traj(
             # axs[s, 0].set_xlabel("it")
             # axs[s, 0].set_ylabel("site loss")
             # plt.pause(0.1)
-            if k0 == 0:
+            if k0 - start_it == 0:
                 # Plot again to refresh the window so it resizes to a proper size
                 show_plot(
                     axs,
