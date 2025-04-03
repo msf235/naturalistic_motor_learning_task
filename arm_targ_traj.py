@@ -1289,12 +1289,13 @@ def forward_and_collect_data(env, ctrls, ret_fn=None, render=False):
     if ret_fn is not None:  # Now switch the key and time axes of ret_vals
         dict_keys = ret_vals[0].keys()
         ret_dict = {
-            key: np.zeros((Tk + 1, len(val))) for key, val in ret_vals[0].items()
+            key: np.zeros((Tk + 1, *val.shape)) for key, val in ret_vals[0].items()
         }
         for tk in range(Tk + 1):
             for key in dict_keys:
                 ret_dict[key][tk] = ret_vals[tk][key]
         return ret_dict
+    return {}
 
 
 # def forward(env, ctrls):

@@ -123,8 +123,8 @@ grab_phase_tk = int(params["grab_phase_t"] / dt)
 
 if (  # Load latest data
     not args.rerun and out_dir.exists() and params["start_it"] == -1
-):  # For instance, args.start_it == -1
     with open(out_dir / "data_latest.pkl", "rb") as f:
+):  # For instance, args.start_it == -1
         data_load = pkl.load(f)
     ctrls = data_load["best_pair"][1]
     # ctrls = data_load["ctrl"]

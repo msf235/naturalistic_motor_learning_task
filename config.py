@@ -255,6 +255,7 @@ def get_arg_parser():
     parser.add_argument(
         "--render_every", type=int, help="Render environment every X iterations."
     )
+    parser.add_argument("--load-it", type=int, help="")
     return parser
 
 
