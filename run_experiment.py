@@ -120,7 +120,6 @@ noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 grad_update_every = params["grad_update_every"]
 grad_trunc_tk = int(params["grad_window_t"] / dt)
 grab_phase_tk = int(params["grab_phase_t"] / dt)
-breakpoint()
 
 if (  # Load latest data
     not args.rerun and out_dir.exists() and params["start_it"] == -1

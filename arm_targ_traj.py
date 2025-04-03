@@ -428,7 +428,7 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     r = r1 + r2
     Tk_right_1 = Tk // 4  # Time to grab with right hand
     t_right_1 = Tk_right_1
-    Tk_right_2 = Tk // 3  # Time to set up
+    Tk_right_2 = int(Tk * 0.3)  # Time to set up
     t_right_2 = t_right_1 + Tk_right_2
     Tk_right_3 = Tk - t_right_2  # Time to swing
 
@@ -440,7 +440,7 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
 
     Tk_left_1 = Tk // 4  # Duration to grab with left hand (1)
     t_left_1 = Tk_left_1  # Time up to end of grab
-    Tk_left_2 = Tk // 3  # Duration to set up
+    Tk_left_2 = int(Tk * 0.3)  # Duration to set up
     t_left_2 = t_left_1 + Tk_left_2  # Time to end of setting up
     Tk_left_3_base = Tk // 10  # Duration to throw ball up
     if Tk_left_3 is None:
