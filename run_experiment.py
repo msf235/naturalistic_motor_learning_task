@@ -120,11 +120,12 @@ noisev = arm_t.make_noisev(model, args.seed, Tk, CTRL_STD, CTRL_RATE)
 grad_update_every = params["grad_update_every"]
 grad_trunc_tk = int(params["grad_window_t"] / dt)
 grab_phase_tk = int(params["grab_phase_t"] / dt)
+breakpoint()
 
 if (  # Load latest data
     not args.rerun and out_dir.exists() and params["start_it"] == -1
-    with open(out_dir / "data_latest.pkl", "rb") as f:
 ):  # For instance, args.start_it == -1
+    with open(out_dir / "data_latest.pkl", "rb") as f:
         data_load = pkl.load(f)
     ctrls = data_load["best_pair"][1]
     # ctrls = data_load["ctrl"]
@@ -174,6 +175,7 @@ else:
         data.qvel[:] = data_load["state0"]["qvel"].copy()
         data.time = data_load["state0"]["time"]
         mj.mj_forward(model, data)
+        breakpoint()
 
     ctrls, lowest_losses = arm_t.arm_target_traj(
         config_name=config_name,
