@@ -174,7 +174,6 @@ else:
         data.qvel[:] = data_load["state0"]["qvel"].copy()
         data.time = data_load["state0"]["time"]
         mj.mj_forward(model, data)
-        breakpoint()
 
     ctrls, lowest_losses = arm_t.arm_target_traj(
         config_name=config_name,

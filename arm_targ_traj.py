@@ -428,19 +428,19 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     r = r1 + r2
     Tk_right_1 = Tk // 4  # Time to grab with right hand
     t_right_1 = Tk_right_1
-    Tk_right_2 = int(Tk * 0.3)  # Time to set up
+    Tk_right_2 = int(Tk * 0.5)  # Time to set up
     t_right_2 = t_right_1 + Tk_right_2
     Tk_right_3 = Tk - t_right_2  # Time to swing
 
     Tk_right_orient_1 = Tk // 4  # Time to orient down
-    Tk_right_orient_2 = Tk // 2  # Time to orient around
+    Tk_right_orient_2 = int(Tk * 0.5)  # Time to orient around
     Tk_right_orient_3 = (
         Tk - Tk_right_orient_2 - Tk_right_orient_1
     )  # Time to hold final orientation
 
     Tk_left_1 = Tk // 4  # Duration to grab with left hand (1)
     t_left_1 = Tk_left_1  # Time up to end of grab
-    Tk_left_2 = int(Tk * 0.3)  # Duration to set up
+    Tk_left_2 = int(Tk * 0.5)  # Duration to set up
     t_left_2 = t_left_1 + Tk_left_2  # Time to end of setting up
     Tk_left_3_base = Tk // 10  # Duration to throw ball up
     if Tk_left_3 is None:
@@ -451,7 +451,7 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
 
     # Tk_left_orient_1 = (11 * Tk) // 24  # Time to orient down
     Tk_left_orient_1 = Tk // 4  # Time to orient down
-    Tk_left_orient_2 = Tk // 2  # Time to orient around
+    Tk_left_orient_2 = int(Tk * 0.5)  # Time to orient around
     Tk_left_orient_3 = (
         Tk - Tk_left_orient_2 - Tk_left_orient_1
     )  # Time to hold final orientation
@@ -904,6 +904,9 @@ def make_traj_sets(
         incr_it_right_endpoints[k]: np.array(mask)
         for k, mask in enumerate(targ_traj_mask_lists)
     }
+    for k, it in enumerate(targ_traj_masks):
+        targ_traj_masks[it][:grab_phase_tk] = 0
+        targ_vel_masks[it][:grab_phase_tk] = 0
 
     def get_q_pos_and_vel_data(joint_targs_file):
         q_pos_data = get_data_from_qtarg_file(joint_targs_file, dt)
@@ -998,8 +1001,8 @@ def make_traj_sets(
         traj1_xs[:, 2] = rs * np.sin(thetas)
         traj1_xs += data.site(RSHOULD_S).xpos
         targ_trajs = [traj1_xs]
-        ctrl_reg_weights = [None]
         breakpoint()
+        ctrl_reg_weights = [None]
         return make_return_dict(
             targ_trajs,
             targ_traj_masks,
@@ -1177,9 +1180,6 @@ def make_traj_sets(
         for it_key in targ_traj_masks:
             targ_trajs[it_key] = right_targ_trajs + left_targ_trajs
             targ_vels[it_key] = right_targ_vels + left_targ_vels
-        for k, it in enumerate(targ_traj_masks):
-            targ_traj_masks[it][:grab_phase_tk] = 0
-            targ_vel_masks[it][:grab_phase_tk] = 0
         # it_key = list(targ_traj_masks.keys())[0]
         # fig = plt.figure()
         # ax = fig.add_subplot(111, projection="3d")

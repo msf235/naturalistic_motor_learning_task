@@ -17,8 +17,8 @@ vargs = vars(args)
 
 def ret_fn(model, data):
     ret_data = {
-        "qs": data.qpos.copy(),
-        "vs": data.qvel.copy(),
+        "qpos": data.qpos.copy(),
+        "qvel": data.qvel.copy(),
         "xpos": data.xpos.copy(),
         "xquats": data.xquat.copy(),
         "sensordata": data.sensordata[:].copy(),
@@ -80,11 +80,11 @@ if __name__ == "__main__":
         xml_file=data_load["model_file_location"],
         keyframe_name=data_load["keyframe"],
     )
-    breakpoint()
 
     model = env.model
     data = env.data
-
+    data = process_data(ctrls, env, label=f"_{name}_{args.load_it}")
+    breakpoint()
     process_and_save_data(
         ctrls, env, datadir=Path("data_phc") / name, label=f"_{name}_{args.load_it}"
     )
