@@ -245,9 +245,9 @@ def get_arg_parser():
         help="Location of save directory (highest level).",
     )
     parser.add_argument("--seed", type=int, default=2, help="Random seed.")
-    parser.add_argument(
-        "--task-phase", type=int, default=1, help="Task phase (from 1 to 7)."
-    )
+    # parser.add_argument(
+    #     "--task-phase", type=int, default=1, help="Task phase (from 1 to 7)."
+    # )
     parser.add_argument("--render", action="store_true", help="Render the agent.")
     parser.add_argument(
         "--plot_every", type=int, help="Update diagnostic plot every X iterations."
@@ -256,6 +256,7 @@ def get_arg_parser():
         "--render_every", type=int, help="Render environment every X iterations."
     )
     parser.add_argument("--load-it", type=int, help="")
+    parser.add_argument("--phase", type=int, default=1, help="")
     return parser
 
 

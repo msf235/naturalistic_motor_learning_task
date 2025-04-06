@@ -426,21 +426,27 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     r1 = np.sum((shouldxr - elbowx) ** 2) ** 0.5
     r2 = np.sum((elbowx - handxr) ** 2) ** 0.5
     r = r1 + r2
-    Tk_right_1 = Tk // 4  # Time to grab with right hand
+    # Tk_right_1 = Tk // 4  # Time to grab with right hand
+    Tk_right_1 = 1000  # Time to grab with right hand
     t_right_1 = Tk_right_1
-    Tk_right_2 = int(Tk * 0.5)  # Time to set up
+    # Tk_right_2 = int(Tk * 0.5)  # Time to set up
+    Tk_right_2 = 2000  # Time to set up
     t_right_2 = t_right_1 + Tk_right_2
     Tk_right_3 = Tk - t_right_2  # Time to swing
 
-    Tk_right_orient_1 = Tk // 4  # Time to orient down
-    Tk_right_orient_2 = int(Tk * 0.5)  # Time to orient around
+    # Tk_right_orient_1 = Tk // 4  # Time to orient down
+    Tk_right_orient_1 = 1000  # Time to orient down
+    # Tk_right_orient_2 = int(Tk * 0.5)  # Time to orient around
+    Tk_right_orient_2 = 2000  # Time to orient around
     Tk_right_orient_3 = (
         Tk - Tk_right_orient_2 - Tk_right_orient_1
     )  # Time to hold final orientation
 
     Tk_left_1 = Tk // 4  # Duration to grab with left hand (1)
+    Tk_left_1 = 1000  # Duration to grab with left hand (1)
     t_left_1 = Tk_left_1  # Time up to end of grab
-    Tk_left_2 = int(Tk * 0.5)  # Duration to set up
+    # Tk_left_2 = int(Tk * 0.5)  # Duration to set up
+    Tk_left_2 = 2000  # Duration to set up
     t_left_2 = t_left_1 + Tk_left_2  # Time to end of setting up
     Tk_left_3_base = Tk // 10  # Duration to throw ball up
     if Tk_left_3 is None:
@@ -450,8 +456,10 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     Tk_left_4_base = Tk - Tk_left_3_base - Tk_left_2 - Tk_left_1
 
     # Tk_left_orient_1 = (11 * Tk) // 24  # Time to orient down
-    Tk_left_orient_1 = Tk // 4  # Time to orient down
-    Tk_left_orient_2 = int(Tk * 0.5)  # Time to orient around
+    # Tk_left_orient_1 = Tk // 4  # Time to orient down
+    Tk_left_orient_1 = 1000  # Time to orient down
+    # Tk_left_orient_2 = int(Tk * 0.5)  # Time to orient around
+    Tk_left_orient_2 = 2000  # Time to orient around
     Tk_left_orient_3 = (
         Tk - Tk_left_orient_2 - Tk_left_orient_1
     )  # Time to hold final orientation
@@ -472,6 +480,7 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     grab_traj_orient = np.array(
         [handxr_below + sv * (orient_final - handxr_below) for sv in s]
     )
+
     arc_center = data.site(RSHOULD_S).xpos
     arc_center[0] = data.site("racket_handle").xpos[0]
 
@@ -670,10 +679,10 @@ def get_idx_sets(env, config_name):
         "grab_ball",
     ]:  # One-handed actions
         if config_name == "basic_movements_left":
-            sites = [LHAND_S]
+            sites = [LHAND_S, "L_Hand_below"]
             arm_str = "left_arm"
         elif config_name == "basic_movements_right":
-            sites = [RHAND_S]
+            sites = [RHAND_S, "R_Hand_below"]
             arm_str = "right_arm"
         else:
             sites = [RHAND_S, "R_Hand_below"]
@@ -1000,13 +1009,31 @@ def make_traj_sets(
         traj1_xs[:, 1] = rs * np.cos(thetas)
         traj1_xs[:, 2] = rs * np.sin(thetas)
         traj1_xs += data.site(RSHOULD_S).xpos
-        targ_trajs = [traj1_xs]
-        breakpoint()
+
+        handxr_below = data.site(RHAND_S_below).xpos
+        orient_final = traj1_xs[-1] - np.random.rand(3)
+        # s = ease_in_out(np.linspace(0, 1, traj1_xs.shape[0]))
+        s = np.linspace(0, 1, traj1_xs.shape[0])
+        traj_orient = np.array(
+            [handxr_below + sv * (orient_final - handxr_below) for sv in s]
+        )
+        traj_orient = directional_distance_normalize(traj1_xs, traj_orient)
+
+        targ_trajs = [traj1_xs, traj_orient]
+
+        targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
+        for it in targ_traj_masks:
+            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
+        targ_traj_masks = ([targ_traj_masks, targ_traj_masks2],)
+
         ctrl_reg_weights = [None]
         return make_return_dict(
             targ_trajs,
             targ_traj_masks,
+            targ_traj_vels,
+            targ_traj_vels_masks,
             q_pos_targs,
+            q_vel_targs,
             q_vel_targs,
             q_pos_masks,
             q_vel_masks,

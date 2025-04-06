@@ -13,7 +13,12 @@ import mujoco as mj
 args = config.get_arg_parser().parse_args()
 vargs = vars(args)
 # config_name = args.configfile.split("/")[-1].split(".")[0]
-params = config.get_config(args.configfile)["params"]
+if args.phase == 1:
+    params = config.get_config(args.configfile)["phase_1"]
+elif args.phase == 2:
+    params = config.get_config(args.configfile)["phase_2"]
+else:
+    raise ValueError("Invalid phase number. Must be 1 or 2.")
 config_name = params["name"]
 # Since numbers in scientific notation are converted to a string from yaml,
 # need to convert these to a number.

@@ -1,7 +1,8 @@
-params:
+phase_1:
   name: basic_movements_right
   xml_file: './model_files/humanoid_and_basic.xml'
   max_its: 1000
+  start_it: 0
   Tf: 1.0
   t_after: 0
   #optimizer: 'adam'
@@ -18,8 +19,11 @@ params:
   reset_noise_scale: 0
   incr_every: 50
   t_incr: 0.05
+  t_mask_start: 0
   grab_phase_it: 0
+  grab_phase_t: 0
   grad_window_t: 0.1
+  mask_window_t: 1.0
   #joint_penalty_factor: 1e-6
   # joint_penalty_factor: 1e-12
   joint_penalty_factor: 0
@@ -37,4 +41,5 @@ params:
   ctrl_reg_weight: 1e-7
   # ctrl_reg_weight: 0
   mask_decay_factor: .9
+  q_pos_weight: 1e-6
 
