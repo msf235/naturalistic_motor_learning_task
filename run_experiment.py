@@ -196,6 +196,7 @@ else:
         max_its=params["max_its"],
         start_it=params["start_it"],
         lr=params["lr"],
+        lr_orient=params["lr_orient"],
         keep_top=10,
         incr_every=params["incr_every"],
         tk_mask_start=tk_mask_start,

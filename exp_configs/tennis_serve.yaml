@@ -7,6 +7,7 @@ phase_1:
   start_it: 0
   optimizer: 'adam'
   lr: .2
+  lr_orient: 0.05
   grad_update_every: 10
   reset_noise_scale: 0
   t_incr: .1

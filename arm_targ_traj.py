@@ -34,6 +34,11 @@ RELBOW_S = "R_Elbow"
 LELBOW_S = "L_Elbow"
 
 
+def get_vel(trajs, dt=1):
+    trajs = np.diff(trajs, axis=0, prepend=trajs[0:1])
+    return trajs / dt
+
+
 def bezier(u, p0, p1, p2, p3):
     """Compute the point on a cubic Bézier curve for parameter u."""
     return (
@@ -54,7 +59,7 @@ def ease_in_out(t):
 
 
 def directional_distance_normalize(
-    x: np.ndarray, y: np.ndarray, d: float = 1.0
+    x: np.ndarray, y: np.ndarray, d: float = 0.1
 ) -> np.ndarray:
     """
     Compute points that are a distance d away from each point in x, directed toward y.
@@ -647,20 +652,11 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
         t_left_3=t_left_3,
     )
 
-    right_arm_vel = (
-        np.diff(right_arm_traj, axis=0, prepend=right_arm_traj[0:1])
-        / model.opt.timestep
-    )
-    left_arm_vel = (
-        np.diff(left_arm_traj, axis=0, prepend=left_arm_traj[0:1]) / model.opt.timestep
-    )
     return (
         right_arm_traj,
         right_arm_traj_orient,
-        right_arm_vel,
         left_arm_traj,
         left_arm_traj_orient,
-        left_arm_vel,
         # ball_traj,
         time_dict,
     )
@@ -1019,21 +1015,26 @@ def make_traj_sets(
         )
         traj_orient = directional_distance_normalize(traj1_xs, traj_orient)
 
-        targ_trajs = [traj1_xs, traj_orient]
+        targ_traj_list = [traj1_xs, traj_orient]
 
-        targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
-        for it in targ_traj_masks:
-            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
-        targ_traj_masks = ([targ_traj_masks, targ_traj_masks2],)
+        targ_vel_list = [get_vel(traj1_xs), get_vel(traj_orient)]
+        targ_trajs = {}
+        targ_vels = {}
+        targ_traj_mask_full = {}
+        targ_vel_mask_full = {}
+        for it_key in targ_traj_masks:
+            targ_trajs[it_key] = targ_traj_list
+            targ_vels[it_key] = targ_vel_list
+            targ_traj_mask_full[it_key] = [targ_traj_masks[it_key]] * 2
+            targ_vel_mask_full[it_key] = [targ_vel_masks[it_key]] * 2
 
         ctrl_reg_weights = [None]
         return make_return_dict(
             targ_trajs,
-            targ_traj_masks,
-            targ_traj_vels,
-            targ_traj_vels_masks,
+            targ_traj_mask_full,
+            targ_vels,
+            targ_vel_mask_full,
             q_pos_targs,
-            q_vel_targs,
             q_vel_targs,
             q_pos_masks,
             q_vel_masks,
@@ -1133,8 +1134,6 @@ def make_traj_sets(
             for tk in range(0, Tkk - mask_window_tk):
                 targ_traj_masks[it][tk] = 0
         targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
-        for it in targ_traj_masks:
-            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
 
         ctrl_reg_weights = [None]
         return make_return_dict(
@@ -1187,26 +1186,29 @@ def make_traj_sets(
             _,
         ) = get_q_pos_and_vel_data(joint_targs_file)
 
-        out = tennis_traj(model, data, Tk)
         (
             right_arm_traj,
             right_arm_traj_below,
-            right_arm_vel,
             left_arm_traj,
             left_arm_traj_below,
-            left_arm_vel,
             time_dict,
-        ) = out
+        ) = tennis_traj(model, data, Tk)
 
-        right_targ_vels = [right_arm_vel, right_arm_vel]
-        left_targ_vels = [left_arm_vel, left_arm_vel]
         right_targ_trajs = [right_arm_traj, right_arm_traj_below]
         left_targ_trajs = [left_arm_traj, left_arm_traj_below]
+        right_targ_vels = [get_vel(right_arm_traj), get_vel(right_arm_traj_below)]
+        left_targ_vels = [get_vel(left_arm_traj), get_vel(left_arm_traj_below)]
         targ_trajs = {}
+        # targ_traj_masks = {}
+        targ_traj_mask_full = {}
+        targ_vel_mask_full = {}
         targ_vels = {}
-        for it_key in targ_traj_masks:
+        for it_key in targ_traj_masks.keys():
             targ_trajs[it_key] = right_targ_trajs + left_targ_trajs
             targ_vels[it_key] = right_targ_vels + left_targ_vels
+            targ_traj_mask_full[it_key] = [targ_traj_masks[it_key]] * 4
+            targ_vel_mask_full[it_key] = [targ_vel_masks[it_key]] * 4
+
         # it_key = list(targ_traj_masks.keys())[0]
         # fig = plt.figure()
         # ax = fig.add_subplot(111, projection="3d")
@@ -1214,16 +1216,15 @@ def make_traj_sets(
         # fig.show()
         # breakpoint()
 
-        targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
-        for it in targ_traj_masks:
-            targ_traj_masks2[it] = 0.1 * targ_traj_masks[it]
+        # targ_traj_masks2 = copy.deepcopy(targ_traj_masks)
 
         ctrl_reg_weights = [None]
         return make_return_dict(
             targ_trajs,
-            [targ_traj_masks, targ_traj_masks2, targ_traj_masks, targ_traj_masks2],
+            # [targ_traj_masks, targ_traj_masks2, targ_traj_masks, targ_traj_masks2],
+            targ_traj_mask_full,
             targ_vels,
-            targ_vel_masks,
+            targ_vel_mask_full,
             q_pos_targs,
             q_vel_targs,
             q_pos_masks,
@@ -1493,6 +1494,7 @@ def arm_target_traj(
     max_its=30,
     start_it=0,
     lr=10,
+    lr_orient=1,
     keep_top=1,
     incr_every=10,
     mask_window_tk=5,
@@ -1577,6 +1579,16 @@ def arm_target_traj(
         tk_mask_start,
         start_it,
     )
+    factor = round(lr_orient / lr, 5)
+    for k, site_name in enumerate(site_names):
+        if "below" in site_name:
+            for it in traj_and_masks["traj_masks"]:
+                traj_and_masks["traj_masks"][it][k] = (
+                    factor * traj_and_masks["traj_masks"][it][k]
+                )
+                traj_and_masks["vel_masks"][it][k] = (
+                    factor * traj_and_masks["vel_masks"][it][k]
+                )
 
     # traj_and_masks["q_pos_masks"] = [
     #     params["joint_penalty_factor"] * x for x in traj_and_masks["q_pos_masks"]
@@ -1585,10 +1597,7 @@ def arm_target_traj(
     traj_targ_dict = butil.LeftEndpointDict(
         shift_endpoints(traj_and_masks["traj_targs"])
     )
-    traj_masks = [
-        butil.LeftEndpointDict(shift_endpoints(mask))
-        for mask in traj_and_masks["traj_masks"]
-    ]
+    traj_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["traj_masks"]))
     # vel_targs = traj_and_masks["vel_targs"]
     vel_targ_dict = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["vel_targs"]))
     vel_masks = butil.LeftEndpointDict(shift_endpoints(traj_and_masks["vel_masks"]))
@@ -1599,7 +1608,7 @@ def arm_target_traj(
     for key in q_vel_masks:
         q_vel_masks[key] = joint_penalty_factor * q_vel_masks[key]
 
-    incr_its = sorted(list(traj_masks[0].keys()))
+    incr_its = sorted(list(traj_masks.keys()))
 
     not_stabilize_act_idx = [k for k in range(model.nu) if k not in stabilize_act_idx]
 
@@ -1678,12 +1687,12 @@ def arm_target_traj(
             for k in range(n_sites):
                 optms[k] = get_opt(lr)
 
-        traj_mask_curr = [traj_mask[k0] for traj_mask in traj_masks]
-        vel_mask_curr = 0 * np.array(vel_masks[k0])
+        traj_mask_curr = traj_masks[k0]
+        Tk_trunc = get_last_timepoint(traj_mask_curr[0])  # TODO: generalize
+        vel_mask_curr = [0 * np.array(mask[: Tk_trunc + 1]) for mask in vel_masks[k0]]
         q_pos_mask_curr = np.array(q_pos_masks[k0])
         q_vel_mask_curr = np.array(q_vel_masks[k0])
 
-        Tk_trunc = get_last_timepoint(traj_mask_curr[0])  # TODO: generalize
         traj_mask_curr = [mask[: Tk_trunc + 1] for mask in traj_mask_curr]
         vel_mask_curr = vel_mask_curr[: Tk_trunc + 1]
         q_pos_mask_curr = q_pos_mask_curr[: Tk_trunc + 1] * q_pos_weight
@@ -1719,7 +1728,7 @@ def arm_target_traj(
                 traj_targs[k][: Tk_trunc + 1],
                 traj_mask_curr[k],
                 vel_targs[k][: Tk_trunc + 1],
-                vel_mask_curr,
+                vel_mask_curr[k],
                 q_pos_targs[: Tk_trunc + 1],
                 q_pos_mask_curr,
                 q_vel_targs[: Tk_trunc + 1],

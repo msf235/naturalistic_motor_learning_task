@@ -5,16 +5,17 @@ phase_1:
   start_it: 0
   Tf: 1.0
   t_after: 0
+  optimizer: 'adam'
+  lr: .2
+  lr_orient: .01
   #optimizer: 'adam'
   #lr: .001
   #lr2: .0005
   # optimizer: 'rmsprop'
   # lr: .05
   # lr2: .05
-  optimizer: 'sgd'
-  lr: 1
-  lr2: 5e-1
-  it_lr2: 800
+  # optimizer: 'sgd'
+  # lr: 1
   grad_update_every: 10
   reset_noise_scale: 0
   incr_every: 50
