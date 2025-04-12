@@ -24,6 +24,11 @@ config_name = params["name"]
 # need to convert these to a number.
 params = {k: config.inp_to_num(v) for k, v in params.items()}
 
+if args.start_it is not None:
+    start_it = args.start_it
+else:
+    start_it = params["start_it"]
+
 CTRL_STD = 0
 CTRL_RATE = 1
 
@@ -127,7 +132,7 @@ grad_trunc_tk = int(params["grad_window_t"] / dt)
 grab_phase_tk = int(params["grab_phase_t"] / dt)
 
 if (  # Load latest data
-    not args.rerun and out_dir.exists() and params["start_it"] == -1
+    not args.rerun and out_dir.exists() and start_it == -1
 ):  # For instance, args.start_it == -1
     with open(out_dir / "data_latest.pkl", "rb") as f:
         data_load = pkl.load(f)
@@ -138,9 +143,7 @@ if (  # Load latest data
     data.time = data_load["state0"]["time"]
     mj.mj_forward(model, data)
 else:
-    if (
-        params["start_it"] == 0 or args.rerun or not out_dir.exists()
-    ):  # Start from scratch
+    if start_it == 0 or args.rerun or not out_dir.exists():  # Start from scratch
         ### Get initial stabilizing controls
         reset()
         # stab_ctrls_idx = {k: out_idx[k] for k in
@@ -169,8 +172,8 @@ else:
         # arm_t.forward_to_contact(env, ctrls, render=True)
         # reset()
         # ctrls[:, acts["adh"]] = 1
-    elif params["start_it"] > 0:  # Load a particular start_it
-        with open(out_dir / f"data_{params['start_it']}.pkl", "rb") as f:
+    elif start_it > 0:  # Load a particular start_it
+        with open(out_dir / f"data_{start_it}.pkl", "rb") as f:
             data_load = pkl.load(f)
         ctrls_load = data_load["best_pair"][1]
         ctrls = np.zeros((Tk - 1, model.nu))
@@ -194,7 +197,7 @@ else:
         ctrl_std=CTRL_STD,
         Tk=Tk,
         max_its=params["max_its"],
-        start_it=params["start_it"],
+        start_it=start_it,
         lr=params["lr"],
         lr_orient=params["lr_orient"],
         keep_top=10,

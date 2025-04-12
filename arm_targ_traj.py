@@ -49,13 +49,13 @@ def bezier(u, p0, p1, p2, p3):
     )
 
 
-def ease_in_out(t):
+def ease_in_out(t, r=1.0):
     """
     Cubic ease in/out function.
     s(t) = 3t^2 - 2t^3 has zero derivative at t=0 and t=1,
     providing smooth acceleration and deceleration.
     """
-    return 3 * t**2 - 2 * t**3
+    return r * (3 * t**2 - 2 * t**3) + (1 - r) * t
 
 
 def directional_distance_normalize(
@@ -499,7 +499,7 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     s = np.linspace(0, 1, Tk_right_orient_3)
     end_traj_orient = np.array([p3 for sv in s])
 
-    s = ease_in_out(np.linspace(0, 1, Tk_right_2))
+    s = ease_in_out(np.linspace(0, 1, Tk_right_2), r=0.5)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
     s = ease_in_out(np.linspace(0, 1, Tk_right_orient_2))
@@ -573,7 +573,7 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     )
 
     setup_traj = np.zeros((Tk_left_2, 3))
-    s = ease_in_out(np.linspace(0, 1, Tk_left_2))
+    s = ease_in_out(np.linspace(0, 1, Tk_left_2), r=0.5)
     s = np.stack((s, s, s)).T
     setup_traj = grab_traj[-1] + s * (arc_traj_vs[0] - grab_traj[-1])
 
@@ -1703,6 +1703,7 @@ def arm_target_traj(
             lowest_losses_curr_mask = LimLowestDict(keep_top)
         ctrls_trunc = ctrls[:Tk_trunc]
         noisev_trunc = noisev[:Tk_trunc]
+        # breakpoint()
 
         util.reset_state(model, data, data0)
         ctrls_trunc = forward_with_dynamic_adhesion(
@@ -1892,6 +1893,7 @@ def arm_target_traj(
             "keyframe": env.keyframe_name,
             "state0": state0,
             "trajectory_target": traj_targs,
+            "losses": loss_site_xposs[0, :, : k0 - start_it, : tk + 1],
         }
         with open(out_path / f"data_{k0 + 1}.pkl", "wb") as f:
             pkl.dump(ret_dict_save, f)

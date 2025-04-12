@@ -6,7 +6,7 @@ phase_1:
   Tf: 1.0
   t_after: 0
   optimizer: 'adam'
-  lr: .2
+  lr: .1
   lr_orient: .01
   #optimizer: 'adam'
   #lr: .001
@@ -20,6 +20,7 @@ phase_1:
   reset_noise_scale: 0
   incr_every: 50
   t_incr: 0.05
+  # t_incr: 0.2
   t_mask_start: 0
   grab_phase_it: 0
   grab_phase_t: 0
@@ -33,13 +34,14 @@ phase_1:
   #joint_cost: 10000
   #foot_cost: 100
   balance_cost: 0
+  joint_penalty_factor: 1e-6
   #balance_cost: 1e10
-  root_cost: 1e2
-  joint_cost: 5e5
-  #joint_cost: 0
+  root_cost: 1e4
+  joint_cost: 5e7
   foot_cost: 0
   ctrl_cost: 1
-  ctrl_reg_weight: 1e-7
+  # ctrl_reg_weight: 1e-7
+  ctrl_reg_weight: 0
   # ctrl_reg_weight: 0
   mask_decay_factor: .9
   q_pos_weight: 1e-6
