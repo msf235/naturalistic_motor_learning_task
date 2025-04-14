@@ -418,9 +418,11 @@ def tennis_grab_traj(model, data, Tk):
     return right_arm_traj, left_arm_traj, ball_traj, time_dict
 
 
-def tennis_traj(model, data, Tk, Tk_left_3=None):
+def tennis_traj(model, data, Tf, Tf_left_3=None):
     # def directional_distance_normalize(x, y):
     #     return y
+    dt = model.opt.timestep
+    Tk = int(Tf / dt)
 
     shouldxr = data.site(RSHOULD_S).xpos
     elbowx = data.site(RELBOW_S).xpos
@@ -431,40 +433,41 @@ def tennis_traj(model, data, Tk, Tk_left_3=None):
     r1 = np.sum((shouldxr - elbowx) ** 2) ** 0.5
     r2 = np.sum((elbowx - handxr) ** 2) ** 0.5
     r = r1 + r2
-    # Tk_right_1 = Tk // 4  # Time to grab with right hand
-    Tk_right_1 = 1000  # Time to grab with right hand
+    Tf_right_1 = 0.5
+    Tk_right_1 = int(Tf_right_1 / dt)  # Time to grab with right hand
     t_right_1 = Tk_right_1
-    # Tk_right_2 = int(Tk * 0.5)  # Time to set up
-    Tk_right_2 = 2000  # Time to set up
+    Tf_right_2 = 1.2
+    Tk_right_2 = int(Tf_right_2 / dt)  # Time to set up
     t_right_2 = t_right_1 + Tk_right_2
     Tk_right_3 = Tk - t_right_2  # Time to swing
 
-    # Tk_right_orient_1 = Tk // 4  # Time to orient down
-    Tk_right_orient_1 = 1000  # Time to orient down
-    # Tk_right_orient_2 = int(Tk * 0.5)  # Time to orient around
-    Tk_right_orient_2 = 2000  # Time to orient around
+    Tf_right_orient_1 = 0.5
+    Tk_right_orient_1 = int(Tf_right_orient_1 / dt)  # Time to orient down
+    Tf_right_orient_2 = 1.2
+    Tk_right_orient_2 = int(Tf_right_orient_2 / dt)  # Time to orient around
     Tk_right_orient_3 = (
         Tk - Tk_right_orient_2 - Tk_right_orient_1
     )  # Time to hold final orientation
 
-    Tk_left_1 = Tk // 4  # Duration to grab with left hand (1)
-    Tk_left_1 = 1000  # Duration to grab with left hand (1)
+    Tf_left_1 = 0.5
+    Tk_left_1 = int(Tf_left_1 / dt)
     t_left_1 = Tk_left_1  # Time up to end of grab
-    # Tk_left_2 = int(Tk * 0.5)  # Duration to set up
-    Tk_left_2 = 2000  # Duration to set up
+    Tf_left_2 = 1.2
+    Tk_left_2 = int(Tf_left_2 / dt)  # Duration to set up
     t_left_2 = t_left_1 + Tk_left_2  # Time to end of setting up
-    Tk_left_3_base = Tk // 10  # Duration to throw ball up
-    if Tk_left_3 is None:
-        Tk_left_3 = Tk_left_3_base  # Duration to throw ball up
+    Tf_left_3_base = 0.2
+    if Tf_left_3 is None:
+        Tf_left_3 = Tf_left_3_base  # Duration to throw ball up
+    Tk_left_3 = int(Tf_left_3 / dt)  # Duration to throw ball up
+    Tk_left_3_base = int(Tf_left_3_base / dt)  # Duration to throw ball up
     t_left_3 = t_left_2 + Tk_left_3  # Time to end of throwing ball up
     Tk_left_4 = Tk - t_left_3  # Time to move hand down
     Tk_left_4_base = Tk - Tk_left_3_base - Tk_left_2 - Tk_left_1
 
-    # Tk_left_orient_1 = (11 * Tk) // 24  # Time to orient down
-    # Tk_left_orient_1 = Tk // 4  # Time to orient down
-    Tk_left_orient_1 = 1000  # Time to orient down
-    # Tk_left_orient_2 = int(Tk * 0.5)  # Time to orient around
-    Tk_left_orient_2 = 2000  # Time to orient around
+    Tf_left_orient_1 = 0.5
+    Tk_left_orient_1 = int(Tf_left_orient_1 / dt)  # Time to orient down
+    Tf_left_orient_2 = 1.2
+    Tk_left_orient_2 = int(Tf_left_orient_2 / dt)  # Time to orient around
     Tk_left_orient_3 = (
         Tk - Tk_left_orient_2 - Tk_left_orient_1
     )  # Time to hold final orientation
@@ -780,22 +783,22 @@ def get_times(env, exp_name, Tf):
     elif exp_name == "basic_movements_left":
         pass
     elif exp_name == "ball_throw":
-        time_dict = throw_traj(model, data, Tk)[-1]
+        time_dict = throw_traj(model, data, Tf)[-1]
         grab_t = Tf / 2.2
         grab_tk = int(grab_t / dt)
         let_go_times = [Tk]
     elif exp_name == "grab_ball":
-        out = throw_grab_traj(model, data, Tk)
+        out = throw_grab_traj(model, data, Tf)
         time_dict = out[1]
         grab_t = Tf / 2.2
         grab_tk = int(grab_t / dt)
     elif exp_name == "tennis_serve":
-        time_dict = tennis_traj(model, data, Tk)[-1]
+        time_dict = tennis_traj(model, data, Tf)[-1]
         grab_t = Tf / 2.8
         grab_tk = int(grab_t / dt)
         let_go_times = [time_dict["t_left_3"]]
     elif exp_name == "tennis_grab":
-        time_dict = tennis_traj(model, data, Tk)[-1]
+        time_dict = tennis_traj(model, data, Tf)[-1]
         grab_t = Tf / 2.2
         grab_tk = int(grab_t / dt)
     out_dict = dict(grab_phase_tk=grab_tk, let_go_times=let_go_times)
@@ -835,7 +838,7 @@ def get_data_from_qtarg_file(file_loc, dt=None):
 def make_traj_sets(
     env,
     exp_name,
-    Tk,
+    Tf,
     tk_incr,
     incr_every,
     mask_window_tk,
@@ -876,6 +879,8 @@ def make_traj_sets(
 
     model = env.model
     data = env.data
+    dt = model.opt.timestep
+    Tk = int(Tf / dt)
     # smoothing_sigma = int(.1 / model.opt.timestep)
     # arc_std = 0.0001 / model.opt.timestep
     arc_std = 0.02
@@ -886,7 +891,6 @@ def make_traj_sets(
     acts = opt_utils.get_act_ids(model)
     out_idx = get_idx_sets(env, exp_name)
     syssize = model.nq + model.nv
-    dt = model.opt.timestep
     # incr_time_right_endpoints = list(range(amnt_to_incr, Tk + 1, amnt_to_incr))
     incr_time_right_endpoints = list(range(tk_start + tk_incr, Tk, tk_incr))
     incr_time_right_endpoints.append(Tk)
@@ -1192,7 +1196,7 @@ def make_traj_sets(
             left_arm_traj,
             left_arm_traj_below,
             time_dict,
-        ) = tennis_traj(model, data, Tk)
+        ) = tennis_traj(model, data, Tf)
 
         right_targ_trajs = [right_arm_traj, right_arm_traj_below]
         left_targ_trajs = [left_arm_traj, left_arm_traj_below]
@@ -1490,7 +1494,7 @@ def arm_target_traj(
     seed,
     ctrl_rate,
     ctrl_std,
-    Tk,
+    Tf,
     max_its=30,
     start_it=0,
     lr=10,
@@ -1562,6 +1566,7 @@ def arm_target_traj(
 
     model = env.model
     data = env.data
+    Tk = int(Tf / model.opt.timestep)
     data0 = copy.deepcopy(data)
     qpos0 = data.qpos.copy()
     state0 = util.get_state(data0)
@@ -1569,7 +1574,7 @@ def arm_target_traj(
     traj_and_masks = make_traj_sets(
         env,
         config_name,
-        Tk,
+        Tf,
         tk_incr,
         incr_every,
         mask_window_tk,

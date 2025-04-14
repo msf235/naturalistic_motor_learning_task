@@ -32,15 +32,15 @@ phase_1:
 phase_2:
   name: tennis_serve
   xml_file: './model_files/humanoid_and_tennis.xml'
-  Tf: 2
-  max_its: 1000
+  Tf: 4
+  max_its: 2250
   start_it: 900
   optimizer: 'adam'
   lr: .2
-  lr_orient: 0.05
+  lr_orient: 0.1
   grad_update_every: 10
   reset_noise_scale: 0
-  t_incr: .1
+  t_incr: .2
   # t_incr: 2
   t_mask_start: .6
   incr_every: 150
