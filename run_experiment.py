@@ -1,4 +1,3 @@
-# import humanoid2d
 import sim_util as util
 import basic_env
 import opt_utils
@@ -195,7 +194,7 @@ else:
         seed=args.seed,
         ctrl_rate=CTRL_RATE,
         ctrl_std=CTRL_STD,
-        Tk=Tk,
+        Tf=Tf,
         max_its=params["max_its"],
         start_it=start_it,
         lr=params["lr"],

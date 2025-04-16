@@ -176,8 +176,20 @@ def get_joints(model, data=None):
     # joints['all_qpos_adr_dict'] = convert_qpos_adr(model, data,
     # joints['all_id_dict'].values())
     joints["body"] = get_body_joints(model)
-    joints["ball"] = [k for k in range(model.njnt) if "ball" in jntn(k)]
-    joints["tennis"] = [k for k in range(model.njnt) if "tennis" in jntn(k)]
+    joints["ball"] = {"qpos_adrs": {"all": []}, "qdof_adrs": {"all": []}}
+    ball_ids = [model.joint("ball_joint").id]
+    ball_dofs = convert_qdof_adr(model, ball_ids, True)
+    ball_qpos = convert_qpos_adr(model, ball_ids, True)
+    joints["ball"]["qdof_adrs"]["all"] = ball_dofs
+    joints["ball"]["qpos_adrs"]["all"] = ball_qpos
+
+    joints["racket"] = {"qpos_adrs": {"all": []}, "qdof_adrs": {"all": []}}
+    racket_ids = [model.joint("racket_joint").id]
+    racket_dofs = convert_qdof_adr(model, racket_ids, True)
+    racket_qpos = convert_qpos_adr(model, racket_ids, True)
+    joints["racket"]["qdof_adrs"]["all"] = racket_dofs
+    joints["racket"]["qpos_adrs"]["all"] = racket_qpos
+    # joints["tennis"] = [k for k in range(model.njnt) if "tennis" in jntn(k)]
     return joints
 
 
@@ -292,6 +304,56 @@ class AdhCtrl:
     def reset(self):
         self.k_right = 0
         self.k_left = 0
+
+
+# class AdhCtrl:
+#     def __init__(
+#         self,
+#         t_zero_thrs=[],
+#         t_zero_ids=[],
+#         n_steps=10,
+#         contact_check_list=[],
+#         adh_ids=[],
+#     ):
+#         self.t_zero_thrs = t_zero_thrs
+#         self.tk = 0
+#         self.t_zero_thrs = t_zero_thrs
+#         self.t_zero_ids = t_zero_ids
+#         self.n_steps = n_steps
+#         self.contact_check_list = contact_check_list
+#         self.adh_ids = adh_ids
+#         self.ks = {k: 1 for k in adh_ids}
+#
+#     def get_ctrl(self, model, data, ctrl):
+#         # TODO: resolve contact returns
+#         if len(self.adh_ids) == 0 or len(self.contact_check_list) == 0:
+#             return ctrl, None, None
+#         ctrl = ctrl.copy()
+#         adh_ids = self.adh_ids
+#         contact_pairs = util.get_contact_pairs(model, data)
+#         adh_contact_ids = []
+#         for contact_pair in contact_pairs:
+#             for k, contact_pair_check in enumerate(self.contact_check_list):
+#                 # Check if contact_pair_check == contact_pair, ignoring order
+#                 if (
+#                     contact_pair_check[0] in contact_pair
+#                     and contact_pair_check[1] in contact_pair
+#                 ):
+#                     adh_id = adh_ids[k]
+#                     if adh_id not in adh_contact_ids:  # TODO: check this
+#                         adh_contact_ids.append(adh_id)
+#                         ctrl[adh_id] = 1 / self.n_steps * self.ks[adh_id]
+#                         if self.ks[adh_id] < self.n_steps:
+#                             self.ks[adh_id] += 1
+#         for k in range(len(self.t_zero_thrs)):
+#             if self.t_zero_thrs[k] is not None and self.tk >= self.t_zero_thrs[k]:
+#                 ctrl[self.t_zero_ids[k]] = 0
+#             self.tk += 1
+#         return ctrl, None, None
+#
+#     def reset(self):
+#         self.k_right = 0
+#         self.k_left = 0
 
 
 def get_Q_balance(model, data, balance_cost, foot_cost):
@@ -442,11 +504,11 @@ def get_stabilized_ctrls(
     free_ctrls=None,
     K_update_interv=None,
     free_ctrl_fn=None,
-    balance_cost=1000,
-    joint_cost=100,
-    root_cost=0,
-    foot_cost=1000,
-    ctrl_cost=1,
+    balance_cost=1000.0,
+    joint_cost=100.0,
+    root_cost=0.0,
+    foot_cost=1000.0,
+    ctrl_cost=1.0,
     let_go_times=[],
     let_go_ids=[],
     n_steps_adh=20,
