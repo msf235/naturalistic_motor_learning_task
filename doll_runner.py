@@ -49,22 +49,22 @@ dt = model.opt.timestep
 burn_step = int(0.01 / dt)
 
 
-def make_ctrls():
-    fid = open("ctrls", "w")
-    init_str = "16: -.022, 17: .310, 18: -.3, 20: .3, 22: .2, 23: -.1, 25: -.04, 26: -.22, 27: .3, 28: -.2, 29: -.2 | 150"
-    # add 46
-    # init_str = "62: -.022, 63: .310, 64: -.3, 66: .3, 68: .2, 69: -.1, 71: -.04, 72: -.22, 73: .3, 74: -.2, 75: -.2 | 150"
-    fid.write(init_str + "\n")
-    joint_poss = np.round(0.310 - np.linspace(0, 0.1, 100), 4)
-    for joint_pos in joint_poss:
-        row_str = "17: " + str(joint_pos) + " | 50"
-        fid.write(row_str + "\n")
-    joint_poss2 = np.ones(1000) * joint_poss[-1]
-    for joint_pos in joint_poss2:
-        row_str = "17: " + str(joint_pos) + " | 50"
-        fid.write(row_str + "\n")
-    fid.close()
-    # breakpoint()
+# def make_ctrls():
+#     fid = open("ctrls", "w")
+#     init_str = "16: -.022, 17: .310, 18: -.3, 20: .3, 22: .2, 23: -.1, 25: -.04, 26: -.22, 27: .3, 28: -.2, 29: -.2 | 150"
+#     # add 46
+#     # init_str = "62: -.022, 63: .310, 64: -.3, 66: .3, 68: .2, 69: -.1, 71: -.04, 72: -.22, 73: .3, 74: -.2, 75: -.2 | 150"
+#     fid.write(init_str + "\n")
+#     joint_poss = np.round(0.310 - np.linspace(0, 0.1, 100), 4)
+#     for joint_pos in joint_poss:
+#         row_str = "17: " + str(joint_pos) + " | 50"
+#         fid.write(row_str + "\n")
+#     joint_poss2 = np.ones(1000) * joint_poss[-1]
+#     for joint_pos in joint_poss2:
+#         row_str = "17: " + str(joint_pos) + " | 50"
+#         fid.write(row_str + "\n")
+#     fid.close()
+#     # breakpoint()
 
 
 def reset():
@@ -150,8 +150,8 @@ def render_fn():
 
 free_ctrls = np.zeros((Tk, len(not_stabilize_act_idx)))
 
-with open("ctrls", "r") as jnt_file:
-    jnt_data = jnt_file.readlines()
+# with open("ctrls", "r") as jnt_file:
+#     jnt_data = jnt_file.readlines()
 
 balance_cost = 0
 joint_cost = 5e6
@@ -217,13 +217,14 @@ def forward_with_dynamic_adhesion(
     file_line = 0
     qpos0n = data.qpos.copy()
     for k in range(Tk):
-        if step_cnt >= n_steps and file_line < len(jnt_data):
+        # if step_cnt >= n_steps and file_line < len(jnt_data):
+        if step_cnt >= n_steps:
             step_cnt = 0
-            res, res2 = jnt_data[file_line].split("|")
-            # res = input(f"arm qpos: {prev_jnt}:\n")
-            # res2 = input(f"num simulation steps (1):  \n")
-            # if res2 == "":
-            #     res2 = "1"
+            # res, res2 = jnt_data[file_line].split("|")
+            res = input(f"arm qpos: {prev_jnt}:\n")
+            res2 = input(f"num simulation steps (1):  \n")
+            if res2 == "":
+                res2 = "1"
             n_steps = int(res2)
             if res != "":
                 res = res.split(",")
@@ -232,9 +233,8 @@ def forward_with_dynamic_adhesion(
                     index = int(psplit[0])
                     value = float(psplit[1])
                     prev_jnt[index] = value
-            file_line += 1
-            input("Press enter to continue.")
-        breakpoint()
+            # file_line += 1
+            # input("Press enter to continue.")
         for idx in range(len(prev_jnt)):
             data.qpos[arm_dof[idx]] = prev_jnt[idx]
         mj.mj_forward(model, data)
@@ -270,7 +270,7 @@ def forward_with_dynamic_adhesion(
 
 
 if __name__ == "__main__":
-    make_ctrls()
+    # make_ctrls()
     reset()
 
     ctrls, K = get_lqr(model, data)

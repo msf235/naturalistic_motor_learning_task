@@ -67,6 +67,17 @@ burn_step = int(0.01 / dt)
 
 def make_qpos_dicts():
     init_qpos = {
+        47: -0.022,
+        48: 0.310,
+        49: -0.3,
+        51: -0.3,
+        53: -0.2,
+        54: 0.15,
+        56: 0.04,
+        57: 0.22,
+        58: 0.3,
+        59: 0.10,
+        60: 0.2,
         62: -0.022,
         63: 0.310,
         64: -0.3,
@@ -96,6 +107,7 @@ acts = opt_utils.get_act_ids(model)
 # body_qpos = joints["body"]["qpos_adrs"]
 body_ids = joints["body"]["ids"]
 racket_qpos = joints["racket"]["qpos_adrs"]["all"]
+ball_qpos = joints["ball"]["qpos_adrs"]["all"]
 
 out_idx = arm_t.get_idx_sets(env, "tennis_serve")
 
@@ -173,15 +185,21 @@ def iterate_through_qposs(
         for idx, val in qpos_dict.items():
             data.qpos[idx] = val
         mj.mj_forward(model, data)
+
         hand_xquat = data.body("R_Hand").xquat
-        # xquat = quaternion_multiply(hand_xquat, np.ones(4) * 0.5)
-        # xquat = quaternion_multiply(hand_xquat, q_Id)
         xquat = quaternion_multiply(hand_xquat, q_y)
         xquat = quaternion_multiply(xquat, q_x)
         racket_targ_xpos = data.site("racket_center_grab").xpos
         data.qpos[racket_qpos[:3]] = racket_targ_xpos
-        # data.qpos[racket_qpos[3:]] = hand_xquat
         data.qpos[racket_qpos[3:]] = xquat
+
+        hand_xquat = data.body("L_Hand").xquat
+        xquat = quaternion_multiply(hand_xquat, q_y)
+        xquat = quaternion_multiply(xquat, q_x)
+        ball_targ_xpos = data.site("ball_center_grab").xpos
+        data.qpos[ball_qpos[:3]] = ball_targ_xpos
+        data.qpos[ball_qpos[3:]] = xquat
+
         mj.mj_forward(model, data)
         render_fn()
         input("Press Enter to continue...")
@@ -201,7 +219,20 @@ def iterate_through_qposs(
 
 
 if __name__ == "__main__":
+    # 1: .022, 2: -.310, 3: -.3, 5: -.3, 7: -.2, 8: .15, 10: .04, 11: .22, 12: .3, 13: .10, 14: .2, 16: -.022, 17: .310, 18: -.3, 20: .3, 22: .2, 23: -.1, 25: -.04, 26: -.22, 27: .3, 28: -.2, 29: -.2
+
     init_qpos = {
+        47: 0.022,
+        48: -0.310,
+        49: -0.3,
+        51: -0.3,
+        53: -0.2,
+        54: 0.15,
+        56: 0.04,
+        57: 0.22,
+        58: 0.3,
+        59: 0.10,
+        60: 0.2,
         62: -0.022,
         63: 0.310,
         64: -0.3,
@@ -214,8 +245,8 @@ if __name__ == "__main__":
         74: -0.2,
         75: -0.2,
     }
-    qposs = []
-    joint_poss = np.round(0.310 - np.linspace(0, 0.1, 100), 4)
+    qposs = [init_qpos]
+    joint_poss = np.round(0.310 - np.linspace(0, 1, 20), 4)
     for joint_pos in joint_poss:
         qposs.append({63: joint_pos})
     iterate_through_qposs(env, render_fn, qposs)
