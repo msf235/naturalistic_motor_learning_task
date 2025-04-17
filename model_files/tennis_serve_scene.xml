@@ -102,7 +102,7 @@
       <geom name="racket_net" type="box" size=".08 .14 .008" pos="0 -.21 0" 
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".7 0 0 .5"
         density="2" contype="00" conaffinity="01" solref=".02 .4"/>
-      <geom name="racket_net_back" type="box" size=".08 .14 .018" pos="0 -.21 -.01"
+      <geom name="racket_net_back" type="box" size=".08 .14 .018" pos="0 -.21 .01"
         material="obj" condim="3" friction="1 0.005 0.0001" rgba=".2 .4 .4 .5"
         density="0" contype="10" conaffinity="10" solref=".02 .4"/>
       <site name="racket" pos="0 0.11 0" size=".01"/>
