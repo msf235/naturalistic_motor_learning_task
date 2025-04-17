@@ -4,15 +4,14 @@ import numpy as np
 from pathlib import Path
 import basic_env
 import config
-import opt_utils
-import sim_util as util
 import arm_targ_traj as arm_t
-from matplotlib import pyplot as plt
-import mujoco as mj
+from scipy.spatial.transform import Rotation as sRot
 
 # Load configuration and set parameters
 args = config.get_arg_parser().parse_args()
 vargs = vars(args)
+
+upright_start = True
 
 
 def ret_fn(model, data):
@@ -35,8 +34,7 @@ def process_data(ctrls, env, t_after=0, ret_fn=ret_fn, label=""):
     )
     sim_data["dt"] = env.model.opt.timestep
     sim_data["njnts"] = env.model.njnt
-    full_data = {"0": sim_data}
-    return full_data
+    return sim_data
 
 
 def process_and_save_data(
@@ -48,7 +46,10 @@ def process_and_save_data(
 ):
     datadir.mkdir(parents=True, exist_ok=True)
     full_data = process_data(ctrls, env, t_after=t_after, label=label)
-    joblib.dump(full_data, datadir / f"full_data{label}.pkl")
+    joblib.dump(
+        full_data,
+        datadir / f"full_data{label}.pkl",
+    )
 
 
 if __name__ == "__main__":
@@ -84,7 +85,4 @@ if __name__ == "__main__":
     model = env.model
     data = env.data
     data = process_data(ctrls, env, label=f"_{name}_{args.load_it}")
-    breakpoint()
-    process_and_save_data(
-        ctrls, env, datadir=Path("data_phc") / name, label=f"_{name}_{args.load_it}"
-    )
+    np.save("qpos.npy", data["qpos"])

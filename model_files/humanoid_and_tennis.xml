@@ -24,10 +24,13 @@
     <geom condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/>
   </default>
   <include file="smpl_humanoid_soft_joint_limits.xml"/>
+  <!-- <include file="smpl_humanoid.xml"/> -->
   <include file="tennis_serve_scene.xml"/>
   <contact>
       <pair geom1="R_Hand_node_1" geom2="racket_node_1" friction="4 4 .04 .0008 .0008"
-        solimp="0.9 0.99 0.0005" solref="0.001 1" margin=".055" gap=".055"/>
+        solimp="0.9 0.99 0.0005" solref="0.001 1" margin=".03" gap=".03"/>
+      <pair geom1="R_Hand_node_2" geom2="racket_node_2" friction="4 4 .04 .0008 .0008"
+        solimp="0.9 0.99 0.0005" solref="0.001 1" margin=".03" gap=".03"/>
       <pair geom1="L_Hand_core" geom2="ball_core" friction="4 4 .04 .0008 .0008"
         solimp="0.9 0.99 0.0005" solref="0.001 1" margin=".055" gap=".055"/>
   </contact>
