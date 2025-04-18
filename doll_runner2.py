@@ -11,9 +11,16 @@ import config
 import mujoco as mj
 import mujoco.viewer
 from scipy.spatial.transform import Rotation as sRot
+from pathlib import Path
 
 args = config.get_arg_parser().parse_args()
 vargs = vars(args)
+
+
+out_dir = Path("out_qpos/")
+out_dir.mkdir(parents=True, exist_ok=True)
+
+render = False
 
 
 # config_name = args.configfile.split("/")[-1].split(".")[0]
@@ -119,16 +126,24 @@ arm_ids = joints["body"]["ids"]["left_arm"] + joints["body"]["ids"]["right_arm"]
 
 print("Length of arm_dof: ", len(arm_dof))
 # arm_names = {k: model.joint(arm_ids[k]).name for k in range(len(arm_ids))}
-arm_dofs = {arm_dof[k]: model.joint(arm_id).name for k, arm_id in enumerate(arm_ids)}
-arm_names = {model.joint(arm_id).name: arm_dof[k] for k, arm_id in enumerate(arm_ids)}
+arm_names = {arm_dof[k]: model.joint(arm_id).name for k, arm_id in enumerate(arm_ids)}
+arm_dofs = {model.joint(arm_id).name: arm_dof[k] for k, arm_id in enumerate(arm_ids)}
 print(arm_names)
 
-viewer = mujoco.viewer.launch_passive(model, data)
+if render:
+    viewer = mujoco.viewer.launch_passive(model, data)
 
 
-def render_fn():
-    # env.render()
-    viewer.sync()
+if render:
+
+    def render_fn():
+        # env.render()
+        viewer.sync()
+        input("Press Enter to continue...")
+else:
+
+    def render_fn():
+        pass
 
 
 sqrt2_over_2 = np.sqrt(2) / 2
@@ -137,6 +152,8 @@ q_Id = np.array([1.0, 0.0, 0.0, 0.0])  # No rotation
 q_x = np.array([sqrt2_over_2, -sqrt2_over_2, 0.0, 0.0])  # -90° about x
 q_y = np.array([sqrt2_over_2, 0.0, -sqrt2_over_2, 0.0])  # -90° about y
 q_z = np.array([sqrt2_over_2, 0.0, 0.0, sqrt2_over_2])  # 90° about z
+
+qpos_data = []
 
 
 def iterate_through_qposs(
@@ -154,7 +171,7 @@ def iterate_through_qposs(
         render_fn = env.render
     for qpos_dict in qpos_dicts:
         for idx, val in qpos_dict.items():
-            data.qpos[arm_names[idx]] = val
+            data.qpos[arm_dofs[idx]] = val
         mj.mj_forward(model, data)
 
         if follow:
@@ -176,7 +193,8 @@ def iterate_through_qposs(
 
             mj.mj_forward(model, data)
         render_fn()
-        input("Press Enter to continue...")
+        qpos_data.append(data.qpos.copy())
+        # input("Press Enter to continue...")
 
 
 # (
@@ -213,16 +231,28 @@ ctrls_burn_in = reset()
 def interps(v1, v2, ss):
     ret_val = []
     for s in ss:
-        new_dict = {k: (1 - s) * v1[k] + s * v2[k] for k in v1.keys()}
+        new_dict = {k: (1 - s).item() * v1[k] + s.item() * v2[k] for k in v1.keys()}
         ret_val.append(new_dict)
     return ret_val
 
 
+def zero_non_specified(d1):
+    for key in arm_dofs.keys():
+        if key not in d1.keys():
+            d1[key] = 0
+
+
 if __name__ == "__main__":
     # 1: .022, 2: -.310, 3: -.3, 5: -.3, 7: -.2, 8: .15, 10: .04, 11: .22, 12: .3, 13: .10, 14: .2, 16: -.022, 17: .310, 18: -.3, 20: .3, 22: .2, 23: -.1, 25: -.04, 26: -.22, 27: .3, 28: -.2, 29: -.2
+    T = 3
+    framerate = 30
+    frames = T * framerate
+    frames_per_phase = int(frames / 5)
+    final_phase_frames = frames - frames_per_phase * 4
     ctrls_burn_in = reset()
 
-    init_qpos2 = {
+    init_qpos1 = {k: 0.0 for k in arm_dofs.keys()}  # Initial zero position
+    init_qpos2 = {  # Grabbing position
         "L_Thorax_y": 0.022,
         "L_Thorax_z": -0.310,
         "L_Shoulder_x": -0.3,
@@ -246,97 +276,54 @@ if __name__ == "__main__":
         "R_Hand_y": -0.2,
         "R_Hand_z": -0.2,
     }
-    init_qpos1 = {k: 0.0 for k in init_qpos2.keys()}
     # qposs = [init_qpos1]
-    ss = np.linspace(0, 1, 2)
+    zero_non_specified(init_qpos2)
+    ss = np.linspace(0, 1, frames_per_phase)
     qposs = interps(init_qpos1, init_qpos2, ss)
     iterate_through_qposs(env, render_fn, qposs, follow=False)
 
-    init_qpos3 = {
-        "L_Thorax_z": 0.2,
-        "L_Hand_x": -2.8,
-        "L_Hand_y": -0.1,
-        "R_Thorax_z": -0.2,
-        "R_Hand_x": -1.97,
-        "R_Wrist_x": -1.19,
-        "R_Hand_y": 0.1,
-        "L_Thorax_y": 0.022,
-        "L_Shoulder_x": -0.3,
-        "L_Shoulder_z": -0.3,
-        "L_Elbow_y": -0.2,
+    init_qpos3 = {  # Prep setup position
+        "R_Wrist_x": -1.55,
+        "R_Hand_x": -1.55,
+        "R_Elbow_z": -0.75,
+        "L_Wrist_x": -1.55,
+        "L_Hand_x": -1.55,
         "L_Elbow_z": 0.15,
-        "L_Wrist_y": 0.04,
-        "L_Wrist_z": 0.22,
-        "L_Hand_z": 0.2,
-        "R_Thorax_y": -0.022,
-        "R_Shoulder_x": -0.3,
-        "R_Shoulder_z": 0.3,
-        "R_Elbow_y": 0.2,
-        "R_Elbow_z": -0.1,
-        "R_Wrist_y": -0.04,
-        "R_Wrist_z": -0.22,
-        "R_Hand_z": -0.2,
     }
-    for key in arm_names.keys():
-        if key not in arm_dofs.keys():
-            init_qpos3[key] = 0
-    ss = np.linspace(0, 1, 2)
+    zero_non_specified(init_qpos3)
+    ss = np.linspace(0, 1, frames_per_phase - 4)
     qposs = interps(init_qpos2, init_qpos3, ss)
-    print("doing 3")
+    qposs += [init_qpos3] * 4  # Linger on the final prep position
     iterate_through_qposs(env, render_fn, qposs, follow=True)
 
     # init_qpos4 = {51: -0.1, 53: -1, 54: 1, 58: -2.0, 60: 0.4}
-    init_qpos4 = {
-        "L_Shoulder_z": -0.1,
-        "L_Elbow_y": -1,
-        "L_Elbow_z": 1,
-        "L_Hand_x": -2.0,
-        "L_Hand_z": 0.4,
+    init_qpos4 = {  # Throwing ball position
+        "R_Wrist_x": -1.55,
+        "R_Hand_x": -1.55,
+        "R_Elbow_z": -0.75,
+        "L_Shoulder_z": 0.5,
+        "L_Elbow_z": 0.88,
+        "L_Wrist_x": -1.55,
+        "L_Hand_z": 0.42,
+        "L_Hand_x": -1.55,
     }
-    for key in arm_names.keys():
-        if key not in arm_dofs.keys():
-            init_qpos4[key] = 0
-    ss = np.linspace(0, 1, 2)
+    zero_non_specified(init_qpos4)
+    ss = np.linspace(0, 1, frames_per_phase)
     qposs = interps(init_qpos3, init_qpos4, ss)
     iterate_through_qposs(env, render_fn, qposs, follow=True)
 
-    init_qpos5 = {
-        "L_Thorax_z": 0.2,
-        "R_Hand_y": 0.1,
-        "R_Shoulder_z": 0.1,
-        "R_Elbow_y": 1,
+    init_qpos5 = {  # Hitting racket position
+        "R_Wrist_x": -1.55,
+        "R_Hand_x": -1.55,
+        "R_Thorax_z": -0.6,
+        "R_Shoulder_z": -0.82,
         "R_Elbow_z": -1,
-        "R_Hand_x": -2.0,
-        "R_Hand_z": 0.4,
+        "R_Hand_z": -0.36,
     }
-    for key in init_qpos2.keys():
-        if key not in arm_dofs.keys():
-            init_qpos5[key] = 0
-    ss = np.linspace(0, 1, 2)
+    zero_non_specified(init_qpos5)
+    ss = np.linspace(0, 1, final_phase_frames)
     qposs = interps(init_qpos4, init_qpos5, ss)
     iterate_through_qposs(env, render_fn, qposs, follow=True)
 
-    init_qpos6 = {
-        "L_Thorax_y": 0.022,
-        "L_Thorax_z": -0.310,
-        "L_Shoulder_x": -0.3,
-        "L_Shoulder_z": -0.3,
-        "L_Elbow_y": -0.2,
-        "L_Elbow_z": 0.15,
-        "L_Hand_x": -1.5,
-        "L_Hand_z": 0.0,
-        # "L_Wrist_y": 0.04,
-        # "L_Wrist_z": 0.22,
-        "R_Hand_y": 0.1,
-        "R_Shoulder_z": 0.1,
-        "R_Elbow_y": 2,
-        "R_Elbow_z": -1,
-        "R_Hand_x": -2.0,
-        "R_Hand_z": 0.4,
-    }
-    for key in init_qpos2.keys():
-        if key not in arm_dofs.keys():
-            init_qpos6[key] = 0
-    ss = np.linspace(0, 1, 2)
-    qposs = interps(init_qpos5, init_qpos6, ss)
-    iterate_through_qposs(env, render_fn, qposs, follow=True)
+    qpos_data = np.array(qpos_data)
+    np.save(out_dir / "qpos_data.npy", qpos_data)
