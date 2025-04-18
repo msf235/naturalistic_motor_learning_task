@@ -260,13 +260,29 @@ if __name__ == "__main__":
         "R_Hand_x": -1.97,
         "R_Wrist_x": -1.19,
         "R_Hand_y": 0.1,
+        "L_Thorax_y": 0.022,
+        "L_Shoulder_x": -0.3,
+        "L_Shoulder_z": -0.3,
+        "L_Elbow_y": -0.2,
+        "L_Elbow_z": 0.15,
+        "L_Wrist_y": 0.04,
+        "L_Wrist_z": 0.22,
+        "L_Hand_z": 0.2,
+        "R_Thorax_y": -0.022,
+        "R_Shoulder_x": -0.3,
+        "R_Shoulder_z": 0.3,
+        "R_Elbow_y": 0.2,
+        "R_Elbow_z": -0.1,
+        "R_Wrist_y": -0.04,
+        "R_Wrist_z": -0.22,
+        "R_Hand_z": -0.2,
     }
     for key in arm_names.keys():
         if key not in arm_dofs.keys():
-            # init_qpos3[key] = init_qpos2[key]
             init_qpos3[key] = 0
     ss = np.linspace(0, 1, 2)
     qposs = interps(init_qpos2, init_qpos3, ss)
+    print("doing 3")
     iterate_through_qposs(env, render_fn, qposs, follow=True)
 
     # init_qpos4 = {51: -0.1, 53: -1, 54: 1, 58: -2.0, 60: 0.4}
@@ -278,8 +294,8 @@ if __name__ == "__main__":
         "L_Hand_z": 0.4,
     }
     for key in arm_names.keys():
-        if key not in init_qpos4.keys():
-            init_qpos4[key] = init_qpos3[key]
+        if key not in arm_dofs.keys():
+            init_qpos4[key] = 0
     ss = np.linspace(0, 1, 2)
     qposs = interps(init_qpos3, init_qpos4, ss)
     iterate_through_qposs(env, render_fn, qposs, follow=True)
@@ -294,8 +310,8 @@ if __name__ == "__main__":
         "R_Hand_z": 0.4,
     }
     for key in init_qpos2.keys():
-        if key not in init_qpos5.keys():
-            init_qpos5[key] = init_qpos4[key]
+        if key not in arm_dofs.keys():
+            init_qpos5[key] = 0
     ss = np.linspace(0, 1, 2)
     qposs = interps(init_qpos4, init_qpos5, ss)
     iterate_through_qposs(env, render_fn, qposs, follow=True)
@@ -319,8 +335,8 @@ if __name__ == "__main__":
         "R_Hand_z": 0.4,
     }
     for key in init_qpos2.keys():
-        if key not in init_qpos6.keys():
-            init_qpos6[key] = init_qpos5[key]
+        if key not in arm_dofs.keys():
+            init_qpos6[key] = 0
     ss = np.linspace(0, 1, 2)
     qposs = interps(init_qpos5, init_qpos6, ss)
     iterate_through_qposs(env, render_fn, qposs, follow=True)
